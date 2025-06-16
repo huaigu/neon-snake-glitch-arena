@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 export interface Position {
@@ -22,7 +23,7 @@ export interface Food {
   value: number;
 }
 
-const GRID_SIZE = 30;
+const GRID_SIZE = 60; // Increased from 30 to 60
 const GAME_SPEED = 150;
 const AI_PLAYERS = [
   { name: 'NEON_HUNTER', color: '#ff0080' },
@@ -52,14 +53,15 @@ export const useSnakeGame = () => {
   const initializeGame = useCallback(() => {
     console.log('Initializing game...');
     
-    // Create player snake with cyan color and starting position
-    const playerSnake = createInitialSnake('player', { x: 5, y: 15 }, '#00ffff', true, 'PLAYER_01');
+    // Create player snake with cyan color and starting position (center of grid)
+    const centerPos = Math.floor(GRID_SIZE / 2);
+    const playerSnake = createInitialSnake('player', { x: centerPos, y: centerPos }, '#00ffff', true, 'PLAYER_01');
     
-    // Create AI snakes with different starting positions
+    // Create AI snakes with different starting positions around the center
     const aiSnakes = AI_PLAYERS.map((ai, index) => 
       createInitialSnake(
         `ai_${index}`, 
-        { x: 5 + (index + 1) * 7, y: 15 + (index * 3) }, 
+        { x: centerPos + (index + 1) * 7, y: centerPos + (index * 3) }, 
         ai.color, 
         false, 
         ai.name
@@ -70,11 +72,14 @@ export const useSnakeGame = () => {
     console.log('Created snakes:', allSnakes);
     
     setSnakes(allSnakes);
-    setFoods([
-      { position: { x: 15, y: 10 }, type: 'normal', value: 10 },
-      { position: { x: 25, y: 20 }, type: 'bonus', value: 50 },
-      { position: { x: 10, y: 25 }, type: 'normal', value: 10 }
-    ]);
+    
+    // Generate more food across the larger grid
+    const initialFoods = [];
+    for (let i = 0; i < 8; i++) {
+      initialFoods.push(generateFood());
+    }
+    setFoods(initialFoods);
+    
     setGameOver(false);
     directionRef.current = 'right';
   }, []);
@@ -209,7 +214,8 @@ export const useSnakeGame = () => {
           );
         });
         
-        while (newFoods.length < 3) {
+        // Maintain more food on larger grid
+        while (newFoods.length < 8) {
           newFoods.push(generateFood());
         }
         

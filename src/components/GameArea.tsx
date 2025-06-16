@@ -10,16 +10,33 @@ interface GameAreaProps {
 
 export const GameArea: React.FC<GameAreaProps> = ({ snakes, foods, gridSize }) => {
   const cellSize = 18;
-  const containerSize = gridSize * cellSize;
+  const viewportSize = 30; // Show 30x30 area around player
+  const containerSize = viewportSize * cellSize;
   
-  // Minimap settings - show local area around player
+  // Minimap settings - show larger area around player
   const minimapSize = 120;
-  const minimapViewRadius = 8; // Show 8x8 area around player (total 16x16 view)
+  const minimapViewRadius = 15; // Show 15x15 area around player (total 30x30 view)
   const minimapCellSize = minimapSize / (minimapViewRadius * 2);
 
   // Get player snake
   const playerSnake = snakes.find(snake => snake.isPlayer);
   const playerHead = playerSnake?.segments[0];
+
+  // Calculate viewport bounds based on player position
+  const getViewportBounds = () => {
+    if (!playerHead) return { minX: 0, maxX: viewportSize, minY: 0, maxY: viewportSize };
+    
+    const centerX = playerHead.x;
+    const centerY = playerHead.y;
+    const halfViewport = Math.floor(viewportSize / 2);
+    
+    return {
+      minX: Math.max(0, centerX - halfViewport),
+      maxX: Math.min(gridSize, centerX - halfViewport + viewportSize),
+      minY: Math.max(0, centerY - halfViewport),
+      maxY: Math.min(gridSize, centerY - halfViewport + viewportSize)
+    };
+  };
 
   // Calculate minimap bounds based on player position
   const getMinimapBounds = () => {
@@ -36,7 +53,27 @@ export const GameArea: React.FC<GameAreaProps> = ({ snakes, foods, gridSize }) =
     };
   };
 
+  const viewportBounds = getViewportBounds();
   const minimapBounds = getMinimapBounds();
+
+  // Filter items that are within the viewport
+  const getVisibleItems = () => {
+    const visibleFoods = foods.filter(food => 
+      food.position.x >= viewportBounds.minX && food.position.x < viewportBounds.maxX &&
+      food.position.y >= viewportBounds.minY && food.position.y < viewportBounds.maxY
+    );
+
+    const visibleSnakeSegments = snakes.flatMap(snake => 
+      snake.segments
+        .filter(segment => 
+          segment.x >= viewportBounds.minX && segment.x < viewportBounds.maxX &&
+          segment.y >= viewportBounds.minY && segment.y < viewportBounds.maxY
+        )
+        .map((segment, index) => ({ snake, segment, segmentIndex: index }))
+    );
+
+    return { visibleFoods, visibleSnakeSegments };
+  };
 
   // Filter items that are within the minimap view
   const getMinimapItems = () => {
@@ -57,7 +94,8 @@ export const GameArea: React.FC<GameAreaProps> = ({ snakes, foods, gridSize }) =
     return { visibleFoods, visibleSnakeSegments };
   };
 
-  const { visibleFoods, visibleSnakeSegments } = getMinimapItems();
+  const { visibleFoods, visibleSnakeSegments } = getVisibleItems();
+  const { visibleFoods: minimapFoods, visibleSnakeSegments: minimapSnakeSegments } = getMinimapItems();
 
   return (
     <div className="flex-1 flex items-center justify-center p-8">
@@ -70,9 +108,17 @@ export const GameArea: React.FC<GameAreaProps> = ({ snakes, foods, gridSize }) =
           <div className="flex items-center justify-center space-x-4 text-sm text-gray-400">
             <span>Grid: {gridSize}x{gridSize}</span>
             <span>•</span>
+            <span>View: {viewportSize}x{viewportSize}</span>
+            <span>•</span>
             <span>Players: {snakes.filter(s => s.isAlive).length}/{snakes.length}</span>
             <span>•</span>
             <span>Food: {foods.length}</span>
+            {playerHead && (
+              <>
+                <span>•</span>
+                <span>Pos: ({playerHead.x}, {playerHead.y})</span>
+              </>
+            )}
           </div>
         </div>
 
@@ -92,7 +138,7 @@ export const GameArea: React.FC<GameAreaProps> = ({ snakes, foods, gridSize }) =
             height={containerSize}
           >
             {/* Vertical lines */}
-            {Array.from({ length: gridSize + 1 }).map((_, i) => (
+            {Array.from({ length: viewportSize + 1 }).map((_, i) => (
               <line
                 key={`v-${i}`}
                 x1={i * cellSize}
@@ -104,7 +150,7 @@ export const GameArea: React.FC<GameAreaProps> = ({ snakes, foods, gridSize }) =
               />
             ))}
             {/* Horizontal lines */}
-            {Array.from({ length: gridSize + 1 }).map((_, i) => (
+            {Array.from({ length: viewportSize + 1 }).map((_, i) => (
               <line
                 key={`h-${i}`}
                 x1={0}
@@ -117,7 +163,7 @@ export const GameArea: React.FC<GameAreaProps> = ({ snakes, foods, gridSize }) =
             ))}
           </svg>
 
-          {/* Local Minimap - Player Area */}
+          {/* Enhanced Minimap - Larger Area */}
           <div 
             className="absolute top-4 right-4 border border-cyber-cyan/60 bg-black/80 backdrop-blur-sm rounded"
             style={{ 
@@ -128,7 +174,7 @@ export const GameArea: React.FC<GameAreaProps> = ({ snakes, foods, gridSize }) =
           >
             {/* Minimap title */}
             <div className="absolute -top-6 left-0 text-xs text-cyber-cyan font-bold">
-              LOCAL RADAR
+              TACTICAL RADAR
             </div>
             
             {/* Minimap grid */}
@@ -138,20 +184,20 @@ export const GameArea: React.FC<GameAreaProps> = ({ snakes, foods, gridSize }) =
               height={minimapSize}
             >
               {/* Grid lines */}
-              {Array.from({ length: 9 }).map((_, i) => (
+              {Array.from({ length: 16 }).map((_, i) => (
                 <g key={i}>
                   <line
                     x1={0}
-                    y1={i * (minimapSize / 8)}
+                    y1={i * (minimapSize / 15)}
                     x2={minimapSize}
-                    y2={i * (minimapSize / 8)}
+                    y2={i * (minimapSize / 15)}
                     stroke="rgba(0, 255, 255, 0.3)"
                     strokeWidth="0.5"
                   />
                   <line
-                    x1={i * (minimapSize / 8)}
+                    x1={i * (minimapSize / 15)}
                     y1={0}
-                    x2={i * (minimapSize / 8)}
+                    x2={i * (minimapSize / 15)}
                     y2={minimapSize}
                     stroke="rgba(0, 255, 255, 0.3)"
                     strokeWidth="0.5"
@@ -161,7 +207,7 @@ export const GameArea: React.FC<GameAreaProps> = ({ snakes, foods, gridSize }) =
             </svg>
 
             {/* Minimap food */}
-            {visibleFoods.map((food, index) => (
+            {minimapFoods.map((food, index) => (
               <div
                 key={`minimap-food-${index}`}
                 className="absolute rounded-full"
@@ -176,7 +222,7 @@ export const GameArea: React.FC<GameAreaProps> = ({ snakes, foods, gridSize }) =
             ))}
 
             {/* Minimap snakes */}
-            {visibleSnakeSegments.map(({ snake, segment, segmentIndex }, index) => {
+            {minimapSnakeSegments.map(({ snake, segment, segmentIndex }, index) => {
               const isHead = segmentIndex === 0;
               const isPlayer = snake.isPlayer;
               
@@ -224,10 +270,22 @@ export const GameArea: React.FC<GameAreaProps> = ({ snakes, foods, gridSize }) =
                 </svg>
               </div>
             </div>
+
+            {/* Viewport indicator */}
+            <div 
+              className="absolute border border-white/50"
+              style={{
+                left: (viewportBounds.minX - minimapBounds.minX) * minimapCellSize,
+                top: (viewportBounds.minY - minimapBounds.minY) * minimapCellSize,
+                width: (viewportBounds.maxX - viewportBounds.minX) * minimapCellSize,
+                height: (viewportBounds.maxY - viewportBounds.minY) * minimapCellSize,
+                pointerEvents: 'none'
+              }}
+            />
           </div>
 
           {/* Food Items */}
-          {foods.map((food, index) => (
+          {visibleFoods.map((food, index) => (
             <div
               key={index}
               className={`absolute food-item ${
@@ -236,8 +294,8 @@ export const GameArea: React.FC<GameAreaProps> = ({ snakes, foods, gridSize }) =
                   : 'bg-cyber-green border border-cyber-green'
               }`}
               style={{
-                left: food.position.x * cellSize + 2,
-                top: food.position.y * cellSize + 2,
+                left: (food.position.x - viewportBounds.minX) * cellSize + 2,
+                top: (food.position.y - viewportBounds.minY) * cellSize + 2,
                 width: cellSize - 4,
                 height: cellSize - 4,
                 color: food.type === 'bonus' ? '#ff8000' : '#00ff41'
@@ -250,49 +308,47 @@ export const GameArea: React.FC<GameAreaProps> = ({ snakes, foods, gridSize }) =
           ))}
 
           {/* Snake Bodies */}
-          {snakes.map((snake) => 
-            snake.segments.map((segment, segmentIndex) => {
-              const isHead = segmentIndex === 0;
-              const opacity = snake.isAlive ? 1 : 0.3;
-              
-              return (
-                <div
-                  key={`${snake.id}-${segmentIndex}`}
-                  className={`absolute snake-segment transition-all duration-150 ${
-                    isHead ? 'animate-snake-move z-10' : ''
-                  }`}
-                  style={{
-                    left: segment.x * cellSize + 1,
-                    top: segment.y * cellSize + 1,
-                    width: cellSize - 2,
-                    height: cellSize - 2,
-                    backgroundColor: snake.color,
-                    opacity,
-                    color: snake.color,
-                    transform: isHead ? 'scale(1.1)' : 'scale(1)',
-                    border: isHead ? `2px solid ${snake.color}` : `1px solid ${snake.color}`
-                  }}
-                >
-                  {/* Snake Head Eyes */}
-                  {isHead && snake.isAlive && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="flex space-x-1">
-                        <div className="w-1 h-1 bg-white rounded-full"></div>
-                        <div className="w-1 h-1 bg-white rounded-full"></div>
-                      </div>
+          {visibleSnakeSegments.map(({ snake, segment, segmentIndex }) => {
+            const isHead = segmentIndex === 0;
+            const opacity = snake.isAlive ? 1 : 0.3;
+            
+            return (
+              <div
+                key={`${snake.id}-${segmentIndex}`}
+                className={`absolute snake-segment transition-all duration-150 ${
+                  isHead ? 'animate-snake-move z-10' : ''
+                }`}
+                style={{
+                  left: (segment.x - viewportBounds.minX) * cellSize + 1,
+                  top: (segment.y - viewportBounds.minY) * cellSize + 1,
+                  width: cellSize - 2,
+                  height: cellSize - 2,
+                  backgroundColor: snake.color,
+                  opacity,
+                  color: snake.color,
+                  transform: isHead ? 'scale(1.1)' : 'scale(1)',
+                  border: isHead ? `2px solid ${snake.color}` : `1px solid ${snake.color}`
+                }}
+              >
+                {/* Snake Head Eyes */}
+                {isHead && snake.isAlive && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="flex space-x-1">
+                      <div className="w-1 h-1 bg-white rounded-full"></div>
+                      <div className="w-1 h-1 bg-white rounded-full"></div>
                     </div>
-                  )}
-                  
-                  {/* Segment Index for debugging */}
-                  {segmentIndex === 0 && (
-                    <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 text-xs font-bold text-white bg-black/50 px-1 rounded">
-                      {snake.name.slice(0, 3)}
-                    </div>
-                  )}
-                </div>
-              );
-            })
-          )}
+                  </div>
+                )}
+                
+                {/* Segment Index for debugging */}
+                {segmentIndex === 0 && (
+                  <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 text-xs font-bold text-white bg-black/50 px-1 rounded">
+                    {snake.name.slice(0, 3)}
+                  </div>
+                )}
+              </div>
+            );
+          })}
 
           {/* Game Over Overlay */}
           {snakes.every(snake => !snake.isAlive) && (
