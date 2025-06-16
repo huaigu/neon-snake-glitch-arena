@@ -11,6 +11,13 @@ interface GameAreaProps {
 export const GameArea: React.FC<GameAreaProps> = ({ snakes, foods, gridSize }) => {
   const cellSize = 18;
   const containerSize = gridSize * cellSize;
+  
+  // Minimap settings
+  const minimapSize = 120;
+  const minimapCellSize = minimapSize / gridSize;
+
+  // Get player snake
+  const playerSnake = snakes.find(snake => snake.isPlayer);
 
   return (
     <div className="flex-1 flex items-center justify-center p-8">
@@ -69,6 +76,107 @@ export const GameArea: React.FC<GameAreaProps> = ({ snakes, foods, gridSize }) =
               />
             ))}
           </svg>
+
+          {/* Minimap */}
+          <div 
+            className="absolute top-4 right-4 border border-cyber-cyan/60 bg-black/80 backdrop-blur-sm rounded"
+            style={{ 
+              width: minimapSize, 
+              height: minimapSize,
+              boxShadow: '0 0 10px rgba(0, 255, 255, 0.4)'
+            }}
+          >
+            {/* Minimap title */}
+            <div className="absolute -top-6 left-0 text-xs text-cyber-cyan font-bold">
+              RADAR
+            </div>
+            
+            {/* Minimap grid */}
+            <svg 
+              className="absolute inset-0"
+              width={minimapSize} 
+              height={minimapSize}
+            >
+              {/* Grid lines */}
+              {Array.from({ length: 6 }).map((_, i) => (
+                <g key={i}>
+                  <line
+                    x1={0}
+                    y1={i * (minimapSize / 5)}
+                    x2={minimapSize}
+                    y2={i * (minimapSize / 5)}
+                    stroke="rgba(0, 255, 255, 0.3)"
+                    strokeWidth="0.5"
+                  />
+                  <line
+                    x1={i * (minimapSize / 5)}
+                    y1={0}
+                    x2={i * (minimapSize / 5)}
+                    y2={minimapSize}
+                    stroke="rgba(0, 255, 255, 0.3)"
+                    strokeWidth="0.5"
+                  />
+                </g>
+              ))}
+            </svg>
+
+            {/* Minimap food */}
+            {foods.map((food, index) => (
+              <div
+                key={`minimap-food-${index}`}
+                className="absolute rounded-full"
+                style={{
+                  left: food.position.x * minimapCellSize - 1,
+                  top: food.position.y * minimapCellSize - 1,
+                  width: 2,
+                  height: 2,
+                  backgroundColor: food.type === 'bonus' ? '#ff8000' : '#00ff41'
+                }}
+              />
+            ))}
+
+            {/* Minimap snakes */}
+            {snakes.map((snake) => 
+              snake.segments.map((segment, segmentIndex) => {
+                const isHead = segmentIndex === 0;
+                const isPlayer = snake.isPlayer;
+                
+                return (
+                  <div
+                    key={`minimap-${snake.id}-${segmentIndex}`}
+                    className="absolute"
+                    style={{
+                      left: segment.x * minimapCellSize - (isHead ? 1.5 : 1),
+                      top: segment.y * minimapCellSize - (isHead ? 1.5 : 1),
+                      width: isHead ? 3 : 2,
+                      height: isHead ? 3 : 2,
+                      backgroundColor: snake.color,
+                      opacity: snake.isAlive ? (isPlayer ? 1 : 0.7) : 0.3,
+                      borderRadius: isHead ? '50%' : '0%',
+                      border: isPlayer && isHead ? `1px solid ${snake.color}` : 'none',
+                      boxShadow: isPlayer && isHead ? `0 0 4px ${snake.color}` : 'none'
+                    }}
+                  />
+                );
+              })
+            )}
+
+            {/* Player position indicator */}
+            {playerSnake && playerSnake.isAlive && (
+              <div 
+                className="absolute animate-pulse"
+                style={{
+                  left: playerSnake.segments[0].x * minimapCellSize - 3,
+                  top: playerSnake.segments[0].y * minimapCellSize - 3,
+                  width: 6,
+                  height: 6,
+                  border: '1px solid #00ffff',
+                  borderRadius: '50%',
+                  backgroundColor: 'transparent'
+                }}
+              />
+            )}
+          </div>
 
           {/* Food Items */}
           {foods.map((food, index) => (
