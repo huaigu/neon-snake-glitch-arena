@@ -1,9 +1,8 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useGameLobby } from '../hooks/useGameLobby';
 import { PlayerList } from './PlayerList';
 import { LobbyControls } from './LobbyControls';
-import { GameCountdown } from './GameCountdown';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Users, Crown, Zap } from 'lucide-react';
@@ -11,21 +10,24 @@ import { Users, Crown, Zap } from 'lucide-react';
 export const GameLobbyComponent: React.FC = () => {
   const {
     players,
-    isGameStarting,
     canStartGame,
-    showCountdown,
     toggleReady,
-    startGame,
     addBot,
     removeBot,
     currentPlayer,
-    handleCountdownEnd
+    handleAutoStart
   } = useGameLobby();
 
-  // Show countdown if it's active
-  if (showCountdown) {
-    return <GameCountdown onCountdownEnd={handleCountdownEnd} />;
-  }
+  // Auto-start game when all players are ready
+  useEffect(() => {
+    if (canStartGame) {
+      const timer = setTimeout(() => {
+        handleAutoStart();
+      }, 500); // Small delay to show the ready state
+      
+      return () => clearTimeout(timer);
+    }
+  }, [canStartGame, handleAutoStart]);
 
   // Early return if currentPlayer is not yet initialized
   if (!currentPlayer) {
@@ -92,19 +94,14 @@ export const GameLobbyComponent: React.FC = () => {
                   onClick={toggleReady}
                   variant={currentPlayer.isReady ? "destructive" : "default"}
                   className="w-full"
-                  disabled={isGameStarting}
                 >
                   {currentPlayer.isReady ? "Cancel Ready" : "Ready Up"}
                 </Button>
 
                 {canStartGame && (
-                  <Button
-                    onClick={startGame}
-                    className="w-full bg-green-600 hover:bg-green-700"
-                    disabled={isGameStarting}
-                  >
-                    {isGameStarting ? "Starting Game..." : "Start Game"}
-                  </Button>
+                  <div className="text-center text-green-400 text-sm animate-pulse">
+                    All players ready! Starting game...
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -122,7 +119,7 @@ export const GameLobbyComponent: React.FC = () => {
                   players={players}
                   onAddBot={addBot}
                   onRemoveBot={removeBot}
-                  disabled={isGameStarting}
+                  disabled={false}
                 />
               </CardContent>
             </Card>

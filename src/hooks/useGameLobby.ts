@@ -26,8 +26,6 @@ const BOT_COLORS = [
 export const useGameLobby = () => {
   const navigate = useNavigate();
   const { players, setPlayers, currentPlayerId } = useGameContext();
-  const [isGameStarting, setIsGameStarting] = useState(false);
-  const [showCountdown, setShowCountdown] = useState(false);
 
   const currentPlayer = players.find(p => p.id === currentPlayerId);
   
@@ -73,17 +71,11 @@ export const useGameLobby = () => {
 
   const canStartGame = players.length >= 2 && players.every(p => p.isReady);
 
-  const startGame = useCallback(() => {
-    if (!canStartGame) return;
-    
-    setIsGameStarting(true);
-    setShowCountdown(true);
-  }, [canStartGame]);
-
-  const handleCountdownEnd = useCallback(() => {
-    setShowCountdown(false);
-    navigate('/game');
-  }, [navigate]);
+  const handleAutoStart = useCallback(() => {
+    if (canStartGame) {
+      navigate('/game');
+    }
+  }, [canStartGame, navigate]);
 
   // Auto-fill with bots to make testing easier
   useEffect(() => {
@@ -98,13 +90,10 @@ export const useGameLobby = () => {
   return {
     players,
     currentPlayer,
-    isGameStarting,
     canStartGame,
-    showCountdown,
     toggleReady,
-    startGame,
     addBot,
     removeBot,
-    handleCountdownEnd
+    handleAutoStart
   };
 };
