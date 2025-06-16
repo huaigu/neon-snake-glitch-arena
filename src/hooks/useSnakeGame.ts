@@ -40,7 +40,7 @@ export const useSnakeGame = () => {
 
   const createInitialSnake = (id: string, startPos: Position, color: string, isPlayer: boolean, name: string): Snake => ({
     id,
-    segments: [startPos],
+    segments: [startPos, { x: startPos.x - 1, y: startPos.y }, { x: startPos.x - 2, y: startPos.y }],
     direction: 'right',
     color,
     isAlive: true,
@@ -50,21 +50,30 @@ export const useSnakeGame = () => {
   });
 
   const initializeGame = useCallback(() => {
+    console.log('Initializing game...');
+    
+    // Create player snake with cyan color and starting position
     const playerSnake = createInitialSnake('player', { x: 5, y: 15 }, '#00ffff', true, 'PLAYER_01');
+    
+    // Create AI snakes with different starting positions
     const aiSnakes = AI_PLAYERS.map((ai, index) => 
       createInitialSnake(
         `ai_${index}`, 
-        { x: 5 + (index + 1) * 8, y: 15 }, 
+        { x: 5 + (index + 1) * 7, y: 15 + (index * 3) }, 
         ai.color, 
         false, 
         ai.name
       )
     );
 
-    setSnakes([playerSnake, ...aiSnakes]);
+    const allSnakes = [playerSnake, ...aiSnakes];
+    console.log('Created snakes:', allSnakes);
+    
+    setSnakes(allSnakes);
     setFoods([
       { position: { x: 15, y: 10 }, type: 'normal', value: 10 },
-      { position: { x: 25, y: 20 }, type: 'bonus', value: 50 }
+      { position: { x: 25, y: 20 }, type: 'bonus', value: 50 },
+      { position: { x: 10, y: 25 }, type: 'normal', value: 10 }
     ]);
     setGameOver(false);
     directionRef.current = 'right';
@@ -171,6 +180,8 @@ export const useSnakeGame = () => {
 
   const gameStep = useCallback(() => {
     setSnakes(currentSnakes => {
+      console.log('Game step - current snakes:', currentSnakes.length);
+      
       const aliveSnakes = currentSnakes.filter(snake => snake.isAlive);
       if (aliveSnakes.length === 0) {
         setGameOver(true);
@@ -210,11 +221,12 @@ export const useSnakeGame = () => {
   }, [foods, moveSnake, getAIDirection, generateFood]);
 
   const startGame = useCallback(() => {
+    console.log('Starting game, current snakes:', snakes.length);
     if (!gameRunning) {
       setGameRunning(true);
       gameLoopRef.current = setInterval(gameStep, GAME_SPEED);
     }
-  }, [gameRunning, gameStep]);
+  }, [gameRunning, gameStep, snakes.length]);
 
   const pauseGame = useCallback(() => {
     setGameRunning(false);
@@ -239,6 +251,7 @@ export const useSnakeGame = () => {
   }, []);
 
   useEffect(() => {
+    console.log('useSnakeGame mounted, initializing game');
     initializeGame();
     return () => {
       if (gameLoopRef.current) {
@@ -278,6 +291,8 @@ export const useSnakeGame = () => {
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [gameRunning, changeDirection]);
+
+  console.log('useSnakeGame render - snakes:', snakes.length, 'gameRunning:', gameRunning);
 
   return {
     snakes,
