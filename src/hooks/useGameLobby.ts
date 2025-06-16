@@ -27,6 +27,7 @@ export const useGameLobby = () => {
   const navigate = useNavigate();
   const { players, setPlayers, currentPlayerId } = useGameContext();
   const [isGameStarting, setIsGameStarting] = useState(false);
+  const [showCountdown, setShowCountdown] = useState(false);
 
   const currentPlayer = players.find(p => p.id === currentPlayerId);
   
@@ -76,12 +77,13 @@ export const useGameLobby = () => {
     if (!canStartGame) return;
     
     setIsGameStarting(true);
-    
-    // Simulate loading time
-    setTimeout(() => {
-      navigate('/game');
-    }, 2000);
-  }, [canStartGame, navigate]);
+    setShowCountdown(true);
+  }, [canStartGame]);
+
+  const handleCountdownEnd = useCallback(() => {
+    setShowCountdown(false);
+    navigate('/game');
+  }, [navigate]);
 
   // Auto-fill with bots to make testing easier
   useEffect(() => {
@@ -98,9 +100,11 @@ export const useGameLobby = () => {
     currentPlayer,
     isGameStarting,
     canStartGame,
+    showCountdown,
     toggleReady,
     startGame,
     addBot,
-    removeBot
+    removeBot,
+    handleCountdownEnd
   };
 };

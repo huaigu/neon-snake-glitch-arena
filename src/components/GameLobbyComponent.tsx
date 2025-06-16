@@ -3,6 +3,7 @@ import React from 'react';
 import { useGameLobby } from '../hooks/useGameLobby';
 import { PlayerList } from './PlayerList';
 import { LobbyControls } from './LobbyControls';
+import { GameCountdown } from './GameCountdown';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Users, Crown, Zap } from 'lucide-react';
@@ -12,12 +13,19 @@ export const GameLobbyComponent: React.FC = () => {
     players,
     isGameStarting,
     canStartGame,
+    showCountdown,
     toggleReady,
     startGame,
     addBot,
     removeBot,
-    currentPlayer
+    currentPlayer,
+    handleCountdownEnd
   } = useGameLobby();
+
+  // Show countdown if it's active
+  if (showCountdown) {
+    return <GameCountdown onCountdownEnd={handleCountdownEnd} />;
+  }
 
   // Early return if currentPlayer is not yet initialized
   if (!currentPlayer) {

@@ -3,6 +3,7 @@ import React from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Snake } from '../hooks/useSnakeGame';
+import { useNavigate } from 'react-router-dom';
 
 interface InfoPanelProps {
   snakes: Snake[];
@@ -21,6 +22,8 @@ export const InfoPanel: React.FC<InfoPanelProps> = ({
   onPause,
   onReset
 }) => {
+  const navigate = useNavigate();
+  
   // Fix the sorting logic: sort by score first (descending), then by segments length (descending)
   const sortedSnakes = [...snakes].sort((a, b) => {
     // First priority: score (higher is better)
@@ -46,6 +49,10 @@ export const InfoPanel: React.FC<InfoPanelProps> = ({
     isAlive: s.isAlive 
   })));
 
+  const handleReturnToLobby = () => {
+    navigate('/');
+  };
+
   return (
     <div className="w-80 h-screen p-4 space-y-4 bg-cyber-darker border-r border-cyber-cyan/30">
       {/* Header */}
@@ -56,33 +63,14 @@ export const InfoPanel: React.FC<InfoPanelProps> = ({
         <div className="h-1 bg-gradient-to-r from-transparent via-cyber-cyan to-transparent"></div>
       </div>
 
-      {/* Game Controls */}
+      {/* Return to Lobby Button */}
       <Card className="cyber-panel p-4">
-        <h2 className="text-lg font-semibold text-cyber-pink mb-3 neon-text">SYSTEM CONTROL</h2>
-        <div className="space-y-2">
-          {!gameRunning && !gameOver && (
-            <Button 
-              onClick={onStart}
-              className="w-full bg-cyber-green hover:bg-cyber-green/80 text-black font-bold neon-border"
-            >
-              START GAME
-            </Button>
-          )}
-          {gameRunning && (
-            <Button 
-              onClick={onPause}
-              className="w-full bg-cyber-orange hover:bg-cyber-orange/80 text-black font-bold neon-border"
-            >
-              PAUSE
-            </Button>
-          )}
-          <Button 
-            onClick={onReset}
-            className="w-full bg-cyber-pink hover:bg-cyber-pink/80 text-white font-bold neon-border"
-          >
-            RESET
-          </Button>
-        </div>
+        <Button 
+          onClick={handleReturnToLobby}
+          className="w-full bg-cyber-purple hover:bg-cyber-purple/80 text-white font-bold neon-border"
+        >
+          RETURN TO LOBBY
+        </Button>
       </Card>
 
       {/* Player Stats */}
