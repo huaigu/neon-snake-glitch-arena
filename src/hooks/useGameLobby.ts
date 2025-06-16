@@ -1,14 +1,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-export interface Player {
-  id: string;
-  name: string;
-  color: string;
-  isReady: boolean;
-  isBot: boolean;
-}
+import { useGameContext, Player } from '../contexts/GameContext';
 
 const BOT_NAMES = [
   'NEON_HUNTER',
@@ -32,29 +25,18 @@ const BOT_COLORS = [
 
 export const useGameLobby = () => {
   const navigate = useNavigate();
+  const { players, setPlayers, currentPlayerId } = useGameContext();
   const [isGameStarting, setIsGameStarting] = useState(false);
 
-  // Initialize with current player immediately
-  const [players, setPlayers] = useState<Player[]>(() => {
-    const currentPlayer: Player = {
-      id: 'player',
-      name: 'PLAYER_01',
-      color: '#00ffff',
-      isReady: false,
-      isBot: false
-    };
-    return [currentPlayer];
-  });
-
-  const currentPlayer = players.find(p => p.id === 'player');
+  const currentPlayer = players.find(p => p.id === currentPlayerId);
   
   const toggleReady = useCallback(() => {
     setPlayers(prev => prev.map(player => 
-      player.id === 'player' 
+      player.id === currentPlayerId 
         ? { ...player, isReady: !player.isReady }
         : player
     ));
-  }, []);
+  }, [setPlayers, currentPlayerId]);
 
   const addBot = useCallback(() => {
     if (players.length >= 8) return;
@@ -71,7 +53,7 @@ export const useGameLobby = () => {
     };
 
     setPlayers(prev => [...prev, newBot]);
-  }, [players]);
+  }, [players, setPlayers]);
 
   const removeBot = useCallback(() => {
     setPlayers(prev => {
@@ -86,7 +68,7 @@ export const useGameLobby = () => {
       if (botIndex === -1) return prev;
       return prev.filter((_, index) => index !== botIndex);
     });
-  }, []);
+  }, [setPlayers]);
 
   const canStartGame = players.length >= 2 && players.every(p => p.isReady);
 
@@ -103,13 +85,13 @@ export const useGameLobby = () => {
 
   // Auto-fill with bots to make testing easier
   useEffect(() => {
-    if (players.length === 1 && players[0].id === 'player') {
+    if (players.length === 1 && players[0].id === currentPlayerId) {
       // Add 3 bots by default for testing
       for (let i = 0; i < 3; i++) {
         setTimeout(() => addBot(), 100 * (i + 1));
       }
     }
-  }, [players.length, addBot]);
+  }, [players.length, addBot, currentPlayerId]);
 
   return {
     players,

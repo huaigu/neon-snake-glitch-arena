@@ -1,5 +1,5 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useGameContext } from '../contexts/GameContext';
 
 export interface Position {
   x: number;
@@ -25,13 +25,9 @@ export interface Food {
 
 const GRID_SIZE = 60; // Increased from 30 to 60
 const GAME_SPEED = 150;
-const AI_PLAYERS = [
-  { name: 'NEON_HUNTER', color: '#ff0080' },
-  { name: 'CYBER_VIPER', color: '#8000ff' },
-  { name: 'DIGITAL_SNAKE', color: '#00ff41' }
-];
 
 export const useSnakeGame = () => {
+  const { players } = useGameContext();
   const [snakes, setSnakes] = useState<Snake[]>([]);
   const [foods, setFoods] = useState<Food[]>([]);
   const [gameRunning, setGameRunning] = useState(false);
@@ -39,39 +35,32 @@ export const useSnakeGame = () => {
   const gameLoopRef = useRef<NodeJS.Timeout>();
   const directionRef = useRef<'up' | 'down' | 'left' | 'right'>('right');
 
-  const createInitialSnake = (id: string, startPos: Position, color: string, isPlayer: boolean, name: string): Snake => ({
-    id,
+  const createSnakeFromPlayer = (player: any, startPos: Position): Snake => ({
+    id: player.id,
     segments: [startPos, { x: startPos.x - 1, y: startPos.y }, { x: startPos.x - 2, y: startPos.y }],
     direction: 'right',
-    color,
+    color: player.color,
     isAlive: true,
     score: 0,
-    isPlayer,
-    name
+    isPlayer: player.id === 'player',
+    name: player.name
   });
 
   const initializeGame = useCallback(() => {
-    console.log('Initializing game...');
+    console.log('Initializing game with players:', players);
     
-    // Create player snake with cyan color and starting position (center of grid)
+    // Create snakes from lobby players
     const centerPos = Math.floor(GRID_SIZE / 2);
-    const playerSnake = createInitialSnake('player', { x: centerPos, y: centerPos }, '#00ffff', true, 'PLAYER_01');
+    const gameSnakes = players.map((player, index) => {
+      const startPos = {
+        x: centerPos + (index * 7),
+        y: centerPos + (index * 3)
+      };
+      return createSnakeFromPlayer(player, startPos);
+    });
     
-    // Create AI snakes with different starting positions around the center
-    const aiSnakes = AI_PLAYERS.map((ai, index) => 
-      createInitialSnake(
-        `ai_${index}`, 
-        { x: centerPos + (index + 1) * 7, y: centerPos + (index * 3) }, 
-        ai.color, 
-        false, 
-        ai.name
-      )
-    );
-
-    const allSnakes = [playerSnake, ...aiSnakes];
-    console.log('Created snakes:', allSnakes);
-    
-    setSnakes(allSnakes);
+    console.log('Created snakes:', gameSnakes);
+    setSnakes(gameSnakes);
     
     // Generate more food across the larger grid
     const initialFoods = [];
@@ -82,7 +71,7 @@ export const useSnakeGame = () => {
     
     setGameOver(false);
     directionRef.current = 'right';
-  }, []);
+  }, [players]);
 
   const generateFood = useCallback((): Food => {
     const type = Math.random() < 0.8 ? 'normal' : 'bonus';
