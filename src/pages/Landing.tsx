@@ -1,14 +1,15 @@
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Gamepad2, Users, Zap, Crown, Play, ArrowRight, Shield, Trophy } from 'lucide-react';
+import { Gamepad2, Users, Zap, Crown, Play, ArrowRight, Shield, Trophy, Wallet } from 'lucide-react';
 
 const Landing = () => {
   const navigate = useNavigate();
 
   const handleEnterLobby = () => {
-    navigate('/lobby');
+    navigate('/auth');
   };
 
   const handleViewFeatures = () => {
@@ -110,8 +111,8 @@ const Landing = () => {
                 size="lg"
                 className="bg-cyber-cyan hover:bg-cyber-cyan/80 text-cyber-darker text-xl px-12 py-6 neon-border group"
               >
-                <Gamepad2 className="w-6 h-6 mr-3 group-hover:animate-pulse" />
-                Enter Game Lobby
+                <Wallet className="w-6 h-6 mr-3 group-hover:animate-pulse" />
+                Connect & Play
               </Button>
               
               <Button
@@ -126,7 +127,7 @@ const Landing = () => {
             </div>
             
             <p className="text-cyber-cyan/50 text-sm">
-              Join thousands of players in the ultimate cyberpunk snake experience
+              Connect your wallet to join thousands of players in the ultimate cyberpunk snake experience
             </p>
           </div>
         </div>
