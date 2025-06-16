@@ -19,6 +19,15 @@ export const GameLobbyComponent: React.FC = () => {
     currentPlayer
   } = useGameLobby();
 
+  // Early return if currentPlayer is not yet initialized
+  if (!currentPlayer) {
+    return (
+      <div className="min-h-screen bg-cyber-darker flex items-center justify-center p-4">
+        <div className="text-cyber-cyan">Loading...</div>
+      </div>
+    );
+  }
+
   const readyCount = players.filter(p => p.isReady).length;
   const totalPlayers = players.length;
 

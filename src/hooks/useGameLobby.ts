@@ -32,11 +32,10 @@ const BOT_COLORS = [
 
 export const useGameLobby = () => {
   const navigate = useNavigate();
-  const [players, setPlayers] = useState<Player[]>([]);
   const [isGameStarting, setIsGameStarting] = useState(false);
 
-  // Initialize with current player
-  useEffect(() => {
+  // Initialize with current player immediately
+  const [players, setPlayers] = useState<Player[]>(() => {
     const currentPlayer: Player = {
       id: 'player',
       name: 'PLAYER_01',
@@ -44,10 +43,10 @@ export const useGameLobby = () => {
       isReady: false,
       isBot: false
     };
-    setPlayers([currentPlayer]);
-  }, []);
+    return [currentPlayer];
+  });
 
-  const currentPlayer = players.find(p => p.id === 'player') || players[0];
+  const currentPlayer = players.find(p => p.id === 'player');
   
   const toggleReady = useCallback(() => {
     setPlayers(prev => prev.map(player => 
@@ -76,7 +75,14 @@ export const useGameLobby = () => {
 
   const removeBot = useCallback(() => {
     setPlayers(prev => {
-      const botIndex = prev.findLastIndex(p => p.isBot);
+      // Replace findLastIndex with a compatible approach
+      let botIndex = -1;
+      for (let i = prev.length - 1; i >= 0; i--) {
+        if (prev[i].isBot) {
+          botIndex = i;
+          break;
+        }
+      }
       if (botIndex === -1) return prev;
       return prev.filter((_, index) => index !== botIndex);
     });
