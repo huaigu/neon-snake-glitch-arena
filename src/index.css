@@ -45,6 +45,10 @@
     --sidebar-accent-foreground: 0 0% 90%;
     --sidebar-border: 180 100% 20%;
     --sidebar-ring: 180 100% 50%;
+
+    /* Custom cyber colors */
+    --cyber-darker: 218 100% 2%;
+    --cyber-cyan: 180 100% 50%;
   }
 }
 
@@ -104,5 +108,14 @@
 
   .game-area {
     background: radial-gradient(circle at center, rgba(0, 255, 255, 0.05) 0%, transparent 70%);
+  }
+}
+
+@keyframes neon-pulse {
+  0%, 100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.3);
   }
 }
