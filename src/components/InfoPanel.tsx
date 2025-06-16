@@ -21,8 +21,30 @@ export const InfoPanel: React.FC<InfoPanelProps> = ({
   onPause,
   onReset
 }) => {
-  const sortedSnakes = [...snakes].sort((a, b) => b.score - a.score);
+  // Fix the sorting logic: sort by score first (descending), then by segments length (descending)
+  const sortedSnakes = [...snakes].sort((a, b) => {
+    // First priority: score (higher is better)
+    if (b.score !== a.score) {
+      return b.score - a.score;
+    }
+    // Second priority: segments length (longer is better)
+    return b.segments.length - a.segments.length;
+  });
+  
   const playerSnake = snakes.find(snake => snake.isPlayer);
+
+  console.log('Leaderboard sorting - snakes:', snakes.map(s => ({ 
+    name: s.name, 
+    score: s.score, 
+    segments: s.segments.length,
+    isAlive: s.isAlive 
+  })));
+  console.log('Leaderboard sorting - sorted:', sortedSnakes.map(s => ({ 
+    name: s.name, 
+    score: s.score, 
+    segments: s.segments.length,
+    isAlive: s.isAlive 
+  })));
 
   return (
     <div className="w-80 h-screen p-4 space-y-4 bg-cyber-darker border-r border-cyber-cyan/30">
