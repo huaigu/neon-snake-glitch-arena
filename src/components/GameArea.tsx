@@ -16,7 +16,7 @@ export const GameArea: React.FC<GameAreaProps> = ({ snakes, foods, gridSize }) =
   // Minimap settings - show entire game space
   const minimapSize = 120;
   const minimapCellSize = minimapSize / gridSize; // Scale to show entire grid
-  const radarRange = 8; // Show items within 8 cells of player
+  const radarRange = Math.floor(viewportSize / 2); // Use half of viewport size for square detection
 
   // Get player snake
   const playerSnake = snakes.find(snake => snake.isPlayer);
@@ -38,20 +38,24 @@ export const GameArea: React.FC<GameAreaProps> = ({ snakes, foods, gridSize }) =
     };
   };
 
-  // Calculate radar items based on player position
+  // Calculate radar items based on player position - using square detection to match viewport
   const getRadarItems = () => {
     if (!playerHead) return { radarFoods: [], radarSnakeSegments: [] };
     
+    const viewportBounds = getViewportBounds();
+    
+    // Filter foods that are within the current viewport bounds
     const radarFoods = foods.filter(food => {
-      const distance = Math.abs(food.position.x - playerHead.x) + Math.abs(food.position.y - playerHead.y);
-      return distance <= radarRange;
+      return food.position.x >= viewportBounds.minX && food.position.x < viewportBounds.maxX &&
+             food.position.y >= viewportBounds.minY && food.position.y < viewportBounds.maxY;
     });
 
+    // Filter snake segments that are within the current viewport bounds
     const radarSnakeSegments = snakes.flatMap(snake => 
       snake.segments
         .filter(segment => {
-          const distance = Math.abs(segment.x - playerHead.x) + Math.abs(segment.y - playerHead.y);
-          return distance <= radarRange;
+          return segment.x >= viewportBounds.minX && segment.x < viewportBounds.maxX &&
+                 segment.y >= viewportBounds.minY && segment.y < viewportBounds.maxY;
         })
         .map((segment, index) => ({ snake, segment, segmentIndex: index }))
     );
@@ -192,21 +196,21 @@ export const GameArea: React.FC<GameAreaProps> = ({ snakes, foods, gridSize }) =
               ))}
             </svg>
 
-            {/* Radar detection area indicator */}
+            {/* Radar detection area indicator - now square to match viewport */}
             {playerSnake && playerSnake.isAlive && playerHead && (
               <div 
-                className="absolute border border-cyber-cyan/30 rounded-full"
+                className="absolute border border-cyber-cyan/40"
                 style={{
-                  left: (playerHead.x * minimapCellSize) - (radarRange * minimapCellSize),
-                  top: (playerHead.y * minimapCellSize) - (radarRange * minimapCellSize),
-                  width: radarRange * 2 * minimapCellSize,
-                  height: radarRange * 2 * minimapCellSize,
-                  backgroundColor: 'rgba(0, 255, 255, 0.05)'
+                  left: viewportBounds.minX * minimapCellSize,
+                  top: viewportBounds.minY * minimapCellSize,
+                  width: (viewportBounds.maxX - viewportBounds.minX) * minimapCellSize,
+                  height: (viewportBounds.maxY - viewportBounds.minY) * minimapCellSize,
+                  backgroundColor: 'rgba(0, 255, 255, 0.08)'
                 }}
               />
             )}
 
-            {/* Radar food - only nearby items */}
+            {/* Radar food - only items within viewport */}
             {radarFoods.map((food, index) => (
               <div
                 key={`radar-food-${index}`}
@@ -222,12 +226,10 @@ export const GameArea: React.FC<GameAreaProps> = ({ snakes, foods, gridSize }) =
               />
             ))}
 
-            {/* Radar snakes - only nearby segments */}
+            {/* Radar snakes - only segments within viewport */}
             {radarSnakeSegments.map(({ snake, segment, segmentIndex }, index) => {
               const isHead = segmentIndex === 0;
               const isPlayer = snake.isPlayer;
-              const distance = playerHead ? Math.abs(segment.x - playerHead.x) + Math.abs(segment.y - playerHead.y) : 0;
-              const alpha = Math.max(0.3, 1 - (distance / radarRange));
               
               return (
                 <div
@@ -239,7 +241,7 @@ export const GameArea: React.FC<GameAreaProps> = ({ snakes, foods, gridSize }) =
                     width: isHead ? 3 : 2,
                     height: isHead ? 3 : 2,
                     backgroundColor: snake.color,
-                    opacity: snake.isAlive ? alpha : alpha * 0.3,
+                    opacity: snake.isAlive ? 1 : 0.3,
                     borderRadius: isHead ? '50%' : '0%',
                     border: isPlayer && isHead ? `1px solid ${snake.color}` : 'none',
                     boxShadow: isHead ? `0 0 3px ${snake.color}` : 'none'
