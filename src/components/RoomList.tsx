@@ -42,10 +42,10 @@ export const RoomList: React.FC = () => {
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'waiting': return '等待中';
-      case 'playing': return '游戏中';
-      case 'full': return '已满员';
-      default: return '未知';
+      case 'waiting': return 'Waiting';
+      case 'playing': return 'Playing';
+      case 'full': return 'Full';
+      default: return 'Unknown';
     }
   };
 
@@ -55,10 +55,10 @@ export const RoomList: React.FC = () => {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold text-cyber-cyan neon-text mb-2">
-            游戏大厅
+            Game Lobby
           </h1>
           <p className="text-cyber-cyan/70">
-            选择房间开始你的冒险，当前玩家：{currentPlayerName}
+            Choose a room to start your adventure, Current player: {currentPlayerName}
           </p>
         </div>
 
@@ -66,22 +66,22 @@ export const RoomList: React.FC = () => {
           <DialogTrigger asChild>
             <Button className="bg-cyber-cyan hover:bg-cyber-cyan/80 text-cyber-darker">
               <Plus className="w-4 h-4 mr-2" />
-              创建房间
+              Create Room
             </Button>
           </DialogTrigger>
           <DialogContent className="cyber-panel">
             <DialogHeader>
-              <DialogTitle className="text-cyber-cyan">创建新房间</DialogTitle>
+              <DialogTitle className="text-cyber-cyan">Create New Room</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div>
                 <label className="text-sm text-cyber-cyan/70 mb-2 block">
-                  房间名称
+                  Room Name
                 </label>
                 <Input
                   value={newRoomName}
                   onChange={(e) => setNewRoomName(e.target.value)}
-                  placeholder="输入房间名称..."
+                  placeholder="Enter room name..."
                   className="bg-cyber-darker border-cyber-cyan/30 text-cyber-cyan"
                   onKeyDown={(e) => e.key === 'Enter' && handleCreateRoom()}
                 />
@@ -92,14 +92,14 @@ export const RoomList: React.FC = () => {
                   disabled={!newRoomName.trim()}
                   className="flex-1 bg-cyber-cyan hover:bg-cyber-cyan/80 text-cyber-darker"
                 >
-                  创建房间
+                  Create Room
                 </Button>
                 <Button
                   onClick={() => setIsDialogOpen(false)}
                   variant="outline"
                   className="flex-1"
                 >
-                  取消
+                  Cancel
                 </Button>
               </div>
             </div>
@@ -117,7 +117,7 @@ export const RoomList: React.FC = () => {
                 <div className="text-2xl font-bold text-cyber-cyan">
                   {rooms.length}
                 </div>
-                <div className="text-sm text-cyber-cyan/70">活跃房间</div>
+                <div className="text-sm text-cyber-cyan/70">Active Rooms</div>
               </div>
             </div>
           </CardContent>
@@ -131,7 +131,7 @@ export const RoomList: React.FC = () => {
                 <div className="text-2xl font-bold text-green-400">
                   {rooms.filter(r => r.status === 'waiting').length}
                 </div>
-                <div className="text-sm text-cyber-cyan/70">等待房间</div>
+                <div className="text-sm text-cyber-cyan/70">Waiting Rooms</div>
               </div>
             </div>
           </CardContent>
@@ -145,7 +145,7 @@ export const RoomList: React.FC = () => {
                 <div className="text-2xl font-bold text-red-400">
                   {rooms.filter(r => r.status === 'playing').length}
                 </div>
-                <div className="text-sm text-cyber-cyan/70">游戏中</div>
+                <div className="text-sm text-cyber-cyan/70">Playing Rooms</div>
               </div>
             </div>
           </CardContent>
@@ -177,23 +177,10 @@ export const RoomList: React.FC = () => {
             <CardContent className="pt-0">
               <div className="space-y-3">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-cyber-cyan/70">玩家数量</span>
+                  <span className="text-cyber-cyan/70">Player Count</span>
                   <span className="text-cyber-cyan">
                     {room.players.length}/{room.maxPlayers}
                   </span>
-                </div>
-
-                <div className="flex flex-wrap gap-1">
-                  {room.players.slice(0, 3).map((player, index) => (
-                    <Badge key={index} variant="outline" className="text-xs">
-                      {player}
-                    </Badge>
-                  ))}
-                  {room.players.length > 3 && (
-                    <Badge variant="outline" className="text-xs">
-                      +{room.players.length - 3}
-                    </Badge>
-                  )}
                 </div>
 
                 <Button
@@ -202,8 +189,8 @@ export const RoomList: React.FC = () => {
                   className="w-full"
                   variant={room.status === 'waiting' ? 'default' : 'outline'}
                 >
-                  {room.status === 'playing' ? '游戏进行中' :
-                   room.status === 'full' ? '房间已满' : '加入房间'}
+                  {room.status === 'playing' ? 'Game in Progress' :
+                   room.status === 'full' ? 'Room Full' : 'Join Room'}
                 </Button>
               </div>
             </CardContent>
@@ -215,17 +202,17 @@ export const RoomList: React.FC = () => {
         <div className="text-center py-12">
           <Users className="w-16 h-16 text-cyber-cyan/30 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-cyber-cyan/70 mb-2">
-            暂无活跃房间
+            No Active Rooms
           </h3>
           <p className="text-cyber-cyan/50 mb-6">
-            创建第一个房间开始游戏吧！
+            Create the first room to start playing!
           </p>
           <Button
             onClick={() => setIsDialogOpen(true)}
             className="bg-cyber-cyan hover:bg-cyber-cyan/80 text-cyber-darker"
           >
             <Plus className="w-4 h-4 mr-2" />
-            创建房间
+            Create Room
           </Button>
         </div>
       )}

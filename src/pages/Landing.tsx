@@ -24,7 +24,7 @@ const Landing = () => {
             GLITCH ARENA
           </h2>
           <p className="text-xl text-cyber-cyan/70 mb-8 max-w-2xl mx-auto">
-            进入赛博朋克世界的多人贪吃蛇竞技场。与朋友一起战斗，成为终极蛇王！
+            Enter the cyberpunk world of multiplayer snake arena. Battle with friends and become the ultimate snake master!
           </p>
         </div>
 
@@ -34,12 +34,12 @@ const Landing = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-cyber-cyan">
                 <Users className="w-6 h-6" />
-                多人对战
+                Multiplayer Battle
               </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-cyber-cyan/70">
-                最多8名玩家同时在线对战，体验刺激的多人竞技
+                Up to 8 players online battle simultaneously, experience thrilling multiplayer competition
               </p>
             </CardContent>
           </Card>
@@ -48,12 +48,12 @@ const Landing = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-cyber-cyan">
                 <Zap className="w-6 h-6" />
-                智能机器人
+                AI Bots
               </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-cyber-cyan/70">
-                添加AI机器人填充房间，随时开始游戏挑战
+                Add AI bots to fill rooms and start game challenges anytime
               </p>
             </CardContent>
           </Card>
@@ -62,12 +62,12 @@ const Landing = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-cyber-cyan">
                 <Crown className="w-6 h-6" />
-                房间系统
+                Room System
               </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-cyber-cyan/70">
-                创建自己的房间，邀请朋友加入专属对战
+                Create your own room and invite friends to join exclusive battles
               </p>
             </CardContent>
           </Card>
@@ -81,11 +81,11 @@ const Landing = () => {
             className="bg-cyber-cyan hover:bg-cyber-cyan/80 text-cyber-darker text-xl px-12 py-6 neon-border"
           >
             <Gamepad2 className="w-6 h-6 mr-3" />
-            进入游戏大厅
+            Enter Game Lobby
           </Button>
           
           <p className="text-cyber-cyan/50 text-sm">
-            准备好征服赛博空间了吗？
+            Ready to conquer cyberspace?
           </p>
         </div>
       </div>

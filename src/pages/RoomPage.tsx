@@ -21,10 +21,10 @@ const RoomPage = () => {
       <div className="min-h-screen bg-cyber-darker flex items-center justify-center p-4">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-cyber-cyan mb-4">
-            房间不存在或已失效
+            Room does not exist or has expired
           </h2>
           <Button onClick={() => navigate('/lobby')}>
-            返回大厅
+            Back to Lobby
           </Button>
         </div>
       </div>
@@ -40,7 +40,7 @@ const RoomPage = () => {
           className="mb-4"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
-          返回大厅
+          Back to Lobby
         </Button>
       </div>
       <GameLobbyComponent />
