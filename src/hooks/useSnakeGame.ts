@@ -25,6 +25,7 @@ export interface Food {
 
 const GRID_SIZE = 60; // Increased from 30 to 60
 const GAME_SPEED = 150;
+const COUNTDOWN_DURATION = 3;
 
 export const useSnakeGame = () => {
   const { players } = useGameContext();
@@ -32,7 +33,10 @@ export const useSnakeGame = () => {
   const [foods, setFoods] = useState<Food[]>([]);
   const [gameRunning, setGameRunning] = useState(false);
   const [gameOver, setGameOver] = useState(false);
+  const [countdown, setCountdown] = useState(COUNTDOWN_DURATION);
+  const [showCountdown, setShowCountdown] = useState(true);
   const gameLoopRef = useRef<NodeJS.Timeout>();
+  const countdownRef = useRef<NodeJS.Timeout>();
   const directionRef = useRef<'up' | 'down' | 'left' | 'right'>('right');
 
   const createSnakeFromPlayer = (player: any, startPos: Position): Snake => ({
@@ -70,8 +74,32 @@ export const useSnakeGame = () => {
     setFoods(initialFoods);
     
     setGameOver(false);
+    setGameRunning(false);
+    setShowCountdown(true);
+    setCountdown(COUNTDOWN_DURATION);
     directionRef.current = 'right';
+    
+    // Start countdown
+    startCountdown();
   }, [players]);
+
+  const startCountdown = useCallback(() => {
+    setCountdown(COUNTDOWN_DURATION);
+    setShowCountdown(true);
+    
+    countdownRef.current = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(countdownRef.current!);
+          setShowCountdown(false);
+          setGameRunning(true);
+          gameLoopRef.current = setInterval(gameStep, GAME_SPEED);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, []);
 
   const generateFood = useCallback((): Food => {
     const type = Math.random() < 0.8 ? 'normal' : 'bonus';
@@ -217,11 +245,11 @@ export const useSnakeGame = () => {
 
   const startGame = useCallback(() => {
     console.log('Starting game, current snakes:', snakes.length);
-    if (!gameRunning) {
+    if (!gameRunning && !showCountdown) {
       setGameRunning(true);
       gameLoopRef.current = setInterval(gameStep, GAME_SPEED);
     }
-  }, [gameRunning, gameStep, snakes.length]);
+  }, [gameRunning, gameStep, snakes.length, showCountdown]);
 
   const pauseGame = useCallback(() => {
     setGameRunning(false);
@@ -232,6 +260,9 @@ export const useSnakeGame = () => {
 
   const resetGame = useCallback(() => {
     pauseGame();
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current);
+    }
     initializeGame();
   }, [pauseGame, initializeGame]);
 
@@ -251,6 +282,9 @@ export const useSnakeGame = () => {
     return () => {
       if (gameLoopRef.current) {
         clearInterval(gameLoopRef.current);
+      }
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current);
       }
     };
   }, [initializeGame]);
@@ -297,6 +331,8 @@ export const useSnakeGame = () => {
     startGame,
     pauseGame,
     resetGame,
-    gridSize: GRID_SIZE
+    gridSize: GRID_SIZE,
+    countdown,
+    showCountdown
   };
 };
