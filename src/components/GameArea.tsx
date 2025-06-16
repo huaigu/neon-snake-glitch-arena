@@ -13,10 +13,10 @@ export const GameArea: React.FC<GameAreaProps> = ({ snakes, foods, gridSize }) =
   const viewportSize = 30; // Show 30x30 area around player
   const containerSize = viewportSize * cellSize;
   
-  // Minimap settings - show larger area around player
+  // Minimap settings - show entire game space
   const minimapSize = 120;
-  const minimapViewRadius = 15; // Show 15x15 area around player (total 30x30 view)
-  const minimapCellSize = minimapSize / (minimapViewRadius * 2);
+  const minimapCellSize = minimapSize / gridSize; // Scale to show entire grid
+  const radarRange = 8; // Show items within 8 cells of player
 
   // Get player snake
   const playerSnake = snakes.find(snake => snake.isPlayer);
@@ -38,23 +38,28 @@ export const GameArea: React.FC<GameAreaProps> = ({ snakes, foods, gridSize }) =
     };
   };
 
-  // Calculate minimap bounds based on player position
-  const getMinimapBounds = () => {
-    if (!playerHead) return { minX: 0, maxX: minimapViewRadius * 2, minY: 0, maxY: minimapViewRadius * 2 };
+  // Calculate radar items based on player position
+  const getRadarItems = () => {
+    if (!playerHead) return { radarFoods: [], radarSnakeSegments: [] };
     
-    const centerX = playerHead.x;
-    const centerY = playerHead.y;
-    
-    return {
-      minX: Math.max(0, centerX - minimapViewRadius),
-      maxX: Math.min(gridSize, centerX + minimapViewRadius),
-      minY: Math.max(0, centerY - minimapViewRadius),
-      maxY: Math.min(gridSize, centerY + minimapViewRadius)
-    };
+    const radarFoods = foods.filter(food => {
+      const distance = Math.abs(food.position.x - playerHead.x) + Math.abs(food.position.y - playerHead.y);
+      return distance <= radarRange;
+    });
+
+    const radarSnakeSegments = snakes.flatMap(snake => 
+      snake.segments
+        .filter(segment => {
+          const distance = Math.abs(segment.x - playerHead.x) + Math.abs(segment.y - playerHead.y);
+          return distance <= radarRange;
+        })
+        .map((segment, index) => ({ snake, segment, segmentIndex: index }))
+    );
+
+    return { radarFoods, radarSnakeSegments };
   };
 
   const viewportBounds = getViewportBounds();
-  const minimapBounds = getMinimapBounds();
 
   // Filter items that are within the viewport
   const getVisibleItems = () => {
@@ -75,27 +80,8 @@ export const GameArea: React.FC<GameAreaProps> = ({ snakes, foods, gridSize }) =
     return { visibleFoods, visibleSnakeSegments };
   };
 
-  // Filter items that are within the minimap view
-  const getMinimapItems = () => {
-    const visibleFoods = foods.filter(food => 
-      food.position.x >= minimapBounds.minX && food.position.x < minimapBounds.maxX &&
-      food.position.y >= minimapBounds.minY && food.position.y < minimapBounds.maxY
-    );
-
-    const visibleSnakeSegments = snakes.flatMap(snake => 
-      snake.segments
-        .filter(segment => 
-          segment.x >= minimapBounds.minX && segment.x < minimapBounds.maxX &&
-          segment.y >= minimapBounds.minY && segment.y < minimapBounds.maxY
-        )
-        .map((segment, index) => ({ snake, segment, segmentIndex: index }))
-    );
-
-    return { visibleFoods, visibleSnakeSegments };
-  };
-
   const { visibleFoods, visibleSnakeSegments } = getVisibleItems();
-  const { visibleFoods: minimapFoods, visibleSnakeSegments: minimapSnakeSegments } = getMinimapItems();
+  const { radarFoods, radarSnakeSegments } = getRadarItems();
 
   return (
     <div className="flex-1 flex items-center justify-center p-8">
@@ -163,7 +149,7 @@ export const GameArea: React.FC<GameAreaProps> = ({ snakes, foods, gridSize }) =
             ))}
           </svg>
 
-          {/* Enhanced Minimap - Larger Area */}
+          {/* Enhanced Radar - Full Game Space */}
           <div 
             className="absolute top-4 right-4 border border-cyber-cyan/60 bg-black/80 backdrop-blur-sm rounded"
             style={{ 
@@ -172,89 +158,106 @@ export const GameArea: React.FC<GameAreaProps> = ({ snakes, foods, gridSize }) =
               boxShadow: '0 0 10px rgba(0, 255, 255, 0.4)'
             }}
           >
-            {/* Minimap title */}
+            {/* Radar title */}
             <div className="absolute -top-6 left-0 text-xs text-cyber-cyan font-bold">
               TACTICAL RADAR
             </div>
             
-            {/* Minimap grid */}
+            {/* Radar grid - show entire game space */}
             <svg 
               className="absolute inset-0"
               width={minimapSize} 
               height={minimapSize}
             >
-              {/* Grid lines */}
-              {Array.from({ length: 16 }).map((_, i) => (
+              {/* Grid lines for entire game space */}
+              {Array.from({ length: 13 }).map((_, i) => (
                 <g key={i}>
                   <line
                     x1={0}
-                    y1={i * (minimapSize / 15)}
+                    y1={i * (minimapSize / 12)}
                     x2={minimapSize}
-                    y2={i * (minimapSize / 15)}
-                    stroke="rgba(0, 255, 255, 0.3)"
+                    y2={i * (minimapSize / 12)}
+                    stroke="rgba(0, 255, 255, 0.2)"
                     strokeWidth="0.5"
                   />
                   <line
-                    x1={i * (minimapSize / 15)}
+                    x1={i * (minimapSize / 12)}
                     y1={0}
-                    x2={i * (minimapSize / 15)}
+                    x2={i * (minimapSize / 12)}
                     y2={minimapSize}
-                    stroke="rgba(0, 255, 255, 0.3)"
+                    stroke="rgba(0, 255, 255, 0.2)"
                     strokeWidth="0.5"
                   />
                 </g>
               ))}
             </svg>
 
-            {/* Minimap food */}
-            {minimapFoods.map((food, index) => (
-              <div
-                key={`minimap-food-${index}`}
-                className="absolute rounded-full"
+            {/* Radar detection area indicator */}
+            {playerSnake && playerSnake.isAlive && playerHead && (
+              <div 
+                className="absolute border border-cyber-cyan/30 rounded-full"
                 style={{
-                  left: (food.position.x - minimapBounds.minX) * minimapCellSize - 1,
-                  top: (food.position.y - minimapBounds.minY) * minimapCellSize - 1,
+                  left: (playerHead.x * minimapCellSize) - (radarRange * minimapCellSize),
+                  top: (playerHead.y * minimapCellSize) - (radarRange * minimapCellSize),
+                  width: radarRange * 2 * minimapCellSize,
+                  height: radarRange * 2 * minimapCellSize,
+                  backgroundColor: 'rgba(0, 255, 255, 0.05)'
+                }}
+              />
+            )}
+
+            {/* Radar food - only nearby items */}
+            {radarFoods.map((food, index) => (
+              <div
+                key={`radar-food-${index}`}
+                className="absolute rounded-full animate-pulse"
+                style={{
+                  left: food.position.x * minimapCellSize - 1,
+                  top: food.position.y * minimapCellSize - 1,
                   width: 2,
                   height: 2,
-                  backgroundColor: food.type === 'bonus' ? '#ff8000' : '#00ff41'
+                  backgroundColor: food.type === 'bonus' ? '#ff8000' : '#00ff41',
+                  boxShadow: `0 0 2px ${food.type === 'bonus' ? '#ff8000' : '#00ff41'}`
                 }}
               />
             ))}
 
-            {/* Minimap snakes */}
-            {minimapSnakeSegments.map(({ snake, segment, segmentIndex }, index) => {
+            {/* Radar snakes - only nearby segments */}
+            {radarSnakeSegments.map(({ snake, segment, segmentIndex }, index) => {
               const isHead = segmentIndex === 0;
               const isPlayer = snake.isPlayer;
+              const distance = playerHead ? Math.abs(segment.x - playerHead.x) + Math.abs(segment.y - playerHead.y) : 0;
+              const alpha = Math.max(0.3, 1 - (distance / radarRange));
               
               return (
                 <div
-                  key={`minimap-${snake.id}-${segmentIndex}-${index}`}
+                  key={`radar-${snake.id}-${segmentIndex}-${index}`}
                   className="absolute"
                   style={{
-                    left: (segment.x - minimapBounds.minX) * minimapCellSize - (isHead ? 1.5 : 1),
-                    top: (segment.y - minimapBounds.minY) * minimapCellSize - (isHead ? 1.5 : 1),
+                    left: segment.x * minimapCellSize - (isHead ? 1.5 : 1),
+                    top: segment.y * minimapCellSize - (isHead ? 1.5 : 1),
                     width: isHead ? 3 : 2,
                     height: isHead ? 3 : 2,
                     backgroundColor: snake.color,
-                    opacity: snake.isAlive ? (isPlayer ? 1 : 0.7) : 0.3,
+                    opacity: snake.isAlive ? alpha : alpha * 0.3,
                     borderRadius: isHead ? '50%' : '0%',
                     border: isPlayer && isHead ? `1px solid ${snake.color}` : 'none',
-                    boxShadow: isPlayer && isHead ? `0 0 4px ${snake.color}` : 'none'
+                    boxShadow: isHead ? `0 0 3px ${snake.color}` : 'none'
                   }}
                 />
               );
             })}
 
-            {/* Player center indicator */}
+            {/* Player position indicator */}
             {playerSnake && playerSnake.isAlive && playerHead && (
               <div 
                 className="absolute animate-pulse"
                 style={{
-                  left: (playerHead.x - minimapBounds.minX) * minimapCellSize - 3,
-                  top: (playerHead.y - minimapBounds.minY) * minimapCellSize - 3,
+                  left: playerHead.x * minimapCellSize - 3,
+                  top: playerHead.y * minimapCellSize - 3,
                   width: 6,
                   height: 6,
-                  border: '1px solid #00ffff',
+                  border: '2px solid #00ffff',
                   borderRadius: '50%',
                   backgroundColor: 'transparent'
                 }}
@@ -265,18 +268,18 @@ export const GameArea: React.FC<GameAreaProps> = ({ snakes, foods, gridSize }) =
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="w-4 h-4">
                 <svg width="16" height="16" viewBox="0 0 16 16">
-                  <line x1="8" y1="0" x2="8" y2="16" stroke="rgba(0, 255, 255, 0.5)" strokeWidth="1" />
-                  <line x1="0" y1="8" x2="16" y2="8" stroke="rgba(0, 255, 255, 0.5)" strokeWidth="1" />
+                  <line x1="8" y1="0" x2="8" y2="16" stroke="rgba(0, 255, 255, 0.3)" strokeWidth="1" />
+                  <line x1="0" y1="8" x2="16" y2="8" stroke="rgba(0, 255, 255, 0.3)" strokeWidth="1" />
                 </svg>
               </div>
             </div>
 
-            {/* Viewport indicator */}
+            {/* Current viewport indicator on radar */}
             <div 
-              className="absolute border border-white/50"
+              className="absolute border border-white/40"
               style={{
-                left: (viewportBounds.minX - minimapBounds.minX) * minimapCellSize,
-                top: (viewportBounds.minY - minimapBounds.minY) * minimapCellSize,
+                left: viewportBounds.minX * minimapCellSize,
+                top: viewportBounds.minY * minimapCellSize,
                 width: (viewportBounds.maxX - viewportBounds.minX) * minimapCellSize,
                 height: (viewportBounds.maxY - viewportBounds.minY) * minimapCellSize,
                 pointerEvents: 'none'
