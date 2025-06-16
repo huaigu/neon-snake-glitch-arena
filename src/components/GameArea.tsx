@@ -12,12 +12,52 @@ export const GameArea: React.FC<GameAreaProps> = ({ snakes, foods, gridSize }) =
   const cellSize = 18;
   const containerSize = gridSize * cellSize;
   
-  // Minimap settings
+  // Minimap settings - show local area around player
   const minimapSize = 120;
-  const minimapCellSize = minimapSize / gridSize;
+  const minimapViewRadius = 8; // Show 8x8 area around player (total 16x16 view)
+  const minimapCellSize = minimapSize / (minimapViewRadius * 2);
 
   // Get player snake
   const playerSnake = snakes.find(snake => snake.isPlayer);
+  const playerHead = playerSnake?.segments[0];
+
+  // Calculate minimap bounds based on player position
+  const getMinimapBounds = () => {
+    if (!playerHead) return { minX: 0, maxX: minimapViewRadius * 2, minY: 0, maxY: minimapViewRadius * 2 };
+    
+    const centerX = playerHead.x;
+    const centerY = playerHead.y;
+    
+    return {
+      minX: Math.max(0, centerX - minimapViewRadius),
+      maxX: Math.min(gridSize, centerX + minimapViewRadius),
+      minY: Math.max(0, centerY - minimapViewRadius),
+      maxY: Math.min(gridSize, centerY + minimapViewRadius)
+    };
+  };
+
+  const minimapBounds = getMinimapBounds();
+
+  // Filter items that are within the minimap view
+  const getMinimapItems = () => {
+    const visibleFoods = foods.filter(food => 
+      food.position.x >= minimapBounds.minX && food.position.x < minimapBounds.maxX &&
+      food.position.y >= minimapBounds.minY && food.position.y < minimapBounds.maxY
+    );
+
+    const visibleSnakeSegments = snakes.flatMap(snake => 
+      snake.segments
+        .filter(segment => 
+          segment.x >= minimapBounds.minX && segment.x < minimapBounds.maxX &&
+          segment.y >= minimapBounds.minY && segment.y < minimapBounds.maxY
+        )
+        .map((segment, index) => ({ snake, segment, segmentIndex: index }))
+    );
+
+    return { visibleFoods, visibleSnakeSegments };
+  };
+
+  const { visibleFoods, visibleSnakeSegments } = getMinimapItems();
 
   return (
     <div className="flex-1 flex items-center justify-center p-8">
@@ -77,7 +117,7 @@ export const GameArea: React.FC<GameAreaProps> = ({ snakes, foods, gridSize }) =
             ))}
           </svg>
 
-          {/* Minimap */}
+          {/* Local Minimap - Player Area */}
           <div 
             className="absolute top-4 right-4 border border-cyber-cyan/60 bg-black/80 backdrop-blur-sm rounded"
             style={{ 
@@ -88,7 +128,7 @@ export const GameArea: React.FC<GameAreaProps> = ({ snakes, foods, gridSize }) =
           >
             {/* Minimap title */}
             <div className="absolute -top-6 left-0 text-xs text-cyber-cyan font-bold">
-              RADAR
+              LOCAL RADAR
             </div>
             
             {/* Minimap grid */}
@@ -98,20 +138,20 @@ export const GameArea: React.FC<GameAreaProps> = ({ snakes, foods, gridSize }) =
               height={minimapSize}
             >
               {/* Grid lines */}
-              {Array.from({ length: 6 }).map((_, i) => (
+              {Array.from({ length: 9 }).map((_, i) => (
                 <g key={i}>
                   <line
                     x1={0}
-                    y1={i * (minimapSize / 5)}
+                    y1={i * (minimapSize / 8)}
                     x2={minimapSize}
-                    y2={i * (minimapSize / 5)}
+                    y2={i * (minimapSize / 8)}
                     stroke="rgba(0, 255, 255, 0.3)"
                     strokeWidth="0.5"
                   />
                   <line
-                    x1={i * (minimapSize / 5)}
+                    x1={i * (minimapSize / 8)}
                     y1={0}
-                    x2={i * (minimapSize / 5)}
+                    x2={i * (minimapSize / 8)}
                     y2={minimapSize}
                     stroke="rgba(0, 255, 255, 0.3)"
                     strokeWidth="0.5"
@@ -121,13 +161,13 @@ export const GameArea: React.FC<GameAreaProps> = ({ snakes, foods, gridSize }) =
             </svg>
 
             {/* Minimap food */}
-            {foods.map((food, index) => (
+            {visibleFoods.map((food, index) => (
               <div
                 key={`minimap-food-${index}`}
                 className="absolute rounded-full"
                 style={{
-                  left: food.position.x * minimapCellSize - 1,
-                  top: food.position.y * minimapCellSize - 1,
+                  left: (food.position.x - minimapBounds.minX) * minimapCellSize - 1,
+                  top: (food.position.y - minimapBounds.minY) * minimapCellSize - 1,
                   width: 2,
                   height: 2,
                   backgroundColor: food.type === 'bonus' ? '#ff8000' : '#00ff41'
@@ -136,38 +176,36 @@ export const GameArea: React.FC<GameAreaProps> = ({ snakes, foods, gridSize }) =
             ))}
 
             {/* Minimap snakes */}
-            {snakes.map((snake) => 
-              snake.segments.map((segment, segmentIndex) => {
-                const isHead = segmentIndex === 0;
-                const isPlayer = snake.isPlayer;
-                
-                return (
-                  <div
-                    key={`minimap-${snake.id}-${segmentIndex}`}
-                    className="absolute"
-                    style={{
-                      left: segment.x * minimapCellSize - (isHead ? 1.5 : 1),
-                      top: segment.y * minimapCellSize - (isHead ? 1.5 : 1),
-                      width: isHead ? 3 : 2,
-                      height: isHead ? 3 : 2,
-                      backgroundColor: snake.color,
-                      opacity: snake.isAlive ? (isPlayer ? 1 : 0.7) : 0.3,
-                      borderRadius: isHead ? '50%' : '0%',
-                      border: isPlayer && isHead ? `1px solid ${snake.color}` : 'none',
-                      boxShadow: isPlayer && isHead ? `0 0 4px ${snake.color}` : 'none'
-                    }}
-                  />
-                );
-              })
-            )}
+            {visibleSnakeSegments.map(({ snake, segment, segmentIndex }, index) => {
+              const isHead = segmentIndex === 0;
+              const isPlayer = snake.isPlayer;
+              
+              return (
+                <div
+                  key={`minimap-${snake.id}-${segmentIndex}-${index}`}
+                  className="absolute"
+                  style={{
+                    left: (segment.x - minimapBounds.minX) * minimapCellSize - (isHead ? 1.5 : 1),
+                    top: (segment.y - minimapBounds.minY) * minimapCellSize - (isHead ? 1.5 : 1),
+                    width: isHead ? 3 : 2,
+                    height: isHead ? 3 : 2,
+                    backgroundColor: snake.color,
+                    opacity: snake.isAlive ? (isPlayer ? 1 : 0.7) : 0.3,
+                    borderRadius: isHead ? '50%' : '0%',
+                    border: isPlayer && isHead ? `1px solid ${snake.color}` : 'none',
+                    boxShadow: isPlayer && isHead ? `0 0 4px ${snake.color}` : 'none'
+                  }}
+                />
+              );
+            })}
 
-            {/* Player position indicator */}
-            {playerSnake && playerSnake.isAlive && (
+            {/* Player center indicator */}
+            {playerSnake && playerSnake.isAlive && playerHead && (
               <div 
                 className="absolute animate-pulse"
                 style={{
-                  left: playerSnake.segments[0].x * minimapCellSize - 3,
-                  top: playerSnake.segments[0].y * minimapCellSize - 3,
+                  left: (playerHead.x - minimapBounds.minX) * minimapCellSize - 3,
+                  top: (playerHead.y - minimapBounds.minY) * minimapCellSize - 3,
                   width: 6,
                   height: 6,
                   border: '1px solid #00ffff',
@@ -176,6 +214,16 @@ export const GameArea: React.FC<GameAreaProps> = ({ snakes, foods, gridSize }) =
                 }}
               />
             )}
+
+            {/* Center crosshair */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="w-4 h-4">
+                <svg width="16" height="16" viewBox="0 0 16 16">
+                  <line x1="8" y1="0" x2="8" y2="16" stroke="rgba(0, 255, 255, 0.5)" strokeWidth="1" />
+                  <line x1="0" y1="8" x2="16" y2="8" stroke="rgba(0, 255, 255, 0.5)" strokeWidth="1" />
+                </svg>
+              </div>
+            </div>
           </div>
 
           {/* Food Items */}
