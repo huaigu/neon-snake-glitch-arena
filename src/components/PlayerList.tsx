@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Player } from '../hooks/useGameLobby';
+import { Player } from '../contexts/GameContext';
 import { Crown, Bot, User, Check, Clock } from 'lucide-react';
 
 interface PlayerListProps {
@@ -47,7 +47,7 @@ export const PlayerList: React.FC<PlayerListProps> = ({ players, currentPlayerId
                 )}
               </div>
               <div className="text-xs text-cyber-cyan/70">
-                {player.isBot ? '机器人' : '玩家'}
+                {player.isBot ? 'Bot' : 'Player'}
               </div>
             </div>
           </div>
@@ -56,12 +56,12 @@ export const PlayerList: React.FC<PlayerListProps> = ({ players, currentPlayerId
             {player.isReady ? (
               <div className="flex items-center gap-1 text-green-400">
                 <Check className="w-4 h-4" />
-                <span className="text-sm">已准备</span>
+                <span className="text-sm">Ready</span>
               </div>
             ) : (
               <div className="flex items-center gap-1 text-yellow-400">
                 <Clock className="w-4 h-4" />
-                <span className="text-sm">等待中</span>
+                <span className="text-sm">Waiting</span>
               </div>
             )}
           </div>
@@ -74,7 +74,7 @@ export const PlayerList: React.FC<PlayerListProps> = ({ players, currentPlayerId
           key={`empty-${index}`}
           className="flex items-center justify-center p-3 rounded-lg border border-dashed border-cyber-cyan/20 bg-cyber-cyan/5"
         >
-          <span className="text-cyber-cyan/50 text-sm">等待玩家加入...</span>
+          <span className="text-cyber-cyan/50 text-sm">Waiting for players...</span>
         </div>
       ))}
     </div>

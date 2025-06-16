@@ -40,7 +40,7 @@ export const GameLobbyComponent: React.FC = () => {
             CYBER SNAKE LOBBY
           </h1>
           <p className="text-cyber-cyan/70">
-            等待玩家加入 • 最多8名玩家
+            Waiting for players • Maximum 8 players
           </p>
         </div>
 
@@ -51,7 +51,7 @@ export const GameLobbyComponent: React.FC = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-cyber-cyan">
                   <Users className="w-5 h-5" />
-                  玩家列表 ({totalPlayers}/8)
+                  Player List ({totalPlayers}/8)
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -67,7 +67,7 @@ export const GameLobbyComponent: React.FC = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-cyber-cyan">
                   <Crown className="w-5 h-5" />
-                  准备状态
+                  Ready Status
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -76,7 +76,7 @@ export const GameLobbyComponent: React.FC = () => {
                     {readyCount}/{totalPlayers}
                   </div>
                   <p className="text-sm text-cyber-cyan/70">
-                    玩家已准备
+                    Players Ready
                   </p>
                 </div>
 
@@ -86,7 +86,7 @@ export const GameLobbyComponent: React.FC = () => {
                   className="w-full"
                   disabled={isGameStarting}
                 >
-                  {currentPlayer.isReady ? "取消准备" : "准备游戏"}
+                  {currentPlayer.isReady ? "Cancel Ready" : "Ready Up"}
                 </Button>
 
                 {canStartGame && (
@@ -95,7 +95,7 @@ export const GameLobbyComponent: React.FC = () => {
                     className="w-full bg-green-600 hover:bg-green-700"
                     disabled={isGameStarting}
                   >
-                    {isGameStarting ? "游戏启动中..." : "开始游戏"}
+                    {isGameStarting ? "Starting Game..." : "Start Game"}
                   </Button>
                 )}
               </CardContent>
@@ -106,7 +106,7 @@ export const GameLobbyComponent: React.FC = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-cyber-cyan">
                   <Zap className="w-5 h-5" />
-                  机器人控制
+                  Bot Controls
                 </CardTitle>
               </CardHeader>
               <CardContent>

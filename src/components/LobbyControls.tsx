@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Player } from '../hooks/useGameLobby';
+import { Player } from '../contexts/GameContext';
 import { Button } from './ui/button';
 import { Plus, Minus } from 'lucide-react';
 
@@ -25,10 +25,10 @@ export const LobbyControls: React.FC<LobbyControlsProps> = ({
     <div className="space-y-4">
       <div className="text-center">
         <div className="text-lg font-semibold text-cyber-cyan">
-          机器人数量: {botCount}
+          Bot Count: {botCount}
         </div>
         <p className="text-sm text-cyber-cyan/70">
-          最多可添加7个机器人
+          Maximum 7 bots allowed
         </p>
       </div>
 
@@ -40,7 +40,7 @@ export const LobbyControls: React.FC<LobbyControlsProps> = ({
           className="flex-1"
         >
           <Plus className="w-4 h-4 mr-2" />
-          添加机器人
+          Add Bot
         </Button>
 
         <Button
@@ -50,13 +50,13 @@ export const LobbyControls: React.FC<LobbyControlsProps> = ({
           className="flex-1"
         >
           <Minus className="w-4 h-4 mr-2" />
-          移除机器人
+          Remove Bot
         </Button>
       </div>
 
       {players.length < 2 && (
         <div className="text-center text-yellow-400 text-sm">
-          至少需要2名玩家才能开始游戏
+          At least 2 players required to start game
         </div>
       )}
     </div>
