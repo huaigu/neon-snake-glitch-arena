@@ -2,13 +2,21 @@ import React, { useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRoomContext } from '../contexts/RoomContext';
 import { useWeb3Auth } from '../contexts/Web3AuthContext';
-import { useMultisynqRooms } from '../hooks/useMultisynqRooms';
 import { PlayerList } from './PlayerList';
 import { LobbyControls } from './LobbyControls';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Users, Crown } from 'lucide-react';
-import { Player as GamePlayer } from '../contexts/GameContext';
+import { Player as RoomPlayer } from '../models/GameModel';
+
+// 本地游戏玩家接口（用于UI显示）
+interface GamePlayer {
+  id: string;
+  name: string;
+  color: string;
+  isReady: boolean;
+  isBot: boolean;
+}
 
 // 预定义的玩家颜色
 const PLAYER_COLORS = [
@@ -26,80 +34,98 @@ export const GameLobbyComponent: React.FC = () => {
   console.log('GameLobbyComponent: Component rendering started');
   
   const navigate = useNavigate();
-  const { currentRoom, currentPlayerName } = useRoomContext();
+  const { currentRoom, currentPlayerName, setPlayerReady } = useRoomContext();
   const { user } = useWeb3Auth();
-  const { toggleReady } = useMultisynqRooms();
 
   console.log('GameLobbyComponent: Hook values:', {
     hasCurrentRoom: !!currentRoom,
     hasUser: !!user,
     userAddress: user?.address,
     roomId: currentRoom?.id,
-    hasToggleReady: !!toggleReady
+    hasSetPlayerReady: !!setPlayerReady
   });
 
   // Convert room players to game players format
   const players = useMemo(() => {
-    if (!currentRoom) return [];
+    if (!currentRoom) {
+      console.log('GameLobbyComponent: No currentRoom, returning empty players array');
+      return [];
+    }
     
-    console.log('Converting room players to game format:', currentRoom.players);
+    console.log('GameLobbyComponent: Converting room players to game format:', {
+      roomId: currentRoom.id,
+      roomPlayers: currentRoom.players.map(p => ({ name: p.name, isReady: p.isReady, address: p.address }))
+    });
     
-    return currentRoom.players.map((roomPlayer, index): GamePlayer => ({
+    const convertedPlayers = currentRoom.players.map((roomPlayer, index): GamePlayer => ({
       id: roomPlayer.address,
       name: roomPlayer.name,
       color: PLAYER_COLORS[index % PLAYER_COLORS.length],
       isReady: roomPlayer.isReady,
       isBot: false // Room players are never bots
     }));
+
+    console.log('GameLobbyComponent: Converted players:', convertedPlayers.map(p => ({ name: p.name, isReady: p.isReady })));
+    
+    return convertedPlayers;
   }, [currentRoom]);
 
   // Log player updates for debugging
   useEffect(() => {
-    console.log('Room players updated:', {
+    console.log('GameLobbyComponent: Room players updated:', {
       roomId: currentRoom?.id,
       playersCount: players.length,
       players: players.map(p => ({ name: p.name, isReady: p.isReady }))
     });
   }, [currentRoom?.id, players]);
 
+  // Log currentRoom changes for debugging
+  useEffect(() => {
+    console.log('GameLobbyComponent: currentRoom changed:', {
+      roomId: currentRoom?.id,
+      roomPlayersCount: currentRoom?.players.length,
+      roomPlayers: currentRoom?.players.map(p => ({ name: p.name, isReady: p.isReady, address: p.address }))
+    });
+  }, [currentRoom]);
+
   const currentPlayer = players.find(p => p.id === user?.address);
+  
+  // Log currentPlayer for debugging
+  useEffect(() => {
+    console.log('GameLobbyComponent: currentPlayer updated:', {
+      hasCurrentPlayer: !!currentPlayer,
+      currentPlayerName: currentPlayer?.name,
+      currentPlayerReady: currentPlayer?.isReady,
+      userAddress: user?.address
+    });
+  }, [currentPlayer, user?.address]);
 
   const handleToggleReady = useCallback(() => {
     console.log('=== handleToggleReady CALLED ===');
     console.log('Basic check - this function is definitely being called');
     
-    try {
-      console.log('handleToggleReady: Current state check:', {
-        hasCurrentRoom: !!currentRoom,
-        hasUserAddress: !!user?.address,
-        currentRoom: currentRoom?.id,
-        userAddress: user?.address,
-        currentPlayerExists: !!currentPlayer,
-        currentPlayerReady: currentPlayer?.isReady
-      });
-      
-      if (!currentRoom) {
-        console.log('ERROR: No current room');
-        return;
-      }
-      
-      if (!user?.address) {
-        console.log('ERROR: No user address');
-        return;
-      }
-      
-      console.log('About to call toggleReady with:', {
-        roomId: currentRoom.id,
-        userAddress: user.address
-      });
-      
-      toggleReady(currentRoom.id, user.address);
-      console.log('toggleReady called successfully');
-      
-    } catch (error) {
-      console.error('Error in handleToggleReady:', error);
+    if (!currentRoom || !user?.address || !currentPlayer) {
+      console.error('Missing currentRoom, user address, or currentPlayer');
+      return;
     }
-  }, [currentRoom, user?.address, toggleReady, currentPlayer?.isReady]);
+
+    const newReadyState = !currentPlayer.isReady;
+
+    try {
+      console.log('Calling setPlayerReady from RoomContext:', {
+        roomId: currentRoom.id,
+        playerAddress: user.address,
+        currentReadyState: currentPlayer.isReady,
+        newReadyState: newReadyState
+      });
+      
+      setPlayerReady(currentRoom.id, user.address, newReadyState);
+      
+      console.log('setPlayerReady called successfully');
+    } catch (error) {
+      console.error('Error calling setPlayerReady:', error);
+    }
+  }, [currentRoom?.id, user?.address, currentPlayer?.isReady, setPlayerReady]);
 
   const canStartGame = players.length >= 2 && players.every(p => p.isReady);
 
@@ -182,34 +208,11 @@ export const GameLobbyComponent: React.FC = () => {
                 </div>
 
                 <Button
-                  onClick={(e) => {
-                    console.log('Button onClick event triggered:', e);
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleToggleReady();
-                  }}
-                  onMouseDown={() => console.log('Button mousedown event')}
-                  onMouseUp={() => console.log('Button mouseup event')}
+                  onClick={handleToggleReady}
                   variant={currentPlayer.isReady ? "destructive" : "default"}
                   className="w-full"
-                  disabled={false}
-                  type="button"
                 >
                   {currentPlayer.isReady ? "Cancel Ready" : "Ready Up"}
-                </Button>
-
-                {/* 临时测试按钮 */}
-                <Button
-                  onClick={() => {
-                    console.log('TEST BUTTON CLICKED!');
-                    console.log('Test button - currentRoom:', currentRoom?.id);
-                    console.log('Test button - user:', user?.address);
-                    console.log('Test button - toggleReady function:', typeof toggleReady);
-                  }}
-                  variant="outline"
-                  className="w-full"
-                >
-                  Test Button (Debug)
                 </Button>
 
                 {canStartGame && (

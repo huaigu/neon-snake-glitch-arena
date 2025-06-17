@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useState, useRef, ReactNode, useCallback } from 'react';
 import * as Multisynq from '@multisynq/client';
-import { LobbyModel } from '../models/LobbyModel';
+import GameModel from '../models/GameModel';
+import { GameView } from '../views/GameView';
 
 interface MultisynqContextType {
   session: any | null;
+  gameView: GameView | null;
   isConnected: boolean;
   isConnecting: boolean;
   joinSession: () => Promise<void>;
@@ -27,6 +29,7 @@ interface MultisynqProviderProps {
 
 export const MultisynqProvider: React.FC<MultisynqProviderProps> = ({ children }) => {
   const [session, setSession] = useState<any | null>(null);
+  const [gameView, setGameView] = useState<GameView | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,15 +58,20 @@ export const MultisynqProvider: React.FC<MultisynqProviderProps> = ({ children }
         const newSession = await Multisynq.Session.join({
           apiKey: '2xcA0rsGvIAtP7cMpnboj1GiOVwN8YXr2trmiwtsrU',
           appId: 'io.multisynq.cyber-snake-arena.snakegame',
-          model: LobbyModel,
-          name: 'lobby-session',
-          password: 'lobby-password'
+          model: GameModel,
+          view: GameView,
+          name: 'game-session',
+          password: 'game-password'
         });
 
+        // 创建 GameView 实例
+        const newGameView = newSession.view as GameView;
+        
         setSession(newSession);
+        setGameView(newGameView);
         setIsConnected(true);
         setError(null);
-        console.log('Successfully joined Multisynq session');
+        console.log('Successfully joined Multisynq session with GameModel and GameView');
       } catch (error) {
         console.error('Failed to join Multisynq session:', error);
         setIsConnected(false);
@@ -89,6 +97,7 @@ export const MultisynqProvider: React.FC<MultisynqProviderProps> = ({ children }
     
     // 重置所有状态
     setSession(null);
+    setGameView(null);
     setIsConnected(false);
     setIsConnecting(false);
     setError(null);
@@ -98,6 +107,7 @@ export const MultisynqProvider: React.FC<MultisynqProviderProps> = ({ children }
   return (
     <MultisynqContext.Provider value={{
       session,
+      gameView,
       isConnected,
       isConnecting,
       joinSession,

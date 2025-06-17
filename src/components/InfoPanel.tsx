@@ -50,7 +50,7 @@ export const InfoPanel: React.FC<InfoPanelProps> = ({
   })));
 
   const handleReturnToLobby = () => {
-    navigate('/');
+    navigate('/lobby');
   };
 
   return (
