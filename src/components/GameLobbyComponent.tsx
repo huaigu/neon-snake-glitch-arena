@@ -5,15 +5,13 @@ import { PlayerList } from './PlayerList';
 import { LobbyControls } from './LobbyControls';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Users, Crown, Zap } from 'lucide-react';
+import { Users, Crown } from 'lucide-react';
 
 export const GameLobbyComponent: React.FC = () => {
   const {
     players,
     canStartGame,
     toggleReady,
-    addBot,
-    removeBot,
     currentPlayer,
     handleAutoStart
   } = useGameLobby();
@@ -106,19 +104,17 @@ export const GameLobbyComponent: React.FC = () => {
               </CardContent>
             </Card>
 
-            {/* Bot Controls */}
+            {/* Player Status */}
             <Card className="cyber-panel">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-cyber-cyan">
-                  <Zap className="w-5 h-5" />
-                  Bot Controls
+                  <Users className="w-5 h-5" />
+                  Player Status
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <LobbyControls
                   players={players}
-                  onAddBot={addBot}
-                  onRemoveBot={removeBot}
                   disabled={false}
                 />
               </CardContent>

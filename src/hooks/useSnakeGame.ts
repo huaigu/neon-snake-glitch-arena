@@ -51,11 +51,12 @@ export const useSnakeGame = () => {
   });
 
   const initializeGame = useCallback(() => {
-    console.log('Initializing game with players:', players);
+    console.log('Initializing game with real players only:', players);
     
-    // Create snakes from lobby players
+    // Only create snakes from real players (no bots)
+    const realPlayers = players.filter(player => !player.isBot);
     const centerPos = Math.floor(GRID_SIZE / 2);
-    const gameSnakes = players.map((player, index) => {
+    const gameSnakes = realPlayers.map((player, index) => {
       const startPos = {
         x: centerPos + (index * 7),
         y: centerPos + (index * 3)
@@ -63,10 +64,10 @@ export const useSnakeGame = () => {
       return createSnakeFromPlayer(player, startPos);
     });
     
-    console.log('Created snakes:', gameSnakes);
+    console.log('Created snakes from real players:', gameSnakes);
     setSnakes(gameSnakes);
     
-    // Generate more food across the larger grid
+    // Generate food across the grid
     const initialFoods = [];
     for (let i = 0; i < 8; i++) {
       initialFoods.push(generateFood());
@@ -126,51 +127,6 @@ export const useSnakeGame = () => {
     );
   }, []);
 
-  const getAIDirection = useCallback((snake: Snake, foods: Food[], otherSnakes: Snake[]) => {
-    const head = snake.segments[0];
-    const nearestFood = foods.reduce((nearest, food) => {
-      const distance = Math.abs(head.x - food.position.x) + Math.abs(head.y - food.position.y);
-      return distance < nearest.distance ? { food, distance } : nearest;
-    }, { food: foods[0], distance: Infinity });
-
-    const possibleDirections = ['up', 'down', 'left', 'right'] as const;
-    const oppositeDirection = {
-      up: 'down', down: 'up', left: 'right', right: 'left'
-    };
-
-    const validDirections = possibleDirections.filter(dir => {
-      if (dir === oppositeDirection[snake.direction]) return false;
-      
-      const nextPos = { ...head };
-      switch (dir) {
-        case 'up': nextPos.y--; break;
-        case 'down': nextPos.y++; break;
-        case 'left': nextPos.x--; break;
-        case 'right': nextPos.x++; break;
-      }
-      
-      return !checkCollision(nextPos, snake.segments.slice(1), otherSnakes.filter(s => s.id !== snake.id));
-    });
-
-    if (validDirections.length === 0) return snake.direction;
-
-    // Simple AI: move towards food
-    if (nearestFood.food) {
-      const targetX = nearestFood.food.position.x;
-      const targetY = nearestFood.food.position.y;
-      
-      if (Math.abs(head.x - targetX) > Math.abs(head.y - targetY)) {
-        const preferredDir = head.x > targetX ? 'left' : 'right';
-        if (validDirections.includes(preferredDir)) return preferredDir;
-      } else {
-        const preferredDir = head.y > targetY ? 'up' : 'down';
-        if (validDirections.includes(preferredDir)) return preferredDir;
-      }
-    }
-
-    return validDirections[Math.floor(Math.random() * validDirections.length)];
-  }, [checkCollision]);
-
   const moveSnake = useCallback((snake: Snake, direction: string, foods: Food[], otherSnakes: Snake[]) => {
     const head = { ...snake.segments[0] };
     
@@ -211,12 +167,14 @@ export const useSnakeGame = () => {
         return currentSnakes;
       }
 
+      // Only handle player movement - no AI for bots since we removed them
       const newSnakes = currentSnakes.map(snake => {
         if (!snake.isAlive) return snake;
         
+        // All snakes are now player-controlled or follow simple movement
         const direction = snake.isPlayer 
           ? directionRef.current 
-          : getAIDirection(snake, foods, currentSnakes);
+          : snake.direction; // Keep moving in same direction for non-player snakes
         
         return moveSnake(snake, direction, foods, currentSnakes);
       });
@@ -231,7 +189,7 @@ export const useSnakeGame = () => {
           );
         });
         
-        // Maintain more food on larger grid
+        // Maintain food on grid
         while (newFoods.length < 8) {
           newFoods.push(generateFood());
         }
@@ -241,7 +199,7 @@ export const useSnakeGame = () => {
 
       return newSnakes;
     });
-  }, [foods, moveSnake, getAIDirection, generateFood]);
+  }, [foods, moveSnake, generateFood]);
 
   const startGame = useCallback(() => {
     console.log('Starting game, current snakes:', snakes.length);
@@ -277,7 +235,7 @@ export const useSnakeGame = () => {
   }, []);
 
   useEffect(() => {
-    console.log('useSnakeGame mounted, initializing game');
+    console.log('useSnakeGame mounted, initializing game with real players only');
     initializeGame();
     return () => {
       if (gameLoopRef.current) {
@@ -321,7 +279,7 @@ export const useSnakeGame = () => {
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [gameRunning, changeDirection]);
 
-  console.log('useSnakeGame render - snakes:', snakes.length, 'gameRunning:', gameRunning);
+  console.log('useSnakeGame render - real players only, snakes:', snakes.length, 'gameRunning:', gameRunning);
 
   return {
     snakes,
