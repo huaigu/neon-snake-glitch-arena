@@ -5,7 +5,7 @@ import { useWeb3Auth } from '../contexts/Web3AuthContext';
 import { Web3AuthButton } from '../components/Web3AuthButton';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { ArrowLeft, Shield, Zap, Users } from 'lucide-react';
+import { ArrowLeft, Shield, Zap, Users, User } from 'lucide-react';
 
 const Web3AuthPage = () => {
   const navigate = useNavigate();
@@ -34,10 +34,10 @@ const Web3AuthPage = () => {
         <Card className="cyber-panel">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl font-bold text-cyber-cyan neon-text mb-2">
-              CONNECT WALLET
+              JOIN THE ARENA
             </CardTitle>
             <p className="text-cyber-cyan/70">
-              Sign in with your Ethereum wallet to join the arena
+              Connect your wallet or play as a guest
             </p>
           </CardHeader>
           
@@ -52,6 +52,10 @@ const Web3AuthPage = () => {
                 <span>Secure authentication with your wallet</span>
               </div>
               <div className="flex items-center gap-3 text-sm text-cyber-cyan/70">
+                <User className="w-5 h-5 text-cyber-orange" />
+                <span>Quick guest access - no wallet required</span>
+              </div>
+              <div className="flex items-center gap-3 text-sm text-cyber-cyan/70">
                 <Zap className="w-5 h-5 text-cyber-cyan" />
                 <span>No gas fees required for signing in</span>
               </div>
@@ -62,8 +66,8 @@ const Web3AuthPage = () => {
             </div>
 
             <div className="border-t border-cyber-cyan/20 pt-4 text-xs text-cyber-cyan/50 text-center">
-              By connecting your wallet, you agree to sign a message to verify your identity. 
-              No transactions will be made without your explicit consent.
+              Guest users can play immediately. Wallet users get persistent identity and 
+              enhanced features. No transactions will be made without your explicit consent.
             </div>
           </CardContent>
         </Card>

@@ -9,12 +9,14 @@ interface Web3User {
   nonce: string;
   created_at: string;
   last_login?: string;
+  isGuest?: boolean;
 }
 
 interface Web3AuthContextType {
   user: Web3User | null;
   isConnecting: boolean;
   signInWithEthereum: () => Promise<void>;
+  signInAsGuest: () => Promise<void>;
   signOut: () => void;
   isAuthenticated: boolean;
 }
@@ -47,6 +49,10 @@ export const Web3AuthProvider: React.FC<Web3AuthProviderProps> = ({ children }) 
 
   const generateNonce = () => {
     return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  };
+
+  const generateGuestId = () => {
+    return 'guest_' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
   };
 
   const signInWithEthereum = async () => {
@@ -86,7 +92,8 @@ export const Web3AuthProvider: React.FC<Web3AuthProviderProps> = ({ children }) 
         username: `${address.slice(0, 6)}...${address.slice(-4)}`,
         nonce,
         created_at: new Date().toISOString(),
-        last_login: new Date().toISOString()
+        last_login: new Date().toISOString(),
+        isGuest: false
       };
 
       // Set user as authenticated
@@ -95,6 +102,35 @@ export const Web3AuthProvider: React.FC<Web3AuthProviderProps> = ({ children }) 
     } catch (error) {
       console.error('Authentication failed:', error);
       alert('Authentication failed. Please try again.');
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  const signInAsGuest = async () => {
+    setIsConnecting(true);
+    try {
+      // Generate a unique guest ID
+      const guestId = generateGuestId();
+      const nonce = generateNonce();
+      
+      // Create guest user record
+      const guestRecord: Web3User = {
+        id: guestId,
+        address: guestId,
+        username: `Guest_${guestId.slice(-6)}`,
+        nonce,
+        created_at: new Date().toISOString(),
+        last_login: new Date().toISOString(),
+        isGuest: true
+      };
+
+      // Set user as authenticated
+      setUser(guestRecord);
+      localStorage.setItem('web3_user', JSON.stringify(guestRecord));
+    } catch (error) {
+      console.error('Guest authentication failed:', error);
+      alert('Guest authentication failed. Please try again.');
     } finally {
       setIsConnecting(false);
     }
@@ -110,6 +146,7 @@ export const Web3AuthProvider: React.FC<Web3AuthProviderProps> = ({ children }) 
       user,
       isConnecting,
       signInWithEthereum,
+      signInAsGuest,
       signOut,
       isAuthenticated: !!user
     }}>
