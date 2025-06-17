@@ -2,20 +2,28 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWeb3Auth } from '../contexts/Web3AuthContext';
+import { useMultisynq } from '../contexts/MultisynqContext';
 import { RoomList } from '../components/RoomList';
 import { Web3AuthButton } from '../components/Web3AuthButton';
 import { Button } from '../components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 
 const GameLobbyPage = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useWeb3Auth();
+  const { joinSession, isConnected } = useMultisynq();
 
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/auth');
+      return;
     }
-  }, [isAuthenticated, navigate]);
+
+    // 用户登录后自动加入Multisynq会话
+    if (isAuthenticated && !isConnected) {
+      joinSession();
+    }
+  }, [isAuthenticated, isConnected, navigate, joinSession]);
 
   const handleReturnHome = () => {
     navigate('/');
@@ -25,6 +33,17 @@ const GameLobbyPage = () => {
     return (
       <div className="min-h-screen bg-cyber-darker flex items-center justify-center">
         <div className="text-cyber-cyan">Redirecting to authentication...</div>
+      </div>
+    );
+  }
+
+  if (!isConnected) {
+    return (
+      <div className="min-h-screen bg-cyber-darker flex items-center justify-center">
+        <div className="flex items-center gap-3 text-cyber-cyan">
+          <Loader2 className="w-6 h-6 animate-spin" />
+          <span>Connecting to lobby session...</span>
+        </div>
       </div>
     );
   }

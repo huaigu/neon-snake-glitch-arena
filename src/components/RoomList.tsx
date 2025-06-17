@@ -8,7 +8,7 @@ import { Input } from './ui/input';
 import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Alert, AlertDescription } from './ui/alert';
-import { Users, Plus, Crown, Lock, Clock, Play, Loader2, AlertCircle } from 'lucide-react';
+import { Users, Plus, Crown, Lock, Clock, Play, Loader2, AlertCircle, Wifi, WifiOff } from 'lucide-react';
 
 export const RoomList: React.FC = () => {
   const navigate = useNavigate();
@@ -18,7 +18,8 @@ export const RoomList: React.FC = () => {
     createRoom, 
     joinRoom, 
     loading, 
-    error 
+    error,
+    isConnected
   } = useRoomContext();
   const [newRoomName, setNewRoomName] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -68,9 +69,21 @@ export const RoomList: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-cyber-cyan neon-text mb-2">
-            Game Lobby
-          </h1>
+          <div className="flex items-center gap-3 mb-2">
+            <h1 className="text-3xl font-bold text-cyber-cyan neon-text">
+              Game Lobby
+            </h1>
+            <div className="flex items-center gap-2">
+              {isConnected ? (
+                <Wifi className="w-5 h-5 text-green-400" />
+              ) : (
+                <WifiOff className="w-5 h-5 text-red-400" />
+              )}
+              <span className={`text-sm ${isConnected ? 'text-green-400' : 'text-red-400'}`}>
+                {isConnected ? 'Connected' : 'Disconnected'}
+              </span>
+            </div>
+          </div>
           <p className="text-cyber-cyan/70">
             Choose a room to start your adventure • Current player: {currentPlayerName}
           </p>
@@ -80,7 +93,7 @@ export const RoomList: React.FC = () => {
           <DialogTrigger asChild>
             <Button 
               className="bg-cyber-cyan hover:bg-cyber-cyan/80 text-cyber-darker"
-              disabled={loading}
+              disabled={loading || !isConnected}
             >
               <Plus className="w-4 h-4 mr-2" />
               Create Room
@@ -107,7 +120,7 @@ export const RoomList: React.FC = () => {
               <div className="flex gap-2">
                 <Button
                   onClick={handleCreateRoom}
-                  disabled={!newRoomName.trim() || isCreating}
+                  disabled={!newRoomName.trim() || isCreating || !isConnected}
                   className="flex-1 bg-cyber-cyan hover:bg-cyber-cyan/80 text-cyber-darker"
                 >
                   {isCreating ? (
@@ -132,6 +145,16 @@ export const RoomList: React.FC = () => {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Connection Status Alert */}
+      {!isConnected && (
+        <Alert className="mb-6 border-red-500/50 bg-red-500/10">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="text-red-400">
+            Not connected to lobby session. Some features may not work properly.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Error Alert */}
       {error && (
@@ -228,7 +251,8 @@ export const RoomList: React.FC = () => {
                       room.status === 'playing' || 
                       room.status === 'finished' || 
                       room.players.length >= room.maxPlayers ||
-                      loading
+                      loading ||
+                      !isConnected
                     }
                     className="w-full"
                     variant={room.status === 'waiting' ? 'default' : 'outline'}
@@ -250,7 +274,7 @@ export const RoomList: React.FC = () => {
       )}
 
       {/* Empty State */}
-      {!loading && rooms.length === 0 && (
+      {!loading && rooms.length === 0 && isConnected && (
         <div className="text-center py-12">
           <Users className="w-16 h-16 text-cyber-cyan/30 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-cyber-cyan/70 mb-2">

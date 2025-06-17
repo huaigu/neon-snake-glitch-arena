@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { GameProvider } from "./contexts/GameContext";
 import { RoomProvider } from "./contexts/RoomContext";
 import { Web3AuthProvider } from "./contexts/Web3AuthContext";
+import { MultisynqProvider } from "./contexts/MultisynqContext";
 import Landing from "./pages/Landing";
 import GameLobbyPage from "./pages/GameLobbyPage";
 import RoomPage from "./pages/RoomPage";
@@ -21,24 +22,26 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Web3AuthProvider>
-        <RoomProvider>
-          <GameProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <Routes>
-                <Route path="/" element={<Landing />} />
-                <Route path="/auth" element={<Web3AuthPage />} />
-                <Route path="/lobby" element={<GameLobbyPage />} />
-                <Route path="/room/:roomId" element={<RoomPage />} />
-                <Route path="/old-lobby" element={<GameLobby />} />
-                <Route path="/game" element={<Index />} />
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BrowserRouter>
-          </GameProvider>
-        </RoomProvider>
+        <MultisynqProvider>
+          <RoomProvider>
+            <GameProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <Routes>
+                  <Route path="/" element={<Landing />} />
+                  <Route path="/auth" element={<Web3AuthPage />} />
+                  <Route path="/lobby" element={<GameLobbyPage />} />
+                  <Route path="/room/:roomId" element={<RoomPage />} />
+                  <Route path="/old-lobby" element={<GameLobby />} />
+                  <Route path="/game" element={<Index />} />
+                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </BrowserRouter>
+            </GameProvider>
+          </RoomProvider>
+        </MultisynqProvider>
       </Web3AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
