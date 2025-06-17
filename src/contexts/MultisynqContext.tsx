@@ -33,8 +33,8 @@ export const MultisynqProvider: React.FC<MultisynqProviderProps> = ({ children }
       console.log('Joining Multisynq session...');
       
       const newSession = await Multisynq.Session.join({
-        apiKey: '234567_Paste_Your_Own_API_Key_Here_7654321',
-        appId: 'io.multisynq.cyber-snake-arena',
+        apiKey: '2xcA0rsGvIAtP7cMpnboj1GiOVwN8YXr2trmiwtsrU',
+        appId: 'io.multisynq.cyber-snake-arena.snakegame',
         model: LobbyModel,
         name: 'lobby-session',
         password: 'lobby-password'
