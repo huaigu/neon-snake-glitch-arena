@@ -25,4 +25,7 @@ export default defineConfig(({ mode }) => ({
       external: mode === 'development' ? [] : undefined,
     },
   },
+  optimizeDeps: {
+    include: ['primereact/avatar']
+  }
 }));
