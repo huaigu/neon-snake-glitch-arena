@@ -21,18 +21,24 @@ const PLAYER_COLORS = [
 ];
 
 export const GameLobbyComponent: React.FC = () => {
-  console.log('GameLobbyComponent: Component rendering started');
+  console.log('=== GameLobbyComponent RENDER START ===');
   
   const navigate = useNavigate();
   const { currentRoom, setPlayerReady } = useRoomContext();
   const { user } = useWeb3Auth();
 
-  console.log('GameLobbyComponent: Hook values:', {
+  console.log('GameLobbyComponent: Current state snapshot:', {
     hasCurrentRoom: !!currentRoom,
     hasUser: !!user,
     userAddress: user?.address,
     roomId: currentRoom?.id,
-    hasSetPlayerReady: !!setPlayerReady
+    roomPlayersCount: currentRoom?.players?.length || 0,
+    roomPlayersData: currentRoom?.players?.map(p => ({ 
+      name: p.name, 
+      address: p.address, 
+      isReady: p.isReady 
+    })) || [],
+    timestamp: new Date().toISOString()
   });
 
   // Convert room players to game players format for PlayerList component
@@ -44,7 +50,11 @@ export const GameLobbyComponent: React.FC = () => {
     
     console.log('GameLobbyComponent: Converting room players to game format:', {
       roomId: currentRoom.id,
-      roomPlayers: currentRoom.players.map(p => ({ name: p.name, isReady: p.isReady, address: p.address }))
+      roomPlayers: currentRoom.players.map(p => ({ 
+        name: p.name, 
+        isReady: p.isReady, 
+        address: p.address 
+      }))
     });
     
     return currentRoom.players.map((roomPlayer, index) => ({
@@ -54,20 +64,27 @@ export const GameLobbyComponent: React.FC = () => {
       isReady: roomPlayer.isReady,
       isBot: false
     }));
-  }, [currentRoom]);
+  }, [currentRoom?.players]); // 更精确的依赖项
 
-  // Find current player directly from currentRoom data
+  // Find current player - 强制重新计算当玩家数据变化时
   const currentPlayer = React.useMemo(() => {
-    if (!currentRoom || !user?.address) return null;
+    console.log('=== COMPUTING CURRENT PLAYER ===');
+    
+    if (!currentRoom || !user?.address) {
+      console.log('GameLobbyComponent: Missing currentRoom or user address for currentPlayer calculation');
+      return null;
+    }
+    
     const player = currentRoom.players.find(p => p.address === user.address);
     
-    // 添加详细的调试日志
-    console.log('GameLobbyComponent: currentPlayer calculation:', {
-      userAddress: user?.address,
-      roomPlayers: currentRoom.players.map(p => ({ 
+    console.log('GameLobbyComponent: currentPlayer calculation DETAILED:', {
+      userAddress: user.address,
+      totalPlayersInRoom: currentRoom.players.length,
+      allPlayersData: currentRoom.players.map(p => ({ 
         address: p.address, 
         name: p.name, 
-        isReady: p.isReady 
+        isReady: p.isReady,
+        matchesCurrentUser: p.address === user.address
       })),
       foundPlayer: player ? {
         address: player.address,
@@ -78,56 +95,74 @@ export const GameLobbyComponent: React.FC = () => {
     });
     
     return player;
-  }, [currentRoom, user?.address]);
+  }, [currentRoom?.players, user?.address]); // 更精确的依赖项
 
-  // Log currentPlayer for debugging
+  // 添加详细的 currentPlayer 变化日志
   useEffect(() => {
+    console.log('=== CURRENT PLAYER EFFECT TRIGGERED ===');
     console.log('GameLobbyComponent: currentPlayer state updated:', {
       hasCurrentPlayer: !!currentPlayer,
       currentPlayerName: currentPlayer?.name,
       currentPlayerReady: currentPlayer?.isReady,
+      currentPlayerAddress: currentPlayer?.address,
       userAddress: user?.address,
+      playersMatch: currentPlayer?.address === user?.address,
       timestamp: new Date().toISOString()
     });
   }, [currentPlayer, user?.address]);
 
   const handleToggleReady = useCallback(() => {
-    console.log('=== handleToggleReady CALLED ===');
+    console.log('=== HANDLE TOGGLE READY CALLED ===');
+    console.log('handleToggleReady: Function entry state:', {
+      hasCurrentRoom: !!currentRoom,
+      hasUserAddress: !!user?.address,
+      hasCurrentPlayer: !!currentPlayer,
+      currentPlayerData: currentPlayer ? {
+        name: currentPlayer.name,
+        address: currentPlayer.address,
+        isReady: currentPlayer.isReady
+      } : null,
+      timestamp: new Date().toISOString()
+    });
     
     if (!currentRoom || !user?.address || !currentPlayer) {
-      console.error('Missing dependencies for handleToggleReady:', {
+      console.error('handleToggleReady: Missing dependencies:', {
         hasCurrentRoom: !!currentRoom,
         hasUserAddress: !!user?.address,
-        hasCurrentPlayer: !!currentPlayer
+        hasCurrentPlayer: !!currentPlayer,
+        currentRoomId: currentRoom?.id,
+        userAddress: user?.address
       });
       return;
     }
 
     const newReadyState = !currentPlayer.isReady;
 
-    console.log('handleToggleReady: State calculation:', {
-      currentPlayerIsReady: currentPlayer.isReady,
+    console.log('handleToggleReady: STATE CHANGE CALCULATION:', {
+      playerName: currentPlayer.name,
+      playerAddress: currentPlayer.address,
+      currentReadyState: currentPlayer.isReady,
       newReadyState: newReadyState,
-      playerAddress: user.address,
       roomId: currentRoom.id,
+      willActuallyChange: currentPlayer.isReady !== newReadyState,
       timestamp: new Date().toISOString()
     });
 
+    // 验证我们即将发送的数据
+    console.log('handleToggleReady: ABOUT TO CALL setPlayerReady with:', {
+      roomId: currentRoom.id,
+      playerAddress: user.address,
+      newReadyState: newReadyState,
+      previousState: currentPlayer.isReady
+    });
+
     try {
-      console.log('Calling setPlayerReady from RoomContext:', {
-        roomId: currentRoom.id,
-        playerAddress: user.address,
-        currentReadyState: currentPlayer.isReady,
-        newReadyState: newReadyState
-      });
-      
       setPlayerReady(currentRoom.id, user.address, newReadyState);
-      
-      console.log('setPlayerReady called successfully');
+      console.log('handleToggleReady: setPlayerReady call completed successfully');
     } catch (error) {
-      console.error('Error calling setPlayerReady:', error);
+      console.error('handleToggleReady: Error calling setPlayerReady:', error);
     }
-  }, [currentRoom?.id, user?.address, currentPlayer?.isReady, setPlayerReady, currentPlayer]);
+  }, [currentRoom, user?.address, currentPlayer, setPlayerReady]);
 
   // Calculate ready status directly from currentRoom data
   const readyCount = React.useMemo(() => {
@@ -142,7 +177,7 @@ export const GameLobbyComponent: React.FC = () => {
       }))
     });
     return count;
-  }, [currentRoom]);
+  }, [currentRoom?.players]);
 
   const totalPlayers = currentRoom?.players.length || 0;
   const canStartGame = totalPlayers >= 2 && readyCount === totalPlayers;
@@ -168,7 +203,8 @@ export const GameLobbyComponent: React.FC = () => {
   if (!currentRoom || !currentPlayer) {
     console.log('GameLobbyComponent: Early return - missing room or player data:', {
       hasCurrentRoom: !!currentRoom,
-      hasCurrentPlayer: !!currentPlayer
+      hasCurrentPlayer: !!currentPlayer,
+      userAddress: user?.address
     });
     return (
       <div className="min-h-screen bg-cyber-darker flex items-center justify-center p-4">
@@ -177,11 +213,12 @@ export const GameLobbyComponent: React.FC = () => {
     );
   }
 
-  console.log('GameLobbyComponent: Rendering with data:', {
+  console.log('GameLobbyComponent: FINAL RENDER DATA:', {
     currentPlayerIsReady: currentPlayer.isReady,
     readyCount: readyCount,
     totalPlayers: totalPlayers,
     canStartGame: canStartGame,
+    buttonText: currentPlayer.isReady ? "Cancel Ready" : "Ready Up",
     timestamp: new Date().toISOString()
   });
 
@@ -242,9 +279,14 @@ export const GameLobbyComponent: React.FC = () => {
                   {currentPlayer.isReady ? "Cancel Ready" : "Ready Up"}
                 </Button>
 
-                {/* 添加调试信息 */}
-                <div className="text-xs text-cyan-400 bg-gray-800 p-2 rounded">
-                  Debug: Player {currentPlayer.name} is {currentPlayer.isReady ? 'READY' : 'NOT READY'}
+                {/* 增强的调试信息 */}
+                <div className="text-xs text-cyan-400 bg-gray-800 p-2 rounded space-y-1">
+                  <div>Debug Info:</div>
+                  <div>Player: {currentPlayer.name}</div>
+                  <div>Address: {currentPlayer.address}</div>
+                  <div>Status: {currentPlayer.isReady ? 'READY' : 'NOT READY'}</div>
+                  <div>Ready Count: {readyCount}/{totalPlayers}</div>
+                  <div>Time: {new Date().toLocaleTimeString()}</div>
                 </div>
 
                 {canStartGame && (
