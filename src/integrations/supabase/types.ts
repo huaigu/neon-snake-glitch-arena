@@ -9,6 +9,128 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      leaderboard: {
+        Row: {
+          created_at: string
+          game_duration: number | null
+          id: string
+          player_address: string
+          rank_position: number | null
+          room_id: string | null
+          score: number
+        }
+        Insert: {
+          created_at?: string
+          game_duration?: number | null
+          id?: string
+          player_address: string
+          rank_position?: number | null
+          room_id?: string | null
+          score?: number
+        }
+        Update: {
+          created_at?: string
+          game_duration?: number | null
+          id?: string
+          player_address?: string
+          rank_position?: number | null
+          room_id?: string | null
+          score?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leaderboard_player_address_fkey"
+            columns: ["player_address"]
+            isOneToOne: false
+            referencedRelation: "web3_users"
+            referencedColumns: ["address"]
+          },
+          {
+            foreignKeyName: "leaderboard_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      room_players: {
+        Row: {
+          id: string
+          joined_at: string
+          player_address: string
+          room_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string
+          player_address: string
+          room_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string
+          player_address?: string
+          room_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_players_player_address_fkey"
+            columns: ["player_address"]
+            isOneToOne: false
+            referencedRelation: "web3_users"
+            referencedColumns: ["address"]
+          },
+          {
+            foreignKeyName: "room_players_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rooms: {
+        Row: {
+          created_at: string
+          host_address: string
+          id: string
+          is_private: boolean
+          max_players: number
+          name: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          host_address: string
+          id?: string
+          is_private?: boolean
+          max_players?: number
+          name: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          host_address?: string
+          id?: string
+          is_private?: boolean
+          max_players?: number
+          name?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rooms_host_address_fkey"
+            columns: ["host_address"]
+            isOneToOne: false
+            referencedRelation: "web3_users"
+            referencedColumns: ["address"]
+          },
+        ]
+      }
       web3_users: {
         Row: {
           address: string

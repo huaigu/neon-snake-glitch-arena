@@ -1,5 +1,7 @@
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useWeb3Auth } from './Web3AuthContext';
 
 export interface Room {
   id: string;
@@ -8,7 +10,7 @@ export interface Room {
   players: string[];
   maxPlayers: number;
   isPrivate: boolean;
-  status: 'waiting' | 'playing' | 'full';
+  status: 'waiting' | 'playing' | 'finished';
   createdAt: Date;
 }
 
@@ -19,9 +21,11 @@ interface RoomContextType {
   setCurrentRoom: React.Dispatch<React.SetStateAction<Room | null>>;
   currentPlayerName: string;
   setCurrentPlayerName: React.Dispatch<React.SetStateAction<string>>;
-  createRoom: (roomName: string, isPrivate: boolean) => string;
-  joinRoom: (roomId: string) => boolean;
-  leaveRoom: () => void;
+  createRoom: (roomName: string, isPrivate: boolean) => Promise<string | null>;
+  joinRoom: (roomId: string) => Promise<boolean>;
+  leaveRoom: () => Promise<void>;
+  loading: boolean;
+  error: string | null;
 }
 
 const RoomContext = createContext<RoomContextType | undefined>(undefined);
@@ -39,103 +43,280 @@ interface RoomProviderProps {
 }
 
 export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
-  // Mock data for rooms
-  const [rooms, setRooms] = useState<Room[]>([
-    {
-      id: 'room_1',
-      name: '新手训练营',
-      host: 'CYBER_MASTER',
-      players: ['CYBER_MASTER', 'NEON_HUNTER'],
-      maxPlayers: 4,
-      isPrivate: false,
-      status: 'waiting',
-      createdAt: new Date(Date.now() - 300000)
-    },
-    {
-      id: 'room_2',
-      name: '高手对决',
-      host: 'SNAKE_LORD',
-      players: ['SNAKE_LORD', 'DIGITAL_VIPER', 'MATRIX_CRAWLER'],
-      maxPlayers: 6,
-      isPrivate: false,
-      status: 'waiting',
-      createdAt: new Date(Date.now() - 180000)
-    },
-    {
-      id: 'room_3',
-      name: '终极挑战',
-      host: 'QUANTUM_COIL',
-      players: ['QUANTUM_COIL', 'ELECTRIC_EEL', 'BINARY_SERPENT', 'CYBER_VIPER'],
-      maxPlayers: 4,
-      isPrivate: false,
-      status: 'full',
-      createdAt: new Date(Date.now() - 60000)
-    }
-  ]);
-
+  const [rooms, setRooms] = useState<Room[]>([]);
   const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
   const [currentPlayerName, setCurrentPlayerName] = useState('PLAYER_01');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const createRoom = (roomName: string, isPrivate: boolean): string => {
-    const newRoom: Room = {
-      id: `room_${Date.now()}`,
-      name: roomName,
-      host: currentPlayerName,
-      players: [currentPlayerName],
-      maxPlayers: 8,
-      isPrivate,
-      status: 'waiting',
-      createdAt: new Date()
-    };
+  const { user, isAuthenticated } = useWeb3Auth();
 
-    setRooms(prev => [...prev, newRoom]);
-    setCurrentRoom(newRoom);
-    return newRoom.id;
+  // Generate a display name from wallet address
+  useEffect(() => {
+    if (user?.address) {
+      const shortAddress = `${user.address.slice(0, 6)}...${user.address.slice(-4)}`;
+      setCurrentPlayerName(user.username || shortAddress);
+    }
+  }, [user]);
+
+  // Load rooms from database
+  const loadRooms = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Fetch rooms with player counts
+      const { data: roomsData, error: roomsError } = await supabase
+        .from('rooms')
+        .select(`
+          *,
+          room_players(player_address),
+          host_user:web3_users!rooms_host_address_fkey(address, username)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (roomsError) throw roomsError;
+
+      const formattedRooms: Room[] = roomsData.map(room => ({
+        id: room.id,
+        name: room.name,
+        host: room.host_user?.username || 
+              `${room.host_address.slice(0, 6)}...${room.host_address.slice(-4)}`,
+        players: room.room_players.map((p: any) => p.player_address),
+        maxPlayers: room.max_players,
+        isPrivate: room.is_private,
+        status: room.status as 'waiting' | 'playing' | 'finished',
+        createdAt: new Date(room.created_at)
+      }));
+
+      setRooms(formattedRooms);
+    } catch (err) {
+      console.error('Error loading rooms:', err);
+      setError('Failed to load rooms');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const joinRoom = (roomId: string): boolean => {
-    const room = rooms.find(r => r.id === roomId);
-    if (!room || room.players.length >= room.maxPlayers || room.status === 'playing') {
+  // Load rooms on mount and when authentication changes
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadRooms();
+    } else {
+      setRooms([]);
+      setCurrentRoom(null);
+    }
+  }, [isAuthenticated]);
+
+  // Set up real-time subscriptions
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const roomsChannel = supabase
+      .channel('rooms-changes')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'rooms' }, 
+        () => loadRooms()
+      )
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'room_players' }, 
+        () => loadRooms()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(roomsChannel);
+    };
+  }, [isAuthenticated]);
+
+  const createRoom = async (roomName: string, isPrivate: boolean): Promise<string | null> => {
+    if (!user?.address) {
+      setError('Must be authenticated to create room');
+      return null;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Create room
+      const { data: roomData, error: roomError } = await supabase
+        .from('rooms')
+        .insert({
+          name: roomName,
+          host_address: user.address,
+          is_private: isPrivate,
+          max_players: 8,
+          status: 'waiting'
+        })
+        .select()
+        .single();
+
+      if (roomError) throw roomError;
+
+      // Add host as first player
+      const { error: playerError } = await supabase
+        .from('room_players')
+        .insert({
+          room_id: roomData.id,
+          player_address: user.address
+        });
+
+      if (playerError) throw playerError;
+
+      // Set as current room
+      const newRoom: Room = {
+        id: roomData.id,
+        name: roomData.name,
+        host: currentPlayerName,
+        players: [user.address],
+        maxPlayers: roomData.max_players,
+        isPrivate: roomData.is_private,
+        status: roomData.status as 'waiting' | 'playing' | 'finished',
+        createdAt: new Date(roomData.created_at)
+      };
+
+      setCurrentRoom(newRoom);
+      await loadRooms(); // Refresh the list
+
+      return roomData.id;
+    } catch (err) {
+      console.error('Error creating room:', err);
+      setError('Failed to create room');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const joinRoom = async (roomId: string): Promise<boolean> => {
+    if (!user?.address) {
+      setError('Must be authenticated to join room');
       return false;
     }
 
-    if (room.players.includes(currentPlayerName)) {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Check if room exists and has space
+      const { data: roomData, error: roomError } = await supabase
+        .from('rooms')
+        .select(`
+          *,
+          room_players(player_address),
+          host_user:web3_users!rooms_host_address_fkey(address, username)
+        `)
+        .eq('id', roomId)
+        .single();
+
+      if (roomError) throw roomError;
+
+      if (roomData.status === 'playing') {
+        setError('Game is already in progress');
+        return false;
+      }
+
+      if (roomData.room_players.length >= roomData.max_players) {
+        setError('Room is full');
+        return false;
+      }
+
+      // Check if already in room
+      const isAlreadyInRoom = roomData.room_players.some(
+        (p: any) => p.player_address === user.address
+      );
+
+      if (!isAlreadyInRoom) {
+        // Add player to room
+        const { error: joinError } = await supabase
+          .from('room_players')
+          .insert({
+            room_id: roomId,
+            player_address: user.address
+          });
+
+        if (joinError) throw joinError;
+      }
+
+      // Set as current room
+      const room: Room = {
+        id: roomData.id,
+        name: roomData.name,
+        host: roomData.host_user?.username || 
+              `${roomData.host_address.slice(0, 6)}...${roomData.host_address.slice(-4)}`,
+        players: [...roomData.room_players.map((p: any) => p.player_address), 
+                 ...(isAlreadyInRoom ? [] : [user.address])],
+        maxPlayers: roomData.max_players,
+        isPrivate: roomData.is_private,
+        status: roomData.status as 'waiting' | 'playing' | 'finished',
+        createdAt: new Date(roomData.created_at)
+      };
+
       setCurrentRoom(room);
+      await loadRooms(); // Refresh the list
+
       return true;
+    } catch (err) {
+      console.error('Error joining room:', err);
+      setError('Failed to join room');
+      return false;
+    } finally {
+      setLoading(false);
     }
-
-    const updatedRoom = {
-      ...room,
-      players: [...room.players, currentPlayerName],
-      status: room.players.length + 1 >= room.maxPlayers ? 'full' as const : 'waiting' as const
-    };
-
-    setRooms(prev => prev.map(r => r.id === roomId ? updatedRoom : r));
-    setCurrentRoom(updatedRoom);
-    return true;
   };
 
-  const leaveRoom = () => {
-    if (!currentRoom) return;
+  const leaveRoom = async (): Promise<void> => {
+    if (!currentRoom || !user?.address) return;
 
-    const updatedRoom = {
-      ...currentRoom,
-      players: currentRoom.players.filter(p => p !== currentPlayerName),
-      status: 'waiting' as const
-    };
+    try {
+      setLoading(true);
+      setError(null);
 
-    if (updatedRoom.players.length === 0) {
-      // Remove empty room
-      setRooms(prev => prev.filter(r => r.id !== currentRoom.id));
-    } else {
-      // If host left, assign new host
-      if (currentRoom.host === currentPlayerName && updatedRoom.players.length > 0) {
-        updatedRoom.host = updatedRoom.players[0];
+      // Remove player from room
+      const { error: leaveError } = await supabase
+        .from('room_players')
+        .delete()
+        .eq('room_id', currentRoom.id)
+        .eq('player_address', user.address);
+
+      if (leaveError) throw leaveError;
+
+      // Check if room is empty and delete if so
+      const { data: remainingPlayers, error: checkError } = await supabase
+        .from('room_players')
+        .select('player_address')
+        .eq('room_id', currentRoom.id);
+
+      if (checkError) throw checkError;
+
+      if (remainingPlayers.length === 0) {
+        // Delete empty room
+        const { error: deleteError } = await supabase
+          .from('rooms')
+          .delete()
+          .eq('id', currentRoom.id);
+
+        if (deleteError) throw deleteError;
+      } else if (currentRoom.host === currentPlayerName) {
+        // If host left, assign new host
+        const newHostAddress = remainingPlayers[0].player_address;
+        const { error: updateError } = await supabase
+          .from('rooms')
+          .update({ host_address: newHostAddress })
+          .eq('id', currentRoom.id);
+
+        if (updateError) throw updateError;
       }
-      setRooms(prev => prev.map(r => r.id === currentRoom.id ? updatedRoom : r));
-    }
 
-    setCurrentRoom(null);
+      setCurrentRoom(null);
+      await loadRooms(); // Refresh the list
+    } catch (err) {
+      console.error('Error leaving room:', err);
+      setError('Failed to leave room');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -148,7 +329,9 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
       setCurrentPlayerName,
       createRoom,
       joinRoom,
-      leaveRoom
+      leaveRoom,
+      loading,
+      error
     }}>
       {children}
     </RoomContext.Provider>

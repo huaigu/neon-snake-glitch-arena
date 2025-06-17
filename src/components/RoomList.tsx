@@ -7,25 +7,39 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { Users, Plus, Crown, Lock, Clock, Play } from 'lucide-react';
+import { Alert, AlertDescription } from './ui/alert';
+import { Users, Plus, Crown, Lock, Clock, Play, Loader2, AlertCircle } from 'lucide-react';
 
 export const RoomList: React.FC = () => {
   const navigate = useNavigate();
-  const { rooms, currentPlayerName, createRoom, joinRoom } = useRoomContext();
+  const { 
+    rooms, 
+    currentPlayerName, 
+    createRoom, 
+    joinRoom, 
+    loading, 
+    error 
+  } = useRoomContext();
   const [newRoomName, setNewRoomName] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
 
-  const handleCreateRoom = () => {
+  const handleCreateRoom = async () => {
     if (!newRoomName.trim()) return;
     
-    const roomId = createRoom(newRoomName.trim(), false);
-    setNewRoomName('');
-    setIsDialogOpen(false);
-    navigate(`/room/${roomId}`);
+    setIsCreating(true);
+    const roomId = await createRoom(newRoomName.trim(), false);
+    setIsCreating(false);
+    
+    if (roomId) {
+      setNewRoomName('');
+      setIsDialogOpen(false);
+      navigate(`/room/${roomId}`);
+    }
   };
 
-  const handleJoinRoom = (roomId: string) => {
-    const success = joinRoom(roomId);
+  const handleJoinRoom = async (roomId: string) => {
+    const success = await joinRoom(roomId);
     if (success) {
       navigate(`/room/${roomId}`);
     }
@@ -35,7 +49,7 @@ export const RoomList: React.FC = () => {
     switch (status) {
       case 'waiting': return 'bg-green-500';
       case 'playing': return 'bg-red-500';
-      case 'full': return 'bg-yellow-500';
+      case 'finished': return 'bg-gray-500';
       default: return 'bg-gray-500';
     }
   };
@@ -44,7 +58,7 @@ export const RoomList: React.FC = () => {
     switch (status) {
       case 'waiting': return 'Waiting';
       case 'playing': return 'Playing';
-      case 'full': return 'Full';
+      case 'finished': return 'Finished';
       default: return 'Unknown';
     }
   };
@@ -58,13 +72,16 @@ export const RoomList: React.FC = () => {
             Game Lobby
           </h1>
           <p className="text-cyber-cyan/70">
-            Choose a room to start your adventure, Current player: {currentPlayerName}
+            Choose a room to start your adventure • Current player: {currentPlayerName}
           </p>
         </div>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-cyber-cyan hover:bg-cyber-cyan/80 text-cyber-darker">
+            <Button 
+              className="bg-cyber-cyan hover:bg-cyber-cyan/80 text-cyber-darker"
+              disabled={loading}
+            >
               <Plus className="w-4 h-4 mr-2" />
               Create Room
             </Button>
@@ -83,21 +100,30 @@ export const RoomList: React.FC = () => {
                   onChange={(e) => setNewRoomName(e.target.value)}
                   placeholder="Enter room name..."
                   className="bg-cyber-darker border-cyber-cyan/30 text-cyber-cyan"
-                  onKeyDown={(e) => e.key === 'Enter' && handleCreateRoom()}
+                  onKeyDown={(e) => e.key === 'Enter' && !isCreating && handleCreateRoom()}
+                  disabled={isCreating}
                 />
               </div>
               <div className="flex gap-2">
                 <Button
                   onClick={handleCreateRoom}
-                  disabled={!newRoomName.trim()}
+                  disabled={!newRoomName.trim() || isCreating}
                   className="flex-1 bg-cyber-cyan hover:bg-cyber-cyan/80 text-cyber-darker"
                 >
-                  Create Room
+                  {isCreating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    'Create Room'
+                  )}
                 </Button>
                 <Button
                   onClick={() => setIsDialogOpen(false)}
                   variant="outline"
                   className="flex-1"
+                  disabled={isCreating}
                 >
                   Cancel
                 </Button>
@@ -107,98 +133,132 @@ export const RoomList: React.FC = () => {
         </Dialog>
       </div>
 
+      {/* Error Alert */}
+      {error && (
+        <Alert className="mb-6 border-red-500/50 bg-red-500/10">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="text-red-400">
+            {error}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Loading State */}
+      {loading && rooms.length === 0 && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 text-cyber-cyan animate-spin mr-3" />
+          <span className="text-cyber-cyan">Loading rooms...</span>
+        </div>
+      )}
+
       {/* Room Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <Card className="cyber-panel">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-cyber-cyan" />
-              <div>
-                <div className="text-2xl font-bold text-cyber-cyan">
-                  {rooms.length}
-                </div>
-                <div className="text-sm text-cyber-cyan/70">Active Rooms</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="cyber-panel">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-green-400" />
-              <div>
-                <div className="text-2xl font-bold text-green-400">
-                  {rooms.filter(r => r.status === 'waiting').length}
-                </div>
-                <div className="text-sm text-cyber-cyan/70">Waiting Rooms</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="cyber-panel">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <Play className="w-5 h-5 text-red-400" />
-              <div>
-                <div className="text-2xl font-bold text-red-400">
-                  {rooms.filter(r => r.status === 'playing').length}
-                </div>
-                <div className="text-sm text-cyber-cyan/70">Playing Rooms</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Rooms Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {rooms.map((room) => (
-          <Card key={room.id} className="cyber-panel hover:border-cyber-cyan/50 transition-colors">
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <CardTitle className="text-cyber-cyan text-lg mb-1">
-                    {room.name}
-                  </CardTitle>
-                  <div className="flex items-center gap-2 text-sm text-cyber-cyan/70">
-                    <Crown className="w-4 h-4" />
-                    <span>{room.host}</span>
-                    {room.isPrivate && <Lock className="w-4 h-4" />}
+      {rooms.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <Card className="cyber-panel">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-cyber-cyan" />
+                <div>
+                  <div className="text-2xl font-bold text-cyber-cyan">
+                    {rooms.length}
                   </div>
+                  <div className="text-sm text-cyber-cyan/70">Active Rooms</div>
                 </div>
-                <Badge className={`${getStatusColor(room.status)} text-white`}>
-                  {getStatusText(room.status)}
-                </Badge>
-              </div>
-            </CardHeader>
-            
-            <CardContent className="pt-0">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-cyber-cyan/70">Player Count</span>
-                  <span className="text-cyber-cyan">
-                    {room.players.length}/{room.maxPlayers}
-                  </span>
-                </div>
-
-                <Button
-                  onClick={() => handleJoinRoom(room.id)}
-                  disabled={room.status === 'playing' || room.status === 'full'}
-                  className="w-full"
-                  variant={room.status === 'waiting' ? 'default' : 'outline'}
-                >
-                  {room.status === 'playing' ? 'Game in Progress' :
-                   room.status === 'full' ? 'Room Full' : 'Join Room'}
-                </Button>
               </div>
             </CardContent>
           </Card>
-        ))}
-      </div>
 
-      {rooms.length === 0 && (
+          <Card className="cyber-panel">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <Clock className="w-5 h-5 text-green-400" />
+                <div>
+                  <div className="text-2xl font-bold text-green-400">
+                    {rooms.filter(r => r.status === 'waiting').length}
+                  </div>
+                  <div className="text-sm text-cyber-cyan/70">Waiting Rooms</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="cyber-panel">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <Play className="w-5 h-5 text-red-400" />
+                <div>
+                  <div className="text-2xl font-bold text-red-400">
+                    {rooms.filter(r => r.status === 'playing').length}
+                  </div>
+                  <div className="text-sm text-cyber-cyan/70">Playing Rooms</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Rooms Grid */}
+      {rooms.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {rooms.map((room) => (
+            <Card key={room.id} className="cyber-panel hover:border-cyber-cyan/50 transition-colors">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <CardTitle className="text-cyber-cyan text-lg mb-1">
+                      {room.name}
+                    </CardTitle>
+                    <div className="flex items-center gap-2 text-sm text-cyber-cyan/70">
+                      <Crown className="w-4 h-4" />
+                      <span>{room.host}</span>
+                      {room.isPrivate && <Lock className="w-4 h-4" />}
+                    </div>
+                  </div>
+                  <Badge className={`${getStatusColor(room.status)} text-white`}>
+                    {getStatusText(room.status)}
+                  </Badge>
+                </div>
+              </CardHeader>
+              
+              <CardContent className="pt-0">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-cyber-cyan/70">Player Count</span>
+                    <span className="text-cyber-cyan">
+                      {room.players.length}/{room.maxPlayers}
+                    </span>
+                  </div>
+
+                  <Button
+                    onClick={() => handleJoinRoom(room.id)}
+                    disabled={
+                      room.status === 'playing' || 
+                      room.status === 'finished' || 
+                      room.players.length >= room.maxPlayers ||
+                      loading
+                    }
+                    className="w-full"
+                    variant={room.status === 'waiting' ? 'default' : 'outline'}
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Joining...
+                      </>
+                    ) : room.status === 'playing' ? 'Game in Progress' :
+                       room.status === 'finished' ? 'Game Finished' :
+                       room.players.length >= room.maxPlayers ? 'Room Full' : 'Join Room'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!loading && rooms.length === 0 && (
         <div className="text-center py-12">
           <Users className="w-16 h-16 text-cyber-cyan/30 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-cyber-cyan/70 mb-2">
@@ -210,6 +270,7 @@ export const RoomList: React.FC = () => {
           <Button
             onClick={() => setIsDialogOpen(true)}
             className="bg-cyber-cyan hover:bg-cyber-cyan/80 text-cyber-darker"
+            disabled={loading}
           >
             <Plus className="w-4 h-4 mr-2" />
             Create Room
