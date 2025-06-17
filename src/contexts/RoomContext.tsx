@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWeb3Auth } from './Web3AuthContext';
+import { useRoomsTogether } from '../hooks/useRoomsTogether';
 
 export interface Room {
   id: string;
@@ -43,7 +44,16 @@ interface RoomProviderProps {
 }
 
 export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
-  const [rooms, setRooms] = useState<Room[]>([]);
+  const { 
+    rooms, 
+    setRooms, 
+    addRoom, 
+    updateRoom, 
+    removeRoom, 
+    addPlayerToRoom, 
+    removePlayerFromRoom 
+  } = useRoomsTogether();
+  
   const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
   const [currentPlayerName, setCurrentPlayerName] = useState('PLAYER_01');
   const [loading, setLoading] = useState(false);
@@ -59,7 +69,7 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     }
   }, [user]);
 
-  // Load rooms from database
+  // Load rooms from database and sync with react-together
   const loadRooms = async () => {
     try {
       setLoading(true);
@@ -89,6 +99,7 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
         createdAt: new Date(room.created_at)
       }));
 
+      // Update the shared state with react-together
       setRooms(formattedRooms);
     } catch (err) {
       console.error('Error loading rooms:', err);
@@ -139,7 +150,7 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
       setLoading(true);
       setError(null);
 
-      // Create room
+      // Create room in database
       const { data: roomData, error: roomError } = await supabase
         .from('rooms')
         .insert({
@@ -164,7 +175,7 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
 
       if (playerError) throw playerError;
 
-      // Set as current room
+      // Create new room object
       const newRoom: Room = {
         id: roomData.id,
         name: roomData.name,
@@ -176,8 +187,9 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
         createdAt: new Date(roomData.created_at)
       };
 
+      // Add to shared state via react-together
+      addRoom(newRoom);
       setCurrentRoom(newRoom);
-      await loadRooms(); // Refresh the list
 
       return roomData.id;
     } catch (err) {
@@ -228,7 +240,7 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
       );
 
       if (!isAlreadyInRoom) {
-        // Add player to room
+        // Add player to room in database
         const { error: joinError } = await supabase
           .from('room_players')
           .insert({
@@ -237,6 +249,9 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
           });
 
         if (joinError) throw joinError;
+
+        // Update shared state via react-together
+        addPlayerToRoom(roomId, user.address);
       }
 
       // Set as current room
@@ -254,8 +269,6 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
       };
 
       setCurrentRoom(room);
-      await loadRooms(); // Refresh the list
-
       return true;
     } catch (err) {
       console.error('Error joining room:', err);
@@ -273,7 +286,7 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
       setLoading(true);
       setError(null);
 
-      // Remove player from room
+      // Remove player from room in database
       const { error: leaveError } = await supabase
         .from('room_players')
         .delete()
@@ -281,6 +294,9 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
         .eq('player_address', user.address);
 
       if (leaveError) throw leaveError;
+
+      // Update shared state via react-together
+      removePlayerFromRoom(currentRoom.id, user.address);
 
       // Check if room is empty and delete if so
       const { data: remainingPlayers, error: checkError } = await supabase
@@ -291,13 +307,16 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
       if (checkError) throw checkError;
 
       if (remainingPlayers.length === 0) {
-        // Delete empty room
+        // Delete empty room from database
         const { error: deleteError } = await supabase
           .from('rooms')
           .delete()
           .eq('id', currentRoom.id);
 
         if (deleteError) throw deleteError;
+
+        // Remove from shared state via react-together
+        removeRoom(currentRoom.id);
       } else if (currentRoom.host === currentPlayerName) {
         // If host left, assign new host
         const newHostAddress = remainingPlayers[0].player_address;
@@ -307,10 +326,12 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
           .eq('id', currentRoom.id);
 
         if (updateError) throw updateError;
+
+        // Update shared state via react-together
+        updateRoom(currentRoom.id, { host: `${newHostAddress.slice(0, 6)}...${newHostAddress.slice(-4)}` });
       }
 
       setCurrentRoom(null);
-      await loadRooms(); // Refresh the list
     } catch (err) {
       console.error('Error leaving room:', err);
       setError('Failed to leave room');
