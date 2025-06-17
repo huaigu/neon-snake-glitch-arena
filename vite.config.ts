@@ -26,6 +26,11 @@ export default defineConfig(({ mode }) => ({
     },
   },
   optimizeDeps: {
-    include: ['primereact/avatar']
+    include: [
+      'primereact/avatar',
+      'color-hash',
+      'react-together',
+      'react-together-primereact'
+    ]
   }
 }));
