@@ -1,7 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { ethers } from 'ethers';
-import { supabase } from '@/integrations/supabase/client';
 
 interface Web3User {
   id: string;
@@ -65,36 +64,11 @@ export const Web3AuthProvider: React.FC<Web3AuthProviderProps> = ({ children }) 
       const signer = await provider.getSigner();
       const address = await signer.getAddress();
 
-      // Check if user exists in database
-      let { data: existingUser, error: fetchError } = await supabase
-        .from('web3_users')
-        .select('*')
-        .eq('address', address)
-        .single();
-
-      let userRecord: Web3User;
-
-      if (fetchError && fetchError.code === 'PGRST116') {
-        // User doesn't exist, create new user
-        const nonce = generateNonce();
-        const { data: newUser, error: insertError } = await supabase
-          .from('web3_users')
-          .insert([{ address, nonce }])
-          .select()
-          .single();
-
-        if (insertError) {
-          throw new Error('Failed to create user record');
-        }
-        userRecord = newUser;
-      } else if (fetchError) {
-        throw new Error('Failed to fetch user data');
-      } else {
-        userRecord = existingUser;
-      }
-
+      // Generate a nonce for this session
+      const nonce = generateNonce();
+      
       // Create message to sign
-      const message = `Sign this message to authenticate with Cyber Snake Arena.\n\nNonce: ${userRecord.nonce}\nAddress: ${address}`;
+      const message = `Sign this message to authenticate with Cyber Snake Arena.\n\nNonce: ${nonce}\nAddress: ${address}`;
 
       // Sign the message
       const signature = await signer.signMessage(message);
@@ -105,15 +79,15 @@ export const Web3AuthProvider: React.FC<Web3AuthProviderProps> = ({ children }) 
         throw new Error('Signature verification failed');
       }
 
-      // Update last login
-      const { error: updateError } = await supabase
-        .from('web3_users')
-        .update({ last_login: new Date().toISOString() })
-        .eq('address', address);
-
-      if (updateError) {
-        console.warn('Failed to update last login:', updateError);
-      }
+      // Create user record for local storage
+      const userRecord: Web3User = {
+        id: address,
+        address,
+        username: `${address.slice(0, 6)}...${address.slice(-4)}`,
+        nonce,
+        created_at: new Date().toISOString(),
+        last_login: new Date().toISOString()
+      };
 
       // Set user as authenticated
       setUser(userRecord);
