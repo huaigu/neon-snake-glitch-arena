@@ -59,16 +59,35 @@ export const GameLobbyComponent: React.FC = () => {
   // Find current player directly from currentRoom data
   const currentPlayer = React.useMemo(() => {
     if (!currentRoom || !user?.address) return null;
-    return currentRoom.players.find(p => p.address === user.address);
+    const player = currentRoom.players.find(p => p.address === user.address);
+    
+    // 添加详细的调试日志
+    console.log('GameLobbyComponent: currentPlayer calculation:', {
+      userAddress: user?.address,
+      roomPlayers: currentRoom.players.map(p => ({ 
+        address: p.address, 
+        name: p.name, 
+        isReady: p.isReady 
+      })),
+      foundPlayer: player ? {
+        address: player.address,
+        name: player.name,
+        isReady: player.isReady
+      } : null,
+      timestamp: new Date().toISOString()
+    });
+    
+    return player;
   }, [currentRoom, user?.address]);
 
   // Log currentPlayer for debugging
   useEffect(() => {
-    console.log('GameLobbyComponent: currentPlayer updated:', {
+    console.log('GameLobbyComponent: currentPlayer state updated:', {
       hasCurrentPlayer: !!currentPlayer,
       currentPlayerName: currentPlayer?.name,
       currentPlayerReady: currentPlayer?.isReady,
-      userAddress: user?.address
+      userAddress: user?.address,
+      timestamp: new Date().toISOString()
     });
   }, [currentPlayer, user?.address]);
 
@@ -76,11 +95,23 @@ export const GameLobbyComponent: React.FC = () => {
     console.log('=== handleToggleReady CALLED ===');
     
     if (!currentRoom || !user?.address || !currentPlayer) {
-      console.error('Missing currentRoom, user address, or currentPlayer');
+      console.error('Missing dependencies for handleToggleReady:', {
+        hasCurrentRoom: !!currentRoom,
+        hasUserAddress: !!user?.address,
+        hasCurrentPlayer: !!currentPlayer
+      });
       return;
     }
 
     const newReadyState = !currentPlayer.isReady;
+
+    console.log('handleToggleReady: State calculation:', {
+      currentPlayerIsReady: currentPlayer.isReady,
+      newReadyState: newReadyState,
+      playerAddress: user.address,
+      roomId: currentRoom.id,
+      timestamp: new Date().toISOString()
+    });
 
     try {
       console.log('Calling setPlayerReady from RoomContext:', {
@@ -96,12 +127,21 @@ export const GameLobbyComponent: React.FC = () => {
     } catch (error) {
       console.error('Error calling setPlayerReady:', error);
     }
-  }, [currentRoom?.id, user?.address, currentPlayer?.isReady, setPlayerReady]);
+  }, [currentRoom?.id, user?.address, currentPlayer?.isReady, setPlayerReady, currentPlayer]);
 
   // Calculate ready status directly from currentRoom data
   const readyCount = React.useMemo(() => {
     if (!currentRoom) return 0;
-    return currentRoom.players.filter(p => p.isReady).length;
+    const count = currentRoom.players.filter(p => p.isReady).length;
+    console.log('GameLobbyComponent: Ready count calculation:', {
+      totalPlayers: currentRoom.players.length,
+      readyCount: count,
+      playersReadyState: currentRoom.players.map(p => ({ 
+        name: p.name, 
+        isReady: p.isReady 
+      }))
+    });
+    return count;
   }, [currentRoom]);
 
   const totalPlayers = currentRoom?.players.length || 0;
@@ -126,12 +166,24 @@ export const GameLobbyComponent: React.FC = () => {
 
   // Early return if currentRoom or currentPlayer is not yet initialized
   if (!currentRoom || !currentPlayer) {
+    console.log('GameLobbyComponent: Early return - missing room or player data:', {
+      hasCurrentRoom: !!currentRoom,
+      hasCurrentPlayer: !!currentPlayer
+    });
     return (
       <div className="min-h-screen bg-cyber-darker flex items-center justify-center p-4">
         <div className="text-cyber-cyan">Loading room data...</div>
       </div>
     );
   }
+
+  console.log('GameLobbyComponent: Rendering with data:', {
+    currentPlayerIsReady: currentPlayer.isReady,
+    readyCount: readyCount,
+    totalPlayers: totalPlayers,
+    canStartGame: canStartGame,
+    timestamp: new Date().toISOString()
+  });
 
   return (
     <div className="min-h-screen bg-cyber-darker flex items-center justify-center p-4">
@@ -189,6 +241,11 @@ export const GameLobbyComponent: React.FC = () => {
                 >
                   {currentPlayer.isReady ? "Cancel Ready" : "Ready Up"}
                 </Button>
+
+                {/* 添加调试信息 */}
+                <div className="text-xs text-cyan-400 bg-gray-800 p-2 rounded">
+                  Debug: Player {currentPlayer.name} is {currentPlayer.isReady ? 'READY' : 'NOT READY'}
+                </div>
 
                 {canStartGame && (
                   <div className="text-center text-green-400 text-sm animate-pulse">
