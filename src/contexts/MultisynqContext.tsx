@@ -1,13 +1,14 @@
-
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useRef, ReactNode, useCallback } from 'react';
 import * as Multisynq from '@multisynq/client';
 import { LobbyModel } from '../models/LobbyModel';
 
 interface MultisynqContextType {
   session: any | null;
   isConnected: boolean;
+  isConnecting: boolean;
   joinSession: () => Promise<void>;
   leaveSession: () => void;
+  error: string | null;
 }
 
 const MultisynqContext = createContext<MultisynqContextType | undefined>(undefined);
@@ -27,43 +28,81 @@ interface MultisynqProviderProps {
 export const MultisynqProvider: React.FC<MultisynqProviderProps> = ({ children }) => {
   const [session, setSession] = useState<any | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const joinAttemptRef = useRef<Promise<void> | null>(null);
 
-  const joinSession = async () => {
-    try {
-      console.log('Joining Multisynq session...');
-      
-      const newSession = await Multisynq.Session.join({
-        apiKey: '2xcA0rsGvIAtP7cMpnboj1GiOVwN8YXr2trmiwtsrU',
-        appId: 'io.multisynq.cyber-snake-arena.snakegame',
-        model: LobbyModel,
-        name: 'lobby-session',
-        password: 'lobby-password'
-      });
-
-      setSession(newSession);
-      setIsConnected(true);
-      console.log('Successfully joined Multisynq session');
-    } catch (error) {
-      console.error('Failed to join Multisynq session:', error);
-      setIsConnected(false);
+  const joinSession = useCallback(async () => {
+    // 如果已经连接或正在连接，直接返回
+    if (isConnected || isConnecting) {
+      console.log('Already connected or connecting to Multisynq session');
+      return;
     }
-  };
 
-  const leaveSession = () => {
+    // 如果已经有一个 join 请求在进行中，返回同一个 Promise
+    if (joinAttemptRef.current) {
+      console.log('Join session already in progress, waiting...');
+      return joinAttemptRef.current;
+    }
+
+    // 创建新的 join Promise
+    joinAttemptRef.current = (async () => {
+      try {
+        console.log('Starting to join Multisynq session...');
+        setIsConnecting(true);
+        setError(null);
+        
+        const newSession = await Multisynq.Session.join({
+          apiKey: '2xcA0rsGvIAtP7cMpnboj1GiOVwN8YXr2trmiwtsrU',
+          appId: 'io.multisynq.cyber-snake-arena.snakegame',
+          model: LobbyModel,
+          name: 'lobby-session',
+          password: 'lobby-password'
+        });
+
+        setSession(newSession);
+        setIsConnected(true);
+        setError(null);
+        console.log('Successfully joined Multisynq session');
+      } catch (error) {
+        console.error('Failed to join Multisynq session:', error);
+        setIsConnected(false);
+        setError(error instanceof Error ? error.message : 'Failed to connect');
+      } finally {
+        setIsConnecting(false);
+        joinAttemptRef.current = null;
+      }
+    })();
+
+    return joinAttemptRef.current;
+  }, [isConnected, isConnecting]);
+
+  const leaveSession = useCallback(() => {
     if (session) {
-      session.leave();
-      setSession(null);
-      setIsConnected(false);
-      console.log('Left Multisynq session');
+      try {
+        session.leave();
+        console.log('Left Multisynq session');
+      } catch (error) {
+        console.error('Error leaving session:', error);
+      }
     }
-  };
+    
+    // 重置所有状态
+    setSession(null);
+    setIsConnected(false);
+    setIsConnecting(false);
+    setError(null);
+    joinAttemptRef.current = null;
+  }, [session]);
 
   return (
     <MultisynqContext.Provider value={{
       session,
       isConnected,
+      isConnecting,
       joinSession,
-      leaveSession
+      leaveSession,
+      error
     }}>
       {children}
     </MultisynqContext.Provider>

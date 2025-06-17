@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useWeb3Auth } from './Web3AuthContext';
 import { useMultisynqRooms } from '../hooks/useMultisynqRooms';
@@ -10,7 +9,7 @@ interface RoomContextType {
   setCurrentRoom: React.Dispatch<React.SetStateAction<Room | null>>;
   currentPlayerName: string;
   setCurrentPlayerName: React.Dispatch<React.SetStateAction<string>>;
-  createRoom: (roomName: string) => string | null;
+  createRoom: (roomName: string) => Promise<string | null>;
   joinRoom: (roomId: string) => boolean;
   leaveRoom: () => void;
   loading: boolean;
@@ -56,12 +55,25 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     }
   }, [user]);
 
-  const createRoom = (roomName: string): string | null => {
+  const createRoom = async (roomName: string): Promise<string | null> => {
     if (!user?.address) {
       return null;
     }
 
-    return createRoomMultisynq(roomName, currentPlayerName, user.address);
+    const roomId = await createRoomMultisynq(roomName, currentPlayerName, user.address);
+    
+    // 如果房间创建成功，查找并设置为当前房间
+    if (roomId) {
+      // 等待一小段时间让房间出现在 rooms 列表中
+      setTimeout(() => {
+        const newRoom = rooms.find(r => r.id === roomId);
+        if (newRoom) {
+          setCurrentRoom(newRoom);
+        }
+      }, 100);
+    }
+    
+    return roomId;
   };
 
   const joinRoom = (roomId: string): boolean => {
@@ -69,12 +81,23 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
       return false;
     }
 
-    return joinRoomMultisynq(roomId, user.address, currentPlayerName);
+    const success = joinRoomMultisynq(roomId, user.address, currentPlayerName);
+    
+    // 如果加入成功，设置为当前房间
+    if (success) {
+      const room = rooms.find(r => r.id === roomId);
+      if (room) {
+        setCurrentRoom(room);
+      }
+    }
+    
+    return success;
   };
 
   const leaveRoom = (): void => {
     if (!currentRoom || !user?.address) return;
 
+    console.log('Leaving room:', currentRoom.id, 'User:', user.address);
     leaveRoomMultisynq(currentRoom.id, user.address);
     setCurrentRoom(null);
   };
@@ -84,8 +107,15 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     if (currentRoom) {
       const updatedRoom = rooms.find(r => r.id === currentRoom.id);
       if (updatedRoom) {
+        console.log('RoomContext: Updating current room with new data:', {
+          roomId: currentRoom.id,
+          oldPlayersCount: currentRoom.players.length,
+          newPlayersCount: updatedRoom.players.length,
+          playersReady: updatedRoom.players.map(p => ({ name: p.name, isReady: p.isReady }))
+        });
         setCurrentRoom(updatedRoom);
       } else {
+        console.log('RoomContext: Current room no longer exists, clearing currentRoom');
         setCurrentRoom(null);
       }
     }

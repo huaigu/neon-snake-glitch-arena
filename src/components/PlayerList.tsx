@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Player } from '../contexts/GameContext';
 import { Crown, Bot, User, Check, Clock } from 'lucide-react';
@@ -15,7 +14,7 @@ export const PlayerList: React.FC<PlayerListProps> = ({ players, currentPlayerId
         <div
           key={player.id}
           className={`
-            flex items-center justify-between p-3 rounded-lg border
+            flex items-center justify-between p-4 rounded-lg border min-w-0
             ${player.isReady 
               ? 'border-green-500 bg-green-500/10' 
               : 'border-cyber-cyan/30 bg-cyber-cyan/5'
@@ -23,56 +22,57 @@ export const PlayerList: React.FC<PlayerListProps> = ({ players, currentPlayerId
             ${player.id === currentPlayerId ? 'ring-2 ring-cyber-cyan' : ''}
           `}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
             <div 
-              className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
+              className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
               style={{ backgroundColor: player.color }}
             >
               {index + 1}
             </div>
             
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-medium text-white">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="font-medium text-white truncate">
                   {player.name}
                 </span>
                 {player.id === currentPlayerId && (
-                  <Crown className="w-4 h-4 text-yellow-400" />
+                  <Crown className="w-4 h-4 text-yellow-400 flex-shrink-0" />
                 )}
                 {player.isBot && (
-                  <Bot className="w-4 h-4 text-cyber-cyan" />
+                  <Bot className="w-4 h-4 text-cyber-cyan flex-shrink-0" />
                 )}
                 {!player.isBot && player.id !== currentPlayerId && (
-                  <User className="w-4 h-4 text-cyber-cyan/70" />
+                  <User className="w-4 h-4 text-cyber-cyan/70 flex-shrink-0" />
                 )}
               </div>
-              <div className="text-xs text-cyber-cyan/70">
-                {player.isBot ? 'Bot' : 'Player'}
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-cyber-cyan/70">
+                  {player.isBot ? 'Bot' : 'Player'}
+                </span>
+                <div className="flex items-center gap-1">
+                  {player.isReady ? (
+                    <>
+                      <Check className="w-3 h-3 text-green-400" />
+                      <span className="font-medium text-green-400">Ready</span>
+                    </>
+                  ) : (
+                    <>
+                      <Clock className="w-3 h-3 text-yellow-400" />
+                      <span className="font-medium text-yellow-400">Waiting</span>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {player.isReady ? (
-              <div className="flex items-center gap-1 text-green-400">
-                <Check className="w-4 h-4" />
-                <span className="text-sm">Ready</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1 text-yellow-400">
-                <Clock className="w-4 h-4" />
-                <span className="text-sm">Waiting</span>
-              </div>
-            )}
           </div>
         </div>
       ))}
 
       {/* Empty slots */}
-      {Array.from({ length: 8 - players.length }).map((_, index) => (
+      {Array.from({ length: Math.max(0, 8 - players.length) }).map((_, index) => (
         <div
           key={`empty-${index}`}
-          className="flex items-center justify-center p-3 rounded-lg border border-dashed border-cyber-cyan/20 bg-cyber-cyan/5"
+          className="flex items-center justify-center p-4 rounded-lg border border-dashed border-cyber-cyan/20 bg-cyber-cyan/5 min-h-[72px]"
         >
           <span className="text-cyber-cyan/50 text-sm">Waiting for players...</span>
         </div>

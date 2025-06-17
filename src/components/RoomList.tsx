@@ -29,7 +29,7 @@ export const RoomList: React.FC = () => {
     if (!newRoomName.trim()) return;
     
     setIsCreating(true);
-    const roomId = createRoom(newRoomName.trim());
+    const roomId = await createRoom(newRoomName.trim());
     setIsCreating(false);
     
     if (roomId) {
