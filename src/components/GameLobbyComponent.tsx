@@ -1,22 +1,12 @@
-import React, { useEffect, useCallback, useMemo } from 'react';
+
+import React, { useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRoomContext } from '../contexts/RoomContext';
 import { useWeb3Auth } from '../contexts/Web3AuthContext';
 import { PlayerList } from './PlayerList';
-import { LobbyControls } from './LobbyControls';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Users, Crown } from 'lucide-react';
-import { Player as RoomPlayer } from '../models/GameModel';
-
-// 本地游戏玩家接口（用于UI显示）
-interface GamePlayer {
-  id: string;
-  name: string;
-  color: string;
-  isReady: boolean;
-  isBot: boolean;
-}
 
 // 预定义的玩家颜色
 const PLAYER_COLORS = [
@@ -34,7 +24,7 @@ export const GameLobbyComponent: React.FC = () => {
   console.log('GameLobbyComponent: Component rendering started');
   
   const navigate = useNavigate();
-  const { currentRoom, currentPlayerName, setPlayerReady } = useRoomContext();
+  const { currentRoom, setPlayerReady } = useRoomContext();
   const { user } = useWeb3Auth();
 
   console.log('GameLobbyComponent: Hook values:', {
@@ -45,8 +35,8 @@ export const GameLobbyComponent: React.FC = () => {
     hasSetPlayerReady: !!setPlayerReady
   });
 
-  // Convert room players to game players format
-  const players = useMemo(() => {
+  // Convert room players to game players format for PlayerList component
+  const players = React.useMemo(() => {
     if (!currentRoom) {
       console.log('GameLobbyComponent: No currentRoom, returning empty players array');
       return [];
@@ -57,39 +47,21 @@ export const GameLobbyComponent: React.FC = () => {
       roomPlayers: currentRoom.players.map(p => ({ name: p.name, isReady: p.isReady, address: p.address }))
     });
     
-    const convertedPlayers = currentRoom.players.map((roomPlayer, index): GamePlayer => ({
+    return currentRoom.players.map((roomPlayer, index) => ({
       id: roomPlayer.address,
       name: roomPlayer.name,
       color: PLAYER_COLORS[index % PLAYER_COLORS.length],
       isReady: roomPlayer.isReady,
-      isBot: false // Room players are never bots
+      isBot: false
     }));
-
-    console.log('GameLobbyComponent: Converted players:', convertedPlayers.map(p => ({ name: p.name, isReady: p.isReady })));
-    
-    return convertedPlayers;
   }, [currentRoom]);
 
-  // Log player updates for debugging
-  useEffect(() => {
-    console.log('GameLobbyComponent: Room players updated:', {
-      roomId: currentRoom?.id,
-      playersCount: players.length,
-      players: players.map(p => ({ name: p.name, isReady: p.isReady }))
-    });
-  }, [currentRoom?.id, players]);
+  // Find current player directly from currentRoom data
+  const currentPlayer = React.useMemo(() => {
+    if (!currentRoom || !user?.address) return null;
+    return currentRoom.players.find(p => p.address === user.address);
+  }, [currentRoom, user?.address]);
 
-  // Log currentRoom changes for debugging
-  useEffect(() => {
-    console.log('GameLobbyComponent: currentRoom changed:', {
-      roomId: currentRoom?.id,
-      roomPlayersCount: currentRoom?.players.length,
-      roomPlayers: currentRoom?.players.map(p => ({ name: p.name, isReady: p.isReady, address: p.address }))
-    });
-  }, [currentRoom]);
-
-  const currentPlayer = players.find(p => p.id === user?.address);
-  
   // Log currentPlayer for debugging
   useEffect(() => {
     console.log('GameLobbyComponent: currentPlayer updated:', {
@@ -102,7 +74,6 @@ export const GameLobbyComponent: React.FC = () => {
 
   const handleToggleReady = useCallback(() => {
     console.log('=== handleToggleReady CALLED ===');
-    console.log('Basic check - this function is definitely being called');
     
     if (!currentRoom || !user?.address || !currentPlayer) {
       console.error('Missing currentRoom, user address, or currentPlayer');
@@ -127,7 +98,14 @@ export const GameLobbyComponent: React.FC = () => {
     }
   }, [currentRoom?.id, user?.address, currentPlayer?.isReady, setPlayerReady]);
 
-  const canStartGame = players.length >= 2 && players.every(p => p.isReady);
+  // Calculate ready status directly from currentRoom data
+  const readyCount = React.useMemo(() => {
+    if (!currentRoom) return 0;
+    return currentRoom.players.filter(p => p.isReady).length;
+  }, [currentRoom]);
+
+  const totalPlayers = currentRoom?.players.length || 0;
+  const canStartGame = totalPlayers >= 2 && readyCount === totalPlayers;
 
   const handleAutoStart = useCallback(() => {
     if (canStartGame) {
@@ -140,7 +118,7 @@ export const GameLobbyComponent: React.FC = () => {
     if (canStartGame) {
       const timer = setTimeout(() => {
         handleAutoStart();
-      }, 500); // Small delay to show the ready state
+      }, 500);
       
       return () => clearTimeout(timer);
     }
@@ -154,9 +132,6 @@ export const GameLobbyComponent: React.FC = () => {
       </div>
     );
   }
-
-  const readyCount = players.filter(p => p.isReady).length;
-  const totalPlayers = players.length;
 
   return (
     <div className="min-h-screen bg-cyber-darker flex items-center justify-center p-4">
@@ -182,7 +157,7 @@ export const GameLobbyComponent: React.FC = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <PlayerList players={players} currentPlayerId={currentPlayer.id} />
+                <PlayerList players={players} currentPlayerId={user?.address || ''} />
               </CardContent>
             </Card>
           </div>
