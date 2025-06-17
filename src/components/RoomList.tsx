@@ -28,7 +28,7 @@ export const RoomList: React.FC = () => {
     if (!newRoomName.trim()) return;
     
     setIsCreating(true);
-    const roomId = await createRoom(newRoomName.trim(), false);
+    const roomId = createRoom(newRoomName.trim());
     setIsCreating(false);
     
     if (roomId) {
@@ -39,7 +39,7 @@ export const RoomList: React.FC = () => {
   };
 
   const handleJoinRoom = async (roomId: string) => {
-    const success = await joinRoom(roomId);
+    const success = joinRoom(roomId);
     if (success) {
       navigate(`/room/${roomId}`);
     }
@@ -141,14 +141,6 @@ export const RoomList: React.FC = () => {
             {error}
           </AlertDescription>
         </Alert>
-      )}
-
-      {/* Loading State */}
-      {loading && rooms.length === 0 && (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 text-cyber-cyan animate-spin mr-3" />
-          <span className="text-cyber-cyan">Loading rooms...</span>
-        </div>
       )}
 
       {/* Room Stats */}
