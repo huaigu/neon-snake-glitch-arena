@@ -441,17 +441,20 @@ export class GameModel extends Multisynq.Model {
 
       // 边界检查
       if (head.x < 0 || head.x >= 60 || head.y < 0 || head.y >= 60) {
+        console.log(`GameModel: Player ${player.name} hit wall at (${head.x}, ${head.y})`);
         return { ...player, isAlive: false };
       }
 
       // 检查与自己身体的碰撞
       if (player.segments.some(segment => segment.x === head.x && segment.y === head.y)) {
+        console.log(`GameModel: Player ${player.name} hit themselves`);
         return { ...player, isAlive: false };
       }
 
       // 检查与其他玩家的碰撞
       const otherPlayers = gameSession.players.filter(p => p.id !== player.id && p.isAlive);
       if (otherPlayers.some(p => p.segments.some(segment => segment.x === head.x && segment.y === head.y))) {
+        console.log(`GameModel: Player ${player.name} hit another player`);
         return { ...player, isAlive: false };
       }
 
@@ -463,6 +466,7 @@ export class GameModel extends Multisynq.Model {
       if (eatenFood) {
         // 吃到食物，增加分数，不移除尾部
         newScore += eatenFood.value;
+        console.log(`GameModel: Player ${player.name} ate food, score: ${newScore}`);
         // 移除被吃掉的食物
         this.foods = this.foods.filter(food => food.id !== eatenFood.id);
         // 生成新食物
@@ -486,9 +490,12 @@ export class GameModel extends Multisynq.Model {
       players: updatedPlayers
     };
 
-    // 检查游戏是否结束
+    // 检查游戏是否结束 - 修复: 只有当存活玩家数量 <= 1 时才结束游戏
     const alivePlayers = updatedPlayers.filter(p => p.isAlive);
+    console.log(`GameModel: Game step completed, alive players: ${alivePlayers.length}/${updatedPlayers.length}`);
+    
     if (alivePlayers.length <= 1) {
+      console.log(`GameModel: Game ending - only ${alivePlayers.length} players alive`);
       this.endGameSession(gameSessionId);
       return;
     }
@@ -542,17 +549,32 @@ export class GameModel extends Multisynq.Model {
   }
 
   handlePlayerDied(data: { gameSessionId: string; playerAddress: string }) {
-    const gameSession = this.gameSessions.find(g => g.id === data.gameSessionId);
-    if (!gameSession) return;
+    const gameSessionIndex = this.gameSessions.findIndex(g => g.id === data.gameSessionId);
+    if (gameSessionIndex === -1) return;
 
+    const gameSession = this.gameSessions[gameSessionIndex];
     const playerIndex = gameSession.players.findIndex(p => p.address === data.playerAddress);
     if (playerIndex === -1) return;
 
-    gameSession.players[playerIndex].isAlive = false;
+    const updatedPlayers = [...gameSession.players];
+    updatedPlayers[playerIndex] = {
+      ...updatedPlayers[playerIndex],
+      isAlive: false
+    };
+
+    this.gameSessions[gameSessionIndex] = {
+      ...gameSession,
+      players: updatedPlayers
+    };
     
-    // 检查游戏是否结束
-    const alivePlayers = gameSession.players.filter(p => p.isAlive);
+    console.log(`GameModel: Player ${data.playerAddress} died manually`);
+    
+    // 检查游戏是否结束 - 只有当存活玩家数量 <= 1 时才结束游戏
+    const alivePlayers = updatedPlayers.filter(p => p.isAlive);
+    console.log(`GameModel: After manual death, alive players: ${alivePlayers.length}/${updatedPlayers.length}`);
+    
     if (alivePlayers.length <= 1) {
+      console.log(`GameModel: Game ending after manual death - only ${alivePlayers.length} players alive`);
       this.endGameSession(data.gameSessionId);
     }
 
