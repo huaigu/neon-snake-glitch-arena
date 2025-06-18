@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useGameContext } from '../contexts/GameContext';
 import { useRoomContext } from '../contexts/RoomContext';
@@ -74,13 +73,22 @@ export const useSnakeGame = () => {
     isEnabled: isMobile && gameRunning && !isSpectator
   });
 
+  // Sync grid size with game model
+  useEffect(() => {
+    if (gameView && gridSize > 0) {
+      console.log('useSnakeGame: Syncing grid size with game model:', gridSize);
+      // Notify the game model about the current grid size
+      gameView.setGridSize?.(gridSize);
+    }
+  }, [gameView, gridSize]);
+
   // 设置游戏回调
   useEffect(() => {
     if (!gameView || !isConnected) {
       return;
     }
 
-    console.log('useSnakeGame: Setting up game callback');
+    console.log('useSnakeGame: Setting up game callback, current gridSize:', gridSize);
     
     const gameCallback = (gameSession: any, foods: any[], segments: any[]) => {
       console.log('useSnakeGame: Game callback triggered:', {
@@ -90,7 +98,9 @@ export const useSnakeGame = () => {
         playersCount: gameSession?.players?.length || 0,
         foodsCount: foods.length,
         segmentsCount: segments.length,
-        speedMultiplier: gameSession?.speedMultiplier
+        speedMultiplier: gameSession?.speedMultiplier,
+        gridSize: gridSize,
+        gameSessionGridSize: gameSession?.gridSize
       });
 
       if (gameSession) {
@@ -114,6 +124,17 @@ export const useSnakeGame = () => {
         const currentPlayerSnake = gameSnakes.find((snake: Snake) => snake.isPlayer);
         if (currentPlayerSnake) {
           setIsSpectator(currentPlayerSnake.isSpectator || false);
+          
+          // Debug boundary information
+          if (currentPlayerSnake.segments.length > 0) {
+            const head = currentPlayerSnake.segments[0];
+            console.log('useSnakeGame: Player snake head position:', head, 'gridSize:', gridSize, 'boundaries: 0 to', gridSize - 1);
+            
+            // Check if head is near boundaries
+            if (head.x <= 1 || head.x >= gridSize - 2 || head.y <= 1 || head.y >= gridSize - 2) {
+              console.log('useSnakeGame: WARNING - Snake head is very close to boundary!');
+            }
+          }
         }
         
         const gameFoods = foods.map(food => ({
@@ -173,7 +194,7 @@ export const useSnakeGame = () => {
       console.log('useSnakeGame: Cleaning up game callback');
       gameView.setGameCallback(() => {});
     };
-  }, [gameView, isConnected, currentRoom, user?.address]);
+  }, [gameView, isConnected, currentRoom, user?.address, gridSize]);
 
   const enterSpectatorMode = useCallback(() => {
     if (!gameView || !gameSessionId || !user?.address || !gameRunning) {
@@ -230,7 +251,7 @@ export const useSnakeGame = () => {
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [gameRunning, changeDirection, isSpectator]);
 
-  console.log('useSnakeGame render - multiplayer mode, snakes:', snakes.length, 'gameRunning:', gameRunning, 'countdown:', countdown, 'segments:', segments.length, 'isSpectator:', isSpectator, 'speedMultiplier:', speedMultiplier);
+  console.log('useSnakeGame render - multiplayer mode, snakes:', snakes.length, 'gameRunning:', gameRunning, 'countdown:', countdown, 'segments:', segments.length, 'isSpectator:', isSpectator, 'speedMultiplier:', speedMultiplier, 'gridSize:', gridSize);
 
   return {
     snakes,

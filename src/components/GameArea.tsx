@@ -27,6 +27,12 @@ export const GameArea: React.FC<GameAreaProps> = ({
   // Vision range for fog of war
   const visionRange = Math.floor(gridSize * 0.25); // 25% of grid size
   
+  // Debug boundary information
+  React.useEffect(() => {
+    console.log('GameArea: Render with gridSize:', gridSize, 'cellSize:', cellSize, 'boardSize:', boardWidth, 'x', boardHeight);
+    console.log('GameArea: Valid coordinates are 0 to', gridSize - 1);
+  }, [gridSize, cellSize, boardWidth, boardHeight]);
+  
   const getVisibleElements = <T extends { position: { x: number; y: number } }>(elements: T[]): T[] => {
     if (isSpectator || !currentPlayerSnake || !currentPlayerSnake.isAlive) {
       return elements;
@@ -72,6 +78,16 @@ export const GameArea: React.FC<GameAreaProps> = ({
 
   return (
     <div className="flex-1 flex items-center justify-center p-2 md:p-4">
+      {/* Debug info overlay */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="absolute top-4 left-4 bg-black/80 text-white text-xs p-2 rounded z-50">
+          <div>Grid: {gridSize}x{gridSize}</div>
+          <div>Cell: {cellSize}px</div>
+          <div>Board: {boardWidth}x{boardHeight}px</div>
+          <div>Valid coords: 0 to {gridSize - 1}</div>
+        </div>
+      )}
+      
       {/* Outer container with enhanced boundary visualization */}
       <div className="relative p-2 md:p-4">
         {/* Animated boundary frame */}
@@ -134,6 +150,30 @@ export const GameArea: React.FC<GameAreaProps> = ({
                 />
               </React.Fragment>
             ))}
+          </div>
+
+          {/* Boundary warning indicators */}
+          <div className="absolute inset-0 pointer-events-none">
+            {/* Top boundary */}
+            <div 
+              className="absolute w-full bg-red-500/20 border-b border-red-500/50"
+              style={{ height: cellSize, top: 0 }}
+            />
+            {/* Bottom boundary */}
+            <div 
+              className="absolute w-full bg-red-500/20 border-t border-red-500/50"
+              style={{ height: cellSize, bottom: 0 }}
+            />
+            {/* Left boundary */}
+            <div 
+              className="absolute h-full bg-red-500/20 border-r border-red-500/50"
+              style={{ width: cellSize, left: 0 }}
+            />
+            {/* Right boundary */}
+            <div 
+              className="absolute h-full bg-red-500/20 border-l border-red-500/50"
+              style={{ width: cellSize, right: 0 }}
+            />
           </div>
 
           {/* Center reference point */}
@@ -199,27 +239,48 @@ export const GameArea: React.FC<GameAreaProps> = ({
           {/* Snakes */}
           {visibleSnakes.map((snake) => (
             <div key={snake.id}>
-              {snake.segments.map((segment, segmentIndex) => (
+              {snake.segments.map((segment, segmentIndex) => {
+                // Check if segment is out of bounds for debugging
+                const isOutOfBounds = segment.x < 0 || segment.x >= gridSize || segment.y < 0 || segment.y >= gridSize;
+                
+                return (
+                  <div
+                    key={`${snake.id}-segment-${segmentIndex}`}
+                    className={`absolute transition-all duration-150 snake-segment ${
+                      !snake.isAlive ? 'opacity-30' : ''
+                    } ${snake.isSpectator ? 'animate-pulse' : ''} ${
+                      isOutOfBounds ? 'ring-2 ring-red-500' : ''
+                    }`}
+                    style={{
+                      left: Math.max(0, Math.min(segment.x * cellSize, boardWidth - cellSize)),
+                      top: Math.max(0, Math.min(segment.y * cellSize, boardHeight - cellSize)),
+                      width: cellSize,
+                      height: cellSize,
+                      backgroundColor: isOutOfBounds ? '#ff0000' : snake.color,
+                      border: segmentIndex === 0 ? '2px solid white' : 'none',
+                      borderRadius: segmentIndex === 0 ? '1px' : '0px',
+                      boxShadow: isSpectator ? '0 0 6px currentColor' : snake.isPlayer ? '0 0 4px currentColor' : 'none',
+                      opacity: snake.isAlive ? 1 : 0.5,
+                      zIndex: snake.isPlayer ? 10 : 5,
+                      transform: segmentIndex === 0 ? 'scale(1.05)' : 'scale(1)'
+                    }}
+                  />
+                );
+              })}
+              
+              {/* Debug coordinates for player snake head */}
+              {snake.isPlayer && snake.segments.length > 0 && process.env.NODE_ENV === 'development' && (
                 <div
-                  key={`${snake.id}-segment-${segmentIndex}`}
-                  className={`absolute transition-all duration-150 snake-segment ${
-                    !snake.isAlive ? 'opacity-30' : ''
-                  } ${snake.isSpectator ? 'animate-pulse' : ''}`}
+                  className="absolute text-xs text-yellow-400 font-bold pointer-events-none bg-black/50 px-1 rounded"
                   style={{
-                    left: segment.x * cellSize,
-                    top: segment.y * cellSize,
-                    width: cellSize,
-                    height: cellSize,
-                    backgroundColor: snake.color,
-                    border: segmentIndex === 0 ? '2px solid white' : 'none',
-                    borderRadius: segmentIndex === 0 ? '1px' : '0px',
-                    boxShadow: isSpectator ? '0 0 6px currentColor' : snake.isPlayer ? '0 0 4px currentColor' : 'none',
-                    opacity: snake.isAlive ? 1 : 0.5,
-                    zIndex: snake.isPlayer ? 10 : 5,
-                    transform: segmentIndex === 0 ? 'scale(1.05)' : 'scale(1)'
+                    left: snake.segments[0].x * cellSize + cellSize + 2,
+                    top: snake.segments[0].y * cellSize - 2,
+                    zIndex: 20
                   }}
-                />
-              ))}
+                >
+                  ({snake.segments[0].x}, {snake.segments[0].y})
+                </div>
+              )}
               
               {/* Spectator indicator */}
               {snake.isSpectator && !snake.isAlive && snake.segments.length > 0 && (
