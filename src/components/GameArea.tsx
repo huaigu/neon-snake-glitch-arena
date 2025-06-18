@@ -7,6 +7,7 @@ interface GameAreaProps {
   foods: Food[];
   segments: Segment[];
   gridSize: number;
+  cellSize: number;
   isSpectator?: boolean;
 }
 
@@ -15,16 +16,16 @@ export const GameArea: React.FC<GameAreaProps> = ({
   foods, 
   segments, 
   gridSize,
+  cellSize,
   isSpectator = false 
 }) => {
-  const cellSize = 10;
   const boardWidth = gridSize * cellSize;
   const boardHeight = gridSize * cellSize;
 
   const currentPlayerSnake = snakes.find(snake => snake.isPlayer);
   
-  // 增加战争迷雾视野范围从10到15
-  const visionRange = 15;
+  // Vision range for fog of war
+  const visionRange = Math.floor(gridSize * 0.25); // 25% of grid size
   
   const getVisibleElements = <T extends { position: { x: number; y: number } }>(elements: T[]): T[] => {
     if (isSpectator || !currentPlayerSnake || !currentPlayerSnake.isAlive) {
@@ -63,16 +64,16 @@ export const GameArea: React.FC<GameAreaProps> = ({
     });
   };
 
-  // 道具不受战争迷雾限制，始终显示所有道具
-  const visibleFoods = isSpectator ? foods : foods;
-  // 能量段仍然受战争迷雾限制
+  // Food is always visible
+  const visibleFoods = foods;
+  // Power segments affected by fog of war
   const visibleSegments = getVisibleElements(segments);
   const visibleSnakes = getVisibleSnakes();
 
   return (
-    <div className="flex-1 flex items-center justify-center p-4">
+    <div className="flex-1 flex items-center justify-center p-2 md:p-4">
       {/* Outer container with enhanced boundary visualization */}
-      <div className="relative p-4">
+      <div className="relative p-2 md:p-4">
         {/* Animated boundary frame */}
         <div 
           className="absolute inset-0 rounded-lg"
@@ -91,13 +92,13 @@ export const GameArea: React.FC<GameAreaProps> = ({
           }}
         />
         
-        {/* Corner markers for better boundary definition */}
-        <div className="absolute -top-1 -left-1 w-6 h-6 border-l-4 border-t-4 border-cyber-cyan animate-pulse" />
-        <div className="absolute -top-1 -right-1 w-6 h-6 border-r-4 border-t-4 border-cyber-cyan animate-pulse" />
-        <div className="absolute -bottom-1 -left-1 w-6 h-6 border-l-4 border-b-4 border-cyber-cyan animate-pulse" />
-        <div className="absolute -bottom-1 -right-1 w-6 h-6 border-r-4 border-b-4 border-cyber-cyan animate-pulse" />
+        {/* Corner markers */}
+        <div className="absolute -top-1 -left-1 w-4 h-4 md:w-6 md:h-6 border-l-2 border-t-2 md:border-l-4 md:border-t-4 border-cyber-cyan animate-pulse" />
+        <div className="absolute -top-1 -right-1 w-4 h-4 md:w-6 md:h-6 border-r-2 border-t-2 md:border-r-4 md:border-t-4 border-cyber-cyan animate-pulse" />
+        <div className="absolute -bottom-1 -left-1 w-4 h-4 md:w-6 md:h-6 border-l-2 border-b-2 md:border-l-4 md:border-b-4 border-cyber-cyan animate-pulse" />
+        <div className="absolute -bottom-1 -right-1 w-4 h-4 md:w-6 md:h-6 border-r-2 border-b-2 md:border-r-4 md:border-b-4 border-cyber-cyan animate-pulse" />
 
-        {/* Game board with enhanced visual references */}
+        {/* Game board */}
         <div 
           className="relative bg-cyber-darker overflow-hidden"
           style={{ 
@@ -108,12 +109,11 @@ export const GameArea: React.FC<GameAreaProps> = ({
             borderRadius: '4px'
           }}
         >
-          {/* Enhanced grid background with better visibility */}
+          {/* Grid background */}
           <div className="absolute inset-0">
-            {/* Major grid lines every 5 cells for better reference */}
+            {/* Major grid lines every 5 cells */}
             {Array.from({ length: Math.floor(gridSize / 5) + 1 }).map((_, i) => (
               <React.Fragment key={`major-grid-${i}`}>
-                {/* Vertical major grid lines */}
                 <div
                   className="absolute bg-cyber-cyan/20"
                   style={{
@@ -123,7 +123,6 @@ export const GameArea: React.FC<GameAreaProps> = ({
                     height: '100%',
                   }}
                 />
-                {/* Horizontal major grid lines */}
                 <div
                   className="absolute bg-cyber-cyan/20"
                   style={{
@@ -135,77 +134,18 @@ export const GameArea: React.FC<GameAreaProps> = ({
                 />
               </React.Fragment>
             ))}
-            
-            {/* Minor grid lines */}
-            {Array.from({ length: gridSize }).map((_, i) => (
-              <div key={`row-${i}`}>
-                {Array.from({ length: gridSize }).map((_, j) => (
-                  <div
-                    key={`cell-${i}-${j}`}
-                    className="absolute border border-cyber-cyan/10"
-                    style={{
-                      left: j * cellSize,
-                      top: i * cellSize,
-                      width: cellSize,
-                      height: cellSize,
-                    }}
-                  />
-                ))}
-              </div>
-            ))}
           </div>
-
-          {/* Inner border gradient for movement reference */}
-          <div 
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background: `
-                linear-gradient(to right, rgba(0, 255, 255, 0.15) 0%, transparent 10%, transparent 90%, rgba(0, 255, 255, 0.15) 100%),
-                linear-gradient(to bottom, rgba(0, 255, 255, 0.15) 0%, transparent 10%, transparent 90%, rgba(0, 255, 255, 0.15) 100%)
-              `
-            }}
-          />
 
           {/* Center reference point */}
           <div 
-            className="absolute w-2 h-2 bg-cyber-cyan/30 rounded-full animate-pulse"
+            className="absolute w-1 h-1 md:w-2 md:h-2 bg-cyber-cyan/30 rounded-full animate-pulse"
             style={{
-              left: (gridSize / 2) * cellSize - 4,
-              top: (gridSize / 2) * cellSize - 4,
+              left: (gridSize / 2) * cellSize - (cellSize < 8 ? 2 : 4),
+              top: (gridSize / 2) * cellSize - (cellSize < 8 ? 2 : 4),
             }}
           />
 
-          {/* Quarter reference points */}
-          <div 
-            className="absolute w-1 h-1 bg-cyber-cyan/20 rounded-full"
-            style={{
-              left: (gridSize / 4) * cellSize,
-              top: (gridSize / 4) * cellSize,
-            }}
-          />
-          <div 
-            className="absolute w-1 h-1 bg-cyber-cyan/20 rounded-full"
-            style={{
-              left: (gridSize * 3 / 4) * cellSize,
-              top: (gridSize / 4) * cellSize,
-            }}
-          />
-          <div 
-            className="absolute w-1 h-1 bg-cyber-cyan/20 rounded-full"
-            style={{
-              left: (gridSize / 4) * cellSize,
-              top: (gridSize * 3 / 4) * cellSize,
-            }}
-          />
-          <div 
-            className="absolute w-1 h-1 bg-cyber-cyan/20 rounded-full"
-            style={{
-              left: (gridSize * 3 / 4) * cellSize,
-              top: (gridSize * 3 / 4) * cellSize,
-            }}
-          />
-
-          {/* Fog of War Effect with increased range */}
+          {/* Fog of War Effect */}
           {!isSpectator && currentPlayerSnake && currentPlayerSnake.isAlive && (
             <div className="absolute inset-0 pointer-events-none">
               <div 
@@ -221,7 +161,7 @@ export const GameArea: React.FC<GameAreaProps> = ({
             </div>
           )}
 
-          {/* Food - 始终显示，不受战争迷雾限制 */}
+          {/* Food - always visible */}
           {visibleFoods.map((food, index) => (
             <div
               key={`food-${index}`}
@@ -256,7 +196,7 @@ export const GameArea: React.FC<GameAreaProps> = ({
             />
           ))}
 
-          {/* Snakes with angular styling */}
+          {/* Snakes */}
           {visibleSnakes.map((snake) => (
             <div key={snake.id}>
               {snake.segments.map((segment, segmentIndex) => (
@@ -272,18 +212,16 @@ export const GameArea: React.FC<GameAreaProps> = ({
                     height: cellSize,
                     backgroundColor: snake.color,
                     border: segmentIndex === 0 ? '2px solid white' : 'none',
-                    // 使用方形样式保持棱角风格，头部稍微小一点但仍然是方形
                     borderRadius: segmentIndex === 0 ? '1px' : '0px',
                     boxShadow: isSpectator ? '0 0 6px currentColor' : snake.isPlayer ? '0 0 4px currentColor' : 'none',
                     opacity: snake.isAlive ? 1 : 0.5,
                     zIndex: snake.isPlayer ? 10 : 5,
-                    // 头部稍微大一点来区分
                     transform: segmentIndex === 0 ? 'scale(1.05)' : 'scale(1)'
                   }}
                 />
               ))}
               
-              {/* Spectator indicator for dead snakes */}
+              {/* Spectator indicator */}
               {snake.isSpectator && !snake.isAlive && snake.segments.length > 0 && (
                 <div
                   className="absolute text-xs text-cyber-cyan/70 font-bold pointer-events-none"
@@ -293,7 +231,7 @@ export const GameArea: React.FC<GameAreaProps> = ({
                     zIndex: 20
                   }}
                 >
-                  观察者
+                  Spectator
                 </div>
               )}
             </div>

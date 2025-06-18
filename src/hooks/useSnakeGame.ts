@@ -3,6 +3,9 @@ import { useGameContext } from '../contexts/GameContext';
 import { useRoomContext } from '../contexts/RoomContext';
 import { useMultisynq } from '../contexts/MultisynqContext';
 import { useWeb3Auth } from '../contexts/Web3AuthContext';
+import { useResponsiveGrid } from './useResponsiveGrid';
+import { useMobileControls } from './useMobileControls';
+import { useIsMobile } from './use-mobile';
 
 export interface Position {
   x: number;
@@ -35,12 +38,12 @@ export interface Segment {
   color: string;
 }
 
-const GRID_SIZE = 60;
-
 export const useSnakeGame = () => {
   const { gameView, isConnected } = useMultisynq();
   const { currentRoom } = useRoomContext();
   const { user } = useWeb3Auth();
+  const { gridSize, cellSize } = useResponsiveGrid();
+  const isMobile = useIsMobile();
   
   const [snakes, setSnakes] = useState<Snake[]>([]);
   const [foods, setFoods] = useState<Food[]>([]);
@@ -52,6 +55,12 @@ export const useSnakeGame = () => {
   const [gameSessionId, setGameSessionId] = useState<string | null>(null);
   const [isSpectator, setIsSpectator] = useState(false);
   const [speedMultiplier, setSpeedMultiplier] = useState(1.0);
+
+  // Mobile swipe controls
+  useMobileControls({
+    onDirectionChange: changeDirection,
+    isEnabled: isMobile && gameRunning && !isSpectator
+  });
 
   // 设置游戏回调
   useEffect(() => {
@@ -186,7 +195,7 @@ export const useSnakeGame = () => {
     console.log('useSnakeGame: Reset game called - not implemented for multiplayer');
   }, []);
 
-  // 键盘控制
+  // Keyboard controls
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (!gameRunning || isSpectator) return;
@@ -230,7 +239,8 @@ export const useSnakeGame = () => {
     startGame,
     pauseGame,
     resetGame,
-    gridSize: GRID_SIZE,
+    gridSize,
+    cellSize,
     countdown,
     showCountdown,
     isSpectator,

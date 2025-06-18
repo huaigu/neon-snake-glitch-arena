@@ -24,30 +24,15 @@ export const InfoPanel: React.FC<InfoPanelProps> = ({
 }) => {
   const navigate = useNavigate();
   
-  // Fix the sorting logic: sort by score first (descending), then by segments length (descending)
+  // Sort by score first, then by segments length
   const sortedSnakes = [...snakes].sort((a, b) => {
-    // First priority: score (higher is better)
     if (b.score !== a.score) {
       return b.score - a.score;
     }
-    // Second priority: segments length (longer is better)
     return b.segments.length - a.segments.length;
   });
   
   const playerSnake = snakes.find(snake => snake.isPlayer);
-
-  console.log('Leaderboard sorting - snakes:', snakes.map(s => ({ 
-    name: s.name, 
-    score: s.score, 
-    segments: s.segments.length,
-    isAlive: s.isAlive 
-  })));
-  console.log('Leaderboard sorting - sorted:', sortedSnakes.map(s => ({ 
-    name: s.name, 
-    score: s.score, 
-    segments: s.segments.length,
-    isAlive: s.isAlive 
-  })));
 
   const handleReturnToLobby = () => {
     navigate('/lobby');
@@ -152,7 +137,7 @@ export const InfoPanel: React.FC<InfoPanelProps> = ({
           </div>
         </div>
         <div className="mt-2 text-xs text-gray-400">
-          Or use arrow keys
+          Or use arrow keys / swipe on mobile
         </div>
       </Card>
 
