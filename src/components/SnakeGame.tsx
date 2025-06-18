@@ -49,24 +49,71 @@ export const SnakeGame: React.FC = () => {
                 {countdown}
               </div>
               <p className="text-cyber-cyan/70 mb-8">
-                找到你的蛇准备开始！
+                所有玩家准备就绪，游戏即将开始！
               </p>
               
-              {/* Player position hint */}
+              {/* Player snakes preview */}
               {snakes.length > 0 && (
                 <div className="bg-cyber-darker/90 p-4 rounded-lg border border-cyber-cyan/30">
-                  <p className="text-cyber-cyan mb-2">你的蛇位置：</p>
-                  <div className="flex items-center justify-center gap-2">
-                    <div 
-                      className="w-4 h-4 rounded"
-                      style={{ backgroundColor: snakes.find(s => s.isPlayer)?.color || '#00ffff' }}
-                    ></div>
-                    <span className="text-cyber-cyan text-sm">
-                      {snakes.find(s => s.isPlayer)?.name || 'PLAYER_01'}
-                    </span>
+                  <p className="text-cyber-cyan mb-3">参与玩家：</p>
+                  <div className="flex flex-wrap justify-center gap-3">
+                    {snakes.map(snake => (
+                      <div key={snake.id} className="flex items-center gap-2">
+                        <div 
+                          className="w-4 h-4 rounded"
+                          style={{ backgroundColor: snake.color }}
+                        ></div>
+                        <span className={`text-sm ${snake.isPlayer ? 'text-cyber-green font-bold' : 'text-cyber-cyan'}`}>
+                          {snake.name} {snake.isPlayer && '(你)'}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Game Over Overlay */}
+        {gameOver && (
+          <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-50">
+            <div className="text-center">
+              <h2 className="text-6xl font-bold text-cyber-red neon-text mb-6">
+                游戏结束
+              </h2>
+              
+              {/* Final Scores */}
+              {snakes.length > 0 && (
+                <div className="bg-cyber-darker/90 p-6 rounded-lg border border-cyber-red/30 mb-6">
+                  <h3 className="text-cyber-cyan text-xl mb-4">最终得分</h3>
+                  <div className="space-y-2">
+                    {snakes
+                      .sort((a, b) => b.score - a.score)
+                      .map((snake, index) => (
+                        <div key={snake.id} className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-cyber-yellow">#{index + 1}</span>
+                            <div 
+                              className="w-4 h-4 rounded"
+                              style={{ backgroundColor: snake.color }}
+                            ></div>
+                            <span className={snake.isPlayer ? 'text-cyber-green font-bold' : 'text-cyber-cyan'}>
+                              {snake.name}
+                            </span>
+                          </div>
+                          <span className="text-cyber-yellow font-bold">
+                            {snake.score}
+                          </span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              <p className="text-cyber-cyan/70">
+                返回大厅重新开始游戏
+              </p>
             </div>
           </div>
         )}

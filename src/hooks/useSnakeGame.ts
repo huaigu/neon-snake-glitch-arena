@@ -1,5 +1,9 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useGameContext } from '../contexts/GameContext';
+import { useRoomContext } from '../contexts/RoomContext';
+import { useMultisynq } from '../contexts/MultisynqContext';
+import { useWeb3Auth } from '../contexts/Web3AuthContext';
 
 export interface Position {
   x: number;
@@ -23,230 +27,126 @@ export interface Food {
   value: number;
 }
 
-const GRID_SIZE = 60; // Increased from 30 to 60
-const GAME_SPEED = 150;
-const COUNTDOWN_DURATION = 3;
+const GRID_SIZE = 60;
 
 export const useSnakeGame = () => {
-  const { players } = useGameContext();
+  const { gameView, isConnected } = useMultisynq();
+  const { currentRoom } = useRoomContext();
+  const { user } = useWeb3Auth();
+  
   const [snakes, setSnakes] = useState<Snake[]>([]);
   const [foods, setFoods] = useState<Food[]>([]);
   const [gameRunning, setGameRunning] = useState(false);
   const [gameOver, setGameOver] = useState(false);
-  const [countdown, setCountdown] = useState(COUNTDOWN_DURATION);
-  const [showCountdown, setShowCountdown] = useState(true);
-  const gameLoopRef = useRef<NodeJS.Timeout>();
-  const countdownRef = useRef<NodeJS.Timeout>();
-  const directionRef = useRef<'up' | 'down' | 'left' | 'right'>('right');
+  const [countdown, setCountdown] = useState(0);
+  const [showCountdown, setShowCountdown] = useState(false);
+  const [gameSessionId, setGameSessionId] = useState<string | null>(null);
 
-  const createSnakeFromPlayer = (player: any, startPos: Position): Snake => ({
-    id: player.id,
-    segments: [startPos, { x: startPos.x - 1, y: startPos.y }, { x: startPos.x - 2, y: startPos.y }],
-    direction: 'right',
-    color: player.color,
-    isAlive: true,
-    score: 0,
-    isPlayer: player.id === 'player',
-    name: player.name
-  });
-
-  const initializeGame = useCallback(() => {
-    console.log('Initializing game with real players only:', players);
-    
-    // Only create snakes from real players (no bots)
-    const realPlayers = players.filter(player => !player.isBot);
-    const centerPos = Math.floor(GRID_SIZE / 2);
-    const gameSnakes = realPlayers.map((player, index) => {
-      const startPos = {
-        x: centerPos + (index * 7),
-        y: centerPos + (index * 3)
-      };
-      return createSnakeFromPlayer(player, startPos);
-    });
-    
-    console.log('Created snakes from real players:', gameSnakes);
-    setSnakes(gameSnakes);
-    
-    // Generate food across the grid
-    const initialFoods = [];
-    for (let i = 0; i < 8; i++) {
-      initialFoods.push(generateFood());
+  // 设置游戏回调
+  useEffect(() => {
+    if (!gameView || !isConnected) {
+      return;
     }
-    setFoods(initialFoods);
-    
-    setGameOver(false);
-    setGameRunning(false);
-    setShowCountdown(true);
-    setCountdown(COUNTDOWN_DURATION);
-    directionRef.current = 'right';
-    
-    // Start countdown
-    startCountdown();
-  }, [players]);
 
-  const startCountdown = useCallback(() => {
-    setCountdown(COUNTDOWN_DURATION);
-    setShowCountdown(true);
+    console.log('useSnakeGame: Setting up game callback');
     
-    countdownRef.current = setInterval(() => {
-      setCountdown(prev => {
-        if (prev <= 1) {
-          clearInterval(countdownRef.current!);
+    const gameCallback = (gameSession: any, foods: any[]) => {
+      console.log('useSnakeGame: Game callback triggered:', {
+        hasGameSession: !!gameSession,
+        sessionStatus: gameSession?.status,
+        countdown: gameSession?.countdown,
+        playersCount: gameSession?.players?.length || 0,
+        foodsCount: foods.length
+      });
+
+      if (gameSession) {
+        setGameSessionId(gameSession.id);
+        
+        // 转换游戏玩家为蛇
+        const gameSnakes = gameSession.players.map((player: any) => ({
+          id: player.id,
+          segments: player.segments || [player.position],
+          direction: player.direction,
+          color: player.color,
+          isAlive: player.isAlive,
+          score: player.score,
+          isPlayer: player.address === user?.address,
+          name: player.name
+        }));
+        
+        setSnakes(gameSnakes);
+        
+        // 转换食物
+        const gameFoods = foods.map(food => ({
+          position: food.position,
+          type: food.type,
+          value: food.value
+        }));
+        setFoods(gameFoods);
+        
+        // 处理游戏状态
+        if (gameSession.status === 'countdown') {
+          setShowCountdown(true);
+          setCountdown(gameSession.countdown || 3);
+          setGameRunning(false);
+          setGameOver(false);
+        } else if (gameSession.status === 'playing') {
           setShowCountdown(false);
           setGameRunning(true);
-          gameLoopRef.current = setInterval(gameStep, GAME_SPEED);
-          return 0;
+          setGameOver(false);
+        } else if (gameSession.status === 'finished') {
+          setGameRunning(false);
+          setGameOver(true);
+          setShowCountdown(false);
         }
-        return prev - 1;
-      });
-    }, 1000);
-  }, []);
-
-  const generateFood = useCallback((): Food => {
-    const type = Math.random() < 0.8 ? 'normal' : 'bonus';
-    return {
-      position: {
-        x: Math.floor(Math.random() * GRID_SIZE),
-        y: Math.floor(Math.random() * GRID_SIZE)
-      },
-      type,
-      value: type === 'normal' ? 10 : 50
-    };
-  }, []);
-
-  const checkCollision = useCallback((pos: Position, segments: Position[], otherSnakes: Snake[] = []) => {
-    // Wall collision
-    if (pos.x < 0 || pos.x >= GRID_SIZE || pos.y < 0 || pos.y >= GRID_SIZE) return true;
-    
-    // Self collision
-    if (segments.some(segment => segment.x === pos.x && segment.y === pos.y)) return true;
-    
-    // Other snakes collision
-    return otherSnakes.some(snake => 
-      snake.isAlive && snake.segments.some(segment => segment.x === pos.x && segment.y === pos.y)
-    );
-  }, []);
-
-  const moveSnake = useCallback((snake: Snake, direction: string, foods: Food[], otherSnakes: Snake[]) => {
-    const head = { ...snake.segments[0] };
-    
-    switch (direction) {
-      case 'up': head.y--; break;
-      case 'down': head.y++; break;
-      case 'left': head.x--; break;
-      case 'right': head.x++; break;
-    }
-
-    if (checkCollision(head, snake.segments, otherSnakes.filter(s => s.id !== snake.id))) {
-      return { ...snake, isAlive: false };
-    }
-
-    const newSegments = [head, ...snake.segments];
-    const ateFood = foods.find(food => food.position.x === head.x && food.position.y === head.y);
-    
-    if (!ateFood) {
-      newSegments.pop();
-    }
-
-    return {
-      ...snake,
-      segments: newSegments,
-      direction: direction as any,
-      score: snake.score + (ateFood ? ateFood.value : 0)
-    };
-  }, [checkCollision]);
-
-  const gameStep = useCallback(() => {
-    setSnakes(currentSnakes => {
-      console.log('Game step - current snakes:', currentSnakes.length);
-      
-      const aliveSnakes = currentSnakes.filter(snake => snake.isAlive);
-      if (aliveSnakes.length === 0) {
-        setGameOver(true);
+      } else {
+        // 没有活跃的游戏会话
+        setGameSessionId(null);
+        setSnakes([]);
+        setFoods([]);
         setGameRunning(false);
-        return currentSnakes;
+        setShowCountdown(false);
+        setGameOver(false);
       }
+    };
+    
+    gameView.setGameCallback(gameCallback);
 
-      // Only handle player movement - no AI for bots since we removed them
-      const newSnakes = currentSnakes.map(snake => {
-        if (!snake.isAlive) return snake;
-        
-        // All snakes are now player-controlled or follow simple movement
-        const direction = snake.isPlayer 
-          ? directionRef.current 
-          : snake.direction; // Keep moving in same direction for non-player snakes
-        
-        return moveSnake(snake, direction, foods, currentSnakes);
-      });
+    // 获取初始状态
+    if (currentRoom && gameView.model) {
+      const gameSession = gameView.getGameSessionByRoom(currentRoom.id);
+      const foods = gameView.model.foods || [];
+      gameCallback(gameSession, foods);
+    }
 
-      // Remove eaten food and generate new food
-      setFoods(currentFoods => {
-        let newFoods = [...currentFoods];
-        newSnakes.forEach(snake => {
-          const head = snake.segments[0];
-          newFoods = newFoods.filter(food => 
-            !(food.position.x === head.x && food.position.y === head.y)
-          );
-        });
-        
-        // Maintain food on grid
-        while (newFoods.length < 8) {
-          newFoods.push(generateFood());
-        }
-        
-        return newFoods;
-      });
+    return () => {
+      console.log('useSnakeGame: Cleaning up game callback');
+      gameView.setGameCallback(() => {});
+    };
+  }, [gameView, isConnected, currentRoom, user?.address]);
 
-      return newSnakes;
-    });
-  }, [foods, moveSnake, generateFood]);
+  const changeDirection = useCallback((direction: 'up' | 'down' | 'left' | 'right') => {
+    if (!gameView || !gameSessionId || !user?.address || !gameRunning) {
+      return;
+    }
+
+    console.log('useSnakeGame: Changing direction:', direction);
+    gameView.changeDirection(gameSessionId, user.address, direction);
+  }, [gameView, gameSessionId, user?.address, gameRunning]);
 
   const startGame = useCallback(() => {
-    console.log('Starting game, current snakes:', snakes.length);
-    if (!gameRunning && !showCountdown) {
-      setGameRunning(true);
-      gameLoopRef.current = setInterval(gameStep, GAME_SPEED);
-    }
-  }, [gameRunning, gameStep, snakes.length, showCountdown]);
+    console.log('useSnakeGame: Start game called - games are started automatically when all players are ready');
+  }, []);
 
   const pauseGame = useCallback(() => {
-    setGameRunning(false);
-    if (gameLoopRef.current) {
-      clearInterval(gameLoopRef.current);
-    }
+    console.log('useSnakeGame: Pause game called - not implemented for multiplayer');
   }, []);
 
   const resetGame = useCallback(() => {
-    pauseGame();
-    if (countdownRef.current) {
-      clearInterval(countdownRef.current);
-    }
-    initializeGame();
-  }, [pauseGame, initializeGame]);
-
-  const changeDirection = useCallback((direction: 'up' | 'down' | 'left' | 'right') => {
-    const opposite = {
-      up: 'down', down: 'up', left: 'right', right: 'left'
-    };
-    
-    if (direction !== opposite[directionRef.current]) {
-      directionRef.current = direction;
-    }
+    console.log('useSnakeGame: Reset game called - not implemented for multiplayer');
   }, []);
 
-  useEffect(() => {
-    console.log('useSnakeGame mounted, initializing game with real players only');
-    initializeGame();
-    return () => {
-      if (gameLoopRef.current) {
-        clearInterval(gameLoopRef.current);
-      }
-      if (countdownRef.current) {
-        clearInterval(countdownRef.current);
-      }
-    };
-  }, [initializeGame]);
-
+  // 键盘控制
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (!gameRunning) return;
@@ -279,7 +179,7 @@ export const useSnakeGame = () => {
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [gameRunning, changeDirection]);
 
-  console.log('useSnakeGame render - real players only, snakes:', snakes.length, 'gameRunning:', gameRunning);
+  console.log('useSnakeGame render - multiplayer mode, snakes:', snakes.length, 'gameRunning:', gameRunning, 'countdown:', countdown);
 
   return {
     snakes,

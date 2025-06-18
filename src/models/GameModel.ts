@@ -1,3 +1,4 @@
+
 import * as Multisynq from '@multisynq/client';
 
 export interface Room {
@@ -24,9 +25,10 @@ export interface GameSession {
   id: string;
   roomId: string;
   players: GamePlayer[];
-  status: 'waiting' | 'playing' | 'paused' | 'finished';
+  status: 'waiting' | 'countdown' | 'playing' | 'paused' | 'finished';
   startedAt?: string;
   finishedAt?: string;
+  countdown?: number;
 }
 
 export interface GamePlayer {
@@ -36,8 +38,16 @@ export interface GamePlayer {
   color: string;
   score: number;
   isAlive: boolean;
-  position?: { x: number; y: number };
-  direction?: 'up' | 'down' | 'left' | 'right';
+  position: { x: number; y: number };
+  direction: 'up' | 'down' | 'left' | 'right';
+  segments: { x: number; y: number }[];
+}
+
+export interface Food {
+  id: string;
+  position: { x: number; y: number };
+  type: 'normal' | 'bonus';
+  value: number;
 }
 
 export class GameModel extends Multisynq.Model {
@@ -48,6 +58,9 @@ export class GameModel extends Multisynq.Model {
   // 游戏会话管理
   gameSessions: GameSession[] = [];
   private roomGameMap: Map<string, string> = new Map(); // roomId -> gameSessionId
+  
+  // 游戏状态
+  foods: Food[] = [];
   
   // 系统管理
   private instanceId: string;
@@ -74,6 +87,7 @@ export class GameModel extends Multisynq.Model {
     this.subscribe("game", "player-move", this.handlePlayerMove);
     this.subscribe("game", "player-died", this.handlePlayerDied);
     this.subscribe("game", "end-game", this.endGame);
+    this.subscribe("game", "player-direction-change", this.handlePlayerDirectionChange);
     
     console.log(`GameModel ${this.instanceId}: All event subscriptions complete`);
   }
@@ -278,6 +292,15 @@ export class GameModel extends Multisynq.Model {
     const newReadyState = this.rooms[roomIndex].players[playerIndex].isReady;
     console.log(`GameModel: Player ${data.playerAddress} ready state updated: ${oldReadyState} -> ${newReadyState}`);
     
+    // 检查是否所有玩家都准备好了，并且玩家数大于2
+    const allReady = this.rooms[roomIndex].players.every(p => p.isReady);
+    const playerCount = this.rooms[roomIndex].players.length;
+    
+    if (allReady && playerCount >= 2) {
+      console.log('GameModel: All players ready and player count >= 2, starting game');
+      this.startGame({ roomId: data.roomId });
+    }
+    
     this.publish("lobby", "refresh");
   }
 
@@ -290,10 +313,11 @@ export class GameModel extends Multisynq.Model {
       return;
     }
 
-    // 检查所有玩家是否都准备好了
+    // 检查所有玩家是否都准备好了且人数大于2
     const allReady = room.players.every(p => p.isReady);
-    if (!allReady) {
-      console.log('GameModel: Not all players are ready');
+    const playerCount = room.players.length;
+    if (!allReady || playerCount < 2) {
+      console.log('GameModel: Not all players are ready or player count < 2');
       return;
     }
 
@@ -309,10 +333,16 @@ export class GameModel extends Multisynq.Model {
         color: this.getPlayerColor(index),
         score: 0,
         isAlive: true,
-        position: this.getInitialPosition(index),
-        direction: 'right'
+        position: this.getInitialPosition(index, room.players.length),
+        direction: 'right',
+        segments: [
+          this.getInitialPosition(index, room.players.length),
+          { x: this.getInitialPosition(index, room.players.length).x - 1, y: this.getInitialPosition(index, room.players.length).y },
+          { x: this.getInitialPosition(index, room.players.length).x - 2, y: this.getInitialPosition(index, room.players.length).y }
+        ]
       })),
-      status: 'playing',
+      status: 'countdown',
+      countdown: 3,
       startedAt: new Date().toISOString()
     };
 
@@ -323,20 +353,192 @@ export class GameModel extends Multisynq.Model {
     const roomIndex = this.rooms.findIndex(r => r.id === data.roomId);
     this.rooms[roomIndex].status = 'playing';
 
-    console.log(`GameModel: Game session ${gameSessionId} started for room ${data.roomId}`);
+    // 生成初始食物
+    this.generateInitialFood(8);
+
+    console.log(`GameModel: Game session ${gameSessionId} created with countdown`);
     this.publish("game", "refresh");
     this.publish("lobby", "refresh");
+
+    // 开始3秒倒计时
+    this.startCountdown(gameSessionId);
   }
 
-  handlePlayerMove(data: { gameSessionId: string; playerAddress: string; direction: string }) {
-    const gameSession = this.gameSessions.find(g => g.id === data.gameSessionId);
-    if (!gameSession) return;
+  startCountdown(gameSessionId: string) {
+    console.log('GameModel: Starting countdown for game session:', gameSessionId);
+    
+    const gameSession = this.gameSessions.find(g => g.id === gameSessionId);
+    if (!gameSession || gameSession.status !== 'countdown') {
+      return;
+    }
+
+    // 使用 this.future 来实现倒计时
+    this.future(1000).countdownTick(gameSessionId);
+  }
+
+  countdownTick(gameSessionId: string) {
+    const gameSessionIndex = this.gameSessions.findIndex(g => g.id === gameSessionId);
+    if (gameSessionIndex === -1) {
+      console.log('GameModel: Game session not found for countdown:', gameSessionId);
+      return;
+    }
+
+    const gameSession = this.gameSessions[gameSessionIndex];
+    if (gameSession.status !== 'countdown') {
+      return;
+    }
+
+    const newCountdown = (gameSession.countdown || 3) - 1;
+    
+    if (newCountdown <= 0) {
+      // 倒计时结束，开始游戏
+      this.gameSessions[gameSessionIndex] = {
+        ...gameSession,
+        status: 'playing',
+        countdown: 0
+      };
+      
+      console.log('GameModel: Countdown finished, starting game');
+      this.publish("game", "refresh");
+      
+      // 开始游戏循环
+      this.future(150).gameStep(gameSessionId);
+    } else {
+      // 继续倒计时
+      this.gameSessions[gameSessionIndex] = {
+        ...gameSession,
+        countdown: newCountdown
+      };
+      
+      console.log(`GameModel: Countdown: ${newCountdown}`);
+      this.publish("game", "refresh");
+      
+      // 继续倒计时
+      this.future(1000).countdownTick(gameSessionId);
+    }
+  }
+
+  gameStep(gameSessionId: string) {
+    const gameSessionIndex = this.gameSessions.findIndex(g => g.id === gameSessionId);
+    if (gameSessionIndex === -1) return;
+
+    const gameSession = this.gameSessions[gameSessionIndex];
+    if (gameSession.status !== 'playing') return;
+
+    // 移动所有存活的玩家
+    const updatedPlayers = gameSession.players.map(player => {
+      if (!player.isAlive) return player;
+
+      const head = { ...player.position };
+      
+      // 根据方向移动
+      switch (player.direction) {
+        case 'up': head.y--; break;
+        case 'down': head.y++; break;
+        case 'left': head.x--; break;
+        case 'right': head.x++; break;
+      }
+
+      // 边界检查
+      if (head.x < 0 || head.x >= 60 || head.y < 0 || head.y >= 60) {
+        return { ...player, isAlive: false };
+      }
+
+      // 检查与自己身体的碰撞
+      if (player.segments.some(segment => segment.x === head.x && segment.y === head.y)) {
+        return { ...player, isAlive: false };
+      }
+
+      // 检查与其他玩家的碰撞
+      const otherPlayers = gameSession.players.filter(p => p.id !== player.id && p.isAlive);
+      if (otherPlayers.some(p => p.segments.some(segment => segment.x === head.x && segment.y === head.y))) {
+        return { ...player, isAlive: false };
+      }
+
+      // 检查食物碰撞
+      const eatenFood = this.foods.find(food => food.position.x === head.x && food.position.y === head.y);
+      let newSegments = [head, ...player.segments];
+      let newScore = player.score;
+
+      if (eatenFood) {
+        // 吃到食物，增加分数，不移除尾部
+        newScore += eatenFood.value;
+        // 移除被吃掉的食物
+        this.foods = this.foods.filter(food => food.id !== eatenFood.id);
+        // 生成新食物
+        this.generateFood();
+      } else {
+        // 没吃到食物，移除尾部
+        newSegments.pop();
+      }
+
+      return {
+        ...player,
+        position: head,
+        segments: newSegments,
+        score: newScore
+      };
+    });
+
+    // 更新游戏会话
+    this.gameSessions[gameSessionIndex] = {
+      ...gameSession,
+      players: updatedPlayers
+    };
+
+    // 检查游戏是否结束
+    const alivePlayers = updatedPlayers.filter(p => p.isAlive);
+    if (alivePlayers.length <= 1) {
+      this.endGameSession(gameSessionId);
+      return;
+    }
+
+    this.publish("game", "refresh");
+    
+    // 继续游戏循环
+    this.future(150).gameStep(gameSessionId);
+  }
+
+  handlePlayerDirectionChange(data: { gameSessionId: string; playerAddress: string; direction: 'up' | 'down' | 'left' | 'right' }) {
+    const gameSessionIndex = this.gameSessions.findIndex(g => g.id === data.gameSessionId);
+    if (gameSessionIndex === -1) return;
+
+    const gameSession = this.gameSessions[gameSessionIndex];
+    if (gameSession.status !== 'playing') return;
 
     const playerIndex = gameSession.players.findIndex(p => p.address === data.playerAddress);
     if (playerIndex === -1) return;
 
-    gameSession.players[playerIndex].direction = data.direction as any;
+    const player = gameSession.players[playerIndex];
+    
+    // 防止反向移动
+    const opposites = { up: 'down', down: 'up', left: 'right', right: 'left' };
+    if (opposites[data.direction] === player.direction) {
+      return;
+    }
+
+    // 更新玩家方向
+    const updatedPlayers = [...gameSession.players];
+    updatedPlayers[playerIndex] = {
+      ...player,
+      direction: data.direction
+    };
+
+    this.gameSessions[gameSessionIndex] = {
+      ...gameSession,
+      players: updatedPlayers
+    };
+
     this.publish("game", "refresh");
+  }
+
+  handlePlayerMove(data: { gameSessionId: string; playerAddress: string; direction: string }) {
+    // 这个方法现在用于处理方向改变
+    this.handlePlayerDirectionChange({
+      gameSessionId: data.gameSessionId,
+      playerAddress: data.playerAddress,
+      direction: data.direction as 'up' | 'down' | 'left' | 'right'
+    });
   }
 
   handlePlayerDied(data: { gameSessionId: string; playerAddress: string }) {
@@ -362,29 +564,61 @@ export class GameModel extends Multisynq.Model {
   }
 
   private endGameSession(gameSessionId: string) {
-    const gameSession = this.gameSessions.find(g => g.id === gameSessionId);
-    if (!gameSession) return;
+    const gameSessionIndex = this.gameSessions.findIndex(g => g.id === gameSessionId);
+    if (gameSessionIndex === -1) return;
 
-    gameSession.status = 'finished';
-    gameSession.finishedAt = new Date().toISOString();
+    const gameSession = this.gameSessions[gameSessionIndex];
+    
+    this.gameSessions[gameSessionIndex] = {
+      ...gameSession,
+      status: 'finished',
+      finishedAt: new Date().toISOString()
+    };
 
     // 重置房间状态
     const room = this.rooms.find(r => r.id === gameSession.roomId);
     if (room) {
       const roomIndex = this.rooms.findIndex(r => r.id === gameSession.roomId);
-      this.rooms[roomIndex].status = 'waiting';
-      
-      // 重置所有玩家的准备状态
-      this.rooms[roomIndex].players.forEach(player => {
-        player.isReady = false;
-      });
+      this.rooms[roomIndex] = {
+        ...room,
+        status: 'waiting',
+        players: room.players.map(player => ({ ...player, isReady: false }))
+      };
     }
 
     this.roomGameMap.delete(gameSession.roomId);
     
+    // 清理食物
+    this.foods = [];
+    
     console.log(`GameModel: Game session ${gameSessionId} ended`);
     this.publish("game", "refresh");
     this.publish("lobby", "refresh");
+  }
+
+  // ============ 食物管理 ============
+  generateInitialFood(count: number) {
+    this.foods = [];
+    for (let i = 0; i < count; i++) {
+      this.generateFood();
+    }
+  }
+
+  generateFood() {
+    const foodId = `food_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    const type = Math.random() < 0.8 ? 'normal' : 'bonus';
+    
+    const newFood: Food = {
+      id: foodId,
+      position: {
+        x: Math.floor(Math.random() * 60),
+        y: Math.floor(Math.random() * 60)
+      },
+      type,
+      value: type === 'normal' ? 10 : 50
+    };
+    
+    this.foods.push(newFood);
   }
 
   // ============ 工具方法 ============
@@ -393,18 +627,21 @@ export class GameModel extends Multisynq.Model {
     return colors[index % colors.length];
   }
 
-  private getInitialPosition(index: number): { x: number; y: number } {
-    const positions = [
-      { x: 50, y: 50 },
-      { x: 750, y: 50 },
-      { x: 50, y: 550 },
-      { x: 750, y: 550 },
-      { x: 400, y: 50 },
-      { x: 400, y: 550 },
-      { x: 50, y: 300 },
-      { x: 750, y: 300 }
-    ];
-    return positions[index % positions.length];
+  private getInitialPosition(index: number, playerCount: number): { x: number; y: number } {
+    // 根据玩家数量和索引计算初始位置，确保玩家不会重叠
+    const centerX = 30;
+    const centerY = 30;
+    const radius = 15;
+    
+    if (playerCount === 1) {
+      return { x: centerX, y: centerY };
+    }
+    
+    const angle = (2 * Math.PI * index) / playerCount;
+    return {
+      x: Math.floor(centerX + radius * Math.cos(angle)),
+      y: Math.floor(centerY + radius * Math.sin(angle))
+    };
   }
 
   // ============ 查询方法 ============
@@ -427,4 +664,4 @@ export class GameModel extends Multisynq.Model {
 GameModel.register("GameModel");
 
 // 确保 GameModel 被正确导出
-export default GameModel; 
+export default GameModel;

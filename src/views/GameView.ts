@@ -1,12 +1,13 @@
+
 import * as Multisynq from '@multisynq/client';
-import { Room, Player, GameSession, GamePlayer } from '../models/GameModel';
+import { Room, Player, GameSession, GamePlayer, Food } from '../models/GameModel';
 
 export class GameView extends Multisynq.View {
   public model: any;
   
   // 回调函数
   private lobbyCallback: ((data: { rooms: Room[]; connectedPlayers: number }) => void) | null = null;
-  private gameCallback: ((gameSession: GameSession | null) => void) | null = null;
+  private gameCallback: ((gameSession: GameSession | null, foods: Food[]) => void) | null = null;
   private systemCallback: ((data: { connectedPlayers: Set<string> }) => void) | null = null;
 
   constructor(model: any) {
@@ -71,14 +72,17 @@ export class GameView extends Multisynq.View {
     if (this.model && this.model.gameSessions) {
       console.log('GameView: Refreshing game UI with latest state');
       
-      // 获取当前活跃的游戏会话（如果有的话）
+      // 获取当前活跃的游戏会话（倒计时或进行中的游戏）
       const activeGameSession = this.model.gameSessions.find(
-        (session: GameSession) => session.status === 'playing'
+        (session: GameSession) => session.status === 'countdown' || session.status === 'playing'
       ) || null;
       
+      // 获取食物数据
+      const foods = this.model.foods || [];
+      
       if (this.gameCallback) {
-        this.gameCallback(activeGameSession);
-        console.log('GameView: Game callback executed');
+        this.gameCallback(activeGameSession, foods);
+        console.log('GameView: Game callback executed with session:', !!activeGameSession, 'foods:', foods.length);
       } else {
         console.log('GameView: No game callback set');
       }
@@ -132,7 +136,7 @@ export class GameView extends Multisynq.View {
     console.log('GameView: Lobby callback set');
   }
 
-  setGameCallback(callback: (gameSession: GameSession | null) => void) {
+  setGameCallback(callback: (gameSession: GameSession | null, foods: Food[]) => void) {
     this.gameCallback = callback;
     console.log('GameView: Game callback set');
   }
@@ -176,6 +180,11 @@ export class GameView extends Multisynq.View {
     this.publish("game", "player-move", { gameSessionId, playerAddress, direction });
   }
 
+  changeDirection(gameSessionId: string, playerAddress: string, direction: 'up' | 'down' | 'left' | 'right') {
+    console.log('GameView: Publishing player-direction-change event');
+    this.publish("game", "player-direction-change", { gameSessionId, playerAddress, direction });
+  }
+
   playerDied(gameSessionId: string, playerAddress: string) {
     console.log('GameView: Publishing player-died event');
     this.publish("game", "player-died", { gameSessionId, playerAddress });
@@ -207,4 +216,4 @@ export class GameView extends Multisynq.View {
     this.gameCallback = null;
     this.systemCallback = null;
   }
-} 
+}
