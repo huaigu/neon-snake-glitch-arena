@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useGameContext } from '../contexts/GameContext';
 import { useRoomContext } from '../contexts/RoomContext';
@@ -56,7 +57,18 @@ export const useSnakeGame = () => {
   const [isSpectator, setIsSpectator] = useState(false);
   const [speedMultiplier, setSpeedMultiplier] = useState(1.0);
 
-  // Mobile swipe controls
+  // Define changeDirection first
+  const changeDirection = useCallback((direction: 'up' | 'down' | 'left' | 'right') => {
+    if (!gameView || !gameSessionId || !user?.address || !gameRunning || isSpectator) {
+      console.log('useSnakeGame: Cannot change direction - spectator mode or game not running');
+      return;
+    }
+
+    console.log('useSnakeGame: Changing direction:', direction);
+    gameView.changeDirection(gameSessionId, user.address, direction);
+  }, [gameView, gameSessionId, user?.address, gameRunning, isSpectator]);
+
+  // Now mobile controls can use changeDirection safely
   useMobileControls({
     onDirectionChange: changeDirection,
     isEnabled: isMobile && gameRunning && !isSpectator
@@ -162,16 +174,6 @@ export const useSnakeGame = () => {
       gameView.setGameCallback(() => {});
     };
   }, [gameView, isConnected, currentRoom, user?.address]);
-
-  const changeDirection = useCallback((direction: 'up' | 'down' | 'left' | 'right') => {
-    if (!gameView || !gameSessionId || !user?.address || !gameRunning || isSpectator) {
-      console.log('useSnakeGame: Cannot change direction - spectator mode or game not running');
-      return;
-    }
-
-    console.log('useSnakeGame: Changing direction:', direction);
-    gameView.changeDirection(gameSessionId, user.address, direction);
-  }, [gameView, gameSessionId, user?.address, gameRunning, isSpectator]);
 
   const enterSpectatorMode = useCallback(() => {
     if (!gameView || !gameSessionId || !user?.address || !gameRunning) {
