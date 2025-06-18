@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useGameContext } from '../contexts/GameContext';
 import { useRoomContext } from '../contexts/RoomContext';
@@ -72,15 +73,6 @@ export const useSnakeGame = () => {
     onDirectionChange: changeDirection,
     isEnabled: isMobile && gameRunning && !isSpectator
   });
-
-  // Sync grid size with game model
-  useEffect(() => {
-    if (gameView && gridSize > 0) {
-      console.log('useSnakeGame: Syncing grid size with game model:', gridSize);
-      // Notify the game model about the current grid size
-      gameView.setGridSize?.(gridSize);
-    }
-  }, [gameView, gridSize]);
 
   // 设置游戏回调
   useEffect(() => {
