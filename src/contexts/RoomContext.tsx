@@ -54,15 +54,15 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     }
   }, [user]);
 
-  // 设置 GameView 回调函数（只设置一次）
+  // 设置 GameView 回调函数（立即设置，不等待连接）
   useEffect(() => {
-    if (!gameView || !isConnected) {
+    if (!gameView) {
       return;
     }
 
-    console.log('RoomContext: Setting up GameView lobby callback');
+    console.log('RoomContext: Setting up GameView lobby callback immediately');
     
-    // 设置大厅回调函数
+    // 立即设置大厅回调函数
     const lobbyCallback = (lobbyData: { rooms: Room[]; connectedPlayers: number }) => {
       console.log('=== LOBBY CALLBACK TRIGGERED ===');
       console.log('RoomContext: Received lobby data from GameView:', {
@@ -81,46 +81,17 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
         timestamp: new Date().toISOString()
       });
       
-      // 更新房间列表状态
-      setRooms(prevRooms => {
-        const roomsChanged = JSON.stringify(prevRooms) !== JSON.stringify(lobbyData.rooms);
-        console.log('RoomContext: Rooms state update analysis:', {
-          roomsChanged,
-          prevRoomsCount: prevRooms.length,
-          newRoomsCount: lobbyData.rooms.length,
-          prevRoomsData: prevRooms.map(r => ({
-            id: r.id,
-            playersCount: r.players.length,
-            players: r.players.map(p => ({
-              name: p.name,
-              isReady: p.isReady,
-              address: p.address
-            }))
-          })),
-          newRoomsData: lobbyData.rooms.map(r => ({
-            id: r.id,
-            playersCount: r.players.length,
-            players: r.players.map(p => ({
-              name: p.name,
-              isReady: p.isReady,
-              address: p.address
-            }))
-          })),
-          timestamp: new Date().toISOString()
-        });
-        
-        // 强制创建新的数组引用以确保React重新渲染
-        return [...lobbyData.rooms];
-      });
-      
+      // 强制更新房间列表状态
+      setRooms(lobbyData.rooms);
       setConnectedPlayersCount(lobbyData.connectedPlayers);
     };
     
+    // 立即设置回调，即使还没连接
     gameView.setLobbyCallback(lobbyCallback);
 
-    // 获取初始数据
-    if (gameView.model) {
-      console.log('RoomContext: Setting initial data from GameView model');
+    // 如果已经连接且有模型数据，立即获取初始状态
+    if (isConnected && gameView.model) {
+      console.log('RoomContext: Getting initial data from GameView model');
       const initialRooms = gameView.model.rooms || [];
       const initialConnectedCount = gameView.model.connectedPlayers?.size || 0;
       
@@ -138,18 +109,20 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
         }))
       });
       
-      setRooms([...initialRooms]); // 创建新的数组引用
-      setConnectedPlayersCount(initialConnectedCount);
+      // 立即调用回调来设置初始状态
+      lobbyCallback({
+        rooms: initialRooms,
+        connectedPlayers: initialConnectedCount
+      });
     }
 
     return () => {
       console.log('RoomContext: Cleaning up GameView callbacks');
-      // 清理回调函数
       gameView.setLobbyCallback(() => {});
     };
-  }, [gameView, isConnected]);
+  }, [gameView, isConnected]); // 依赖 gameView 和 isConnected
 
-  // 更新当前房间 - 使用更精确的比较
+  // 更新当前房间
   useEffect(() => {
     console.log('=== CURRENT ROOM UPDATE EFFECT ===');
     
@@ -176,32 +149,21 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
         playersDataChanged,
         oldPlayersCount: prevCurrentRoom.players.length,
         newPlayersCount: updatedRoom.players.length,
-        oldPlayersData: prevCurrentRoom.players.map(p => ({ 
-          name: p.name, 
-          isReady: p.isReady, 
-          address: p.address 
-        })),
-        newPlayersData: updatedRoom.players.map(p => ({ 
-          name: p.name, 
-          isReady: p.isReady, 
-          address: p.address 
-        })),
         timestamp: new Date().toISOString()
       });
       
       if (playersDataChanged) {
         console.log('RoomContext: Players data changed, creating new room object reference');
-        // 强制创建新的对象引用以触发React重新渲染
         return { 
           ...updatedRoom,
-          players: [...updatedRoom.players] // 确保players数组也是新的引用
+          players: [...updatedRoom.players]
         };
       } else {
         console.log('RoomContext: Room data unchanged, keeping existing reference');
         return prevCurrentRoom;
       }
     });
-  }, [rooms]); // 只依赖rooms的变化
+  }, [rooms]);
 
   // 房间管理方法
   const createRoom = async (roomName: string): Promise<string | null> => {
@@ -234,7 +196,7 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
               hostAddress: newRoom.hostAddress,
               timestamp: new Date().toISOString()
             });
-            setCurrentRoom({ ...newRoom }); // 创建新的对象引用
+            setCurrentRoom({ ...newRoom });
             setLoading(false);
             resolve(newRoom.id);
           } else {
@@ -273,7 +235,7 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
           roomName: room.name,
           timestamp: new Date().toISOString()
         });
-        setCurrentRoom({ ...room }); // 创建新的对象引用
+        setCurrentRoom({ ...room });
       }
       
       return true;
@@ -312,41 +274,9 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
         timestamp: new Date().toISOString()
       });
       
-      // 在发送事件前，记录当前状态
-      const currentRoomData = rooms.find(r => r.id === roomId);
-      const currentPlayerData = currentRoomData?.players.find(p => p.address === playerAddress);
-      
-      console.log('RoomContext: CURRENT STATE BEFORE setPlayerReady:', {
-        roomExists: !!currentRoomData,
-        playerExists: !!currentPlayerData,
-        currentPlayerReadyState: currentPlayerData?.isReady,
-        requestedReadyState: isReady,
-        willActuallyChange: currentPlayerData?.isReady !== isReady,
-        allPlayersInRoom: currentRoomData?.players.map(p => ({
-          name: p.name,
-          address: p.address,
-          isReady: p.isReady
-        })) || [],
-        timestamp: new Date().toISOString()
-      });
-      
       console.log('RoomContext: CALLING gameView.setPlayerReady...');
       gameView.setPlayerReady(roomId, playerAddress, isReady);
-      
-      console.log('RoomContext: gameView.setPlayerReady call completed, waiting for model update...');
-      
-      // 添加一个延迟检查以确认状态是否真正更新了
-      setTimeout(() => {
-        const updatedRoomData = rooms.find(r => r.id === roomId);
-        const updatedPlayerData = updatedRoomData?.players.find(p => p.address === playerAddress);
-        
-        console.log('RoomContext: POST-UPDATE STATE CHECK (delayed):', {
-          updatedPlayerReadyState: updatedPlayerData?.isReady,
-          expectedReadyState: isReady,
-          stateUpdatedCorrectly: updatedPlayerData?.isReady === isReady,
-          timestamp: new Date().toISOString()
-        });
-      }, 500); // 检查500ms后的状态
+      console.log('RoomContext: gameView.setPlayerReady call completed');
       
     } catch (err) {
       console.error('RoomContext: Error setting player ready state:', err);

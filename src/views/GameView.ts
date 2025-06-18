@@ -16,7 +16,7 @@ export class GameView extends Multisynq.View {
     console.log('GameView: Constructor called with model:', !!model);
     this.setupSubscriptions();
     
-    // 初始化时刷新一次状态
+    // 初始化时立即刷新状态，确保任何已设置的回调都能收到初始数据
     this.refreshAllStates();
     console.log('GameView: Instance created and initial states refreshed');
   }
@@ -51,15 +51,16 @@ export class GameView extends Multisynq.View {
     if (this.model && this.model.rooms) {
       console.log('GameView: Refreshing lobby UI with latest state');
       const lobbyData = {
-        rooms: this.model.rooms,
+        rooms: [...this.model.rooms], // 创建新的数组引用
         connectedPlayers: this.model.connectedPlayers.size
       };
       
       if (this.lobbyCallback) {
+        console.log('GameView: Executing lobby callback with rooms:', lobbyData.rooms.length);
         this.lobbyCallback(lobbyData);
-        console.log('GameView: Lobby callback executed');
+        console.log('GameView: Lobby callback executed successfully');
       } else {
-        console.log('GameView: No lobby callback set');
+        console.log('GameView: No lobby callback set - this is normal during initialization');
       }
     } else {
       console.log('GameView: No model or rooms data available');
@@ -112,12 +113,12 @@ export class GameView extends Multisynq.View {
   // ============ 事件响应方法 ============
   onRoomCreated(data: { roomId: string; room: Room }) {
     console.log('GameView: Room created event received:', data);
-    // 不需要手动刷新，因为 Model 已经发布了 "lobby refresh" 事件
+    // Model 已经发布了 "lobby refresh" 事件，会自动刷新 UI
   }
 
   onJoinRoomSuccess(data: { roomId: string }) {
     console.log('GameView: Join room success event received:', data);
-    // 不需要手动刷新，因为 Model 已经发布了 "lobby refresh" 事件
+    // Model 已经发布了 "lobby refresh" 事件，会自动刷新 UI
   }
 
   onJoinRoomFailed(data: { error: string }) {
@@ -132,13 +133,33 @@ export class GameView extends Multisynq.View {
 
   // ============ 回调设置方法 ============
   setLobbyCallback(callback: (data: { rooms: Room[]; connectedPlayers: number }) => void) {
+    console.log('GameView: Setting lobby callback');
     this.lobbyCallback = callback;
-    console.log('GameView: Lobby callback set');
+    
+    // 立即调用一次回调，如果有数据的话
+    if (this.model && this.model.rooms) {
+      const lobbyData = {
+        rooms: [...this.model.rooms],
+        connectedPlayers: this.model.connectedPlayers.size
+      };
+      console.log('GameView: Immediately calling lobby callback with current data:', lobbyData.rooms.length, 'rooms');
+      callback(lobbyData);
+    }
   }
 
   setGameCallback(callback: (gameSession: GameSession | null, foods: Food[]) => void) {
+    console.log('GameView: Setting game callback');
     this.gameCallback = callback;
-    console.log('GameView: Game callback set');
+    
+    // 立即调用一次回调，如果有数据的话
+    if (this.model && this.model.gameSessions) {
+      const activeGameSession = this.model.gameSessions.find(
+        (session: GameSession) => session.status === 'countdown' || session.status === 'playing'
+      ) || null;
+      const foods = this.model.foods || [];
+      console.log('GameView: Immediately calling game callback with current data');
+      callback(activeGameSession, foods);
+    }
   }
 
   setSystemCallback(callback: (data: { connectedPlayers: Set<string> }) => void) {
