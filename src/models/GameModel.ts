@@ -174,7 +174,13 @@ export class GameModel extends Multisynq.Model {
       return;
     }
 
-    if (room.players.length >= room.maxPlayers || room.status !== 'waiting') {
+    // 检查房间状态 - 如果房间正在游戏中，不允许加入
+    if (room.status === 'playing') {
+      this.publish("lobby", "join-room-failed", { error: "Game is already in progress" });
+      return;
+    }
+
+    if (room.players.length >= room.maxPlayers || room.status === 'finished') {
       this.publish("lobby", "join-room-failed", { error: "Room is full or not available" });
       return;
     }
@@ -242,6 +248,7 @@ export class GameModel extends Multisynq.Model {
       const updatedPlayers = room.players.filter(p => p.address !== playerAddress);
       
       if (updatedPlayers.length === 0) {
+        // 如果房间没有玩家了，删除房间
         this.rooms.splice(roomIndex, 1);
         console.log(`GameModel: Room ${roomId} deleted because no players left`);
       } else {
@@ -263,6 +270,13 @@ export class GameModel extends Multisynq.Model {
     }
 
     const room = this.rooms[roomIndex];
+    
+    // 如果房间已经在游戏中，不允许改变ready状态
+    if (room.status === 'playing') {
+      console.log('GameModel: Cannot change ready state, game already in progress');
+      return;
+    }
+
     const playerIndex = room.players.findIndex(p => p.address === data.playerAddress);
     if (playerIndex === -1) {
       console.log('GameModel: Player not found in room:', data.playerAddress);
@@ -292,12 +306,19 @@ export class GameModel extends Multisynq.Model {
     const newReadyState = this.rooms[roomIndex].players[playerIndex].isReady;
     console.log(`GameModel: Player ${data.playerAddress} ready state updated: ${oldReadyState} -> ${newReadyState}`);
     
-    // 检查是否所有玩家都准备好了，并且玩家数大于2
+    // 检查是否所有玩家都准备好了，并且玩家数大于等于2
     const allReady = this.rooms[roomIndex].players.every(p => p.isReady);
     const playerCount = this.rooms[roomIndex].players.length;
     
     if (allReady && playerCount >= 2) {
-      console.log('GameModel: All players ready and player count >= 2, starting game');
+      console.log('GameModel: All players ready and player count >= 2, changing room status to playing');
+      // 将房间状态改为playing，防止新玩家加入
+      this.rooms[roomIndex] = {
+        ...this.rooms[roomIndex],
+        status: 'playing'
+      };
+      
+      // 开始游戏
       this.startGame({ roomId: data.roomId });
     }
     
@@ -597,7 +618,7 @@ export class GameModel extends Multisynq.Model {
       finishedAt: new Date().toISOString()
     };
 
-    // 重置房间状态
+    // 重置房间状态为waiting，允许新玩家加入
     const room = this.rooms.find(r => r.id === gameSession.roomId);
     if (room) {
       const roomIndex = this.rooms.findIndex(r => r.id === gameSession.roomId);
