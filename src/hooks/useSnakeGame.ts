@@ -51,6 +51,7 @@ export const useSnakeGame = () => {
   const [showCountdown, setShowCountdown] = useState(false);
   const [gameSessionId, setGameSessionId] = useState<string | null>(null);
   const [isSpectator, setIsSpectator] = useState(false);
+  const [speedMultiplier, setSpeedMultiplier] = useState(1.0);
 
   // 设置游戏回调
   useEffect(() => {
@@ -67,11 +68,13 @@ export const useSnakeGame = () => {
         countdown: gameSession?.countdown,
         playersCount: gameSession?.players?.length || 0,
         foodsCount: foods.length,
-        segmentsCount: segments.length
+        segmentsCount: segments.length,
+        speedMultiplier: gameSession?.speedMultiplier
       });
 
       if (gameSession) {
         setGameSessionId(gameSession.id);
+        setSpeedMultiplier(gameSession.speedMultiplier || 1.0);
         
         const gameSnakes = gameSession.players.map((player: any) => ({
           id: player.id,
@@ -132,6 +135,7 @@ export const useSnakeGame = () => {
         setShowCountdown(false);
         setGameOver(false);
         setIsSpectator(false);
+        setSpeedMultiplier(1.0);
       }
     };
     
@@ -215,7 +219,7 @@ export const useSnakeGame = () => {
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [gameRunning, changeDirection, isSpectator]);
 
-  console.log('useSnakeGame render - multiplayer mode, snakes:', snakes.length, 'gameRunning:', gameRunning, 'countdown:', countdown, 'segments:', segments.length, 'isSpectator:', isSpectator);
+  console.log('useSnakeGame render - multiplayer mode, snakes:', snakes.length, 'gameRunning:', gameRunning, 'countdown:', countdown, 'segments:', segments.length, 'isSpectator:', isSpectator, 'speedMultiplier:', speedMultiplier);
 
   return {
     snakes,
@@ -230,6 +234,7 @@ export const useSnakeGame = () => {
     countdown,
     showCountdown,
     isSpectator,
-    enterSpectatorMode
+    enterSpectatorMode,
+    speedMultiplier
   };
 };

@@ -29,6 +29,8 @@ export interface GameSession {
   startedAt?: string;
   finishedAt?: string;
   countdown?: number;
+  speedMultiplier?: number;
+  lastSpeedIncrease?: number;
 }
 
 export interface GamePlayer {
@@ -380,7 +382,9 @@ export class GameModel extends Multisynq.Model {
       })),
       status: 'countdown',
       countdown: 3,
-      startedAt: new Date().toISOString()
+      startedAt: new Date().toISOString(),
+      speedMultiplier: 1.0,
+      lastSpeedIncrease: this.now()
     };
 
     this.gameSessions.push(gameSession);
@@ -436,6 +440,8 @@ export class GameModel extends Multisynq.Model {
       
       this.future(150).gameStep(gameSessionId);
       this.future(3000).segmentSpawnLoop(gameSessionId);
+      // 启动速度提升循环
+      this.future(30000).speedBoostLoop(gameSessionId);
     } else {
       this.gameSessions[gameSessionIndex] = {
         ...gameSession,
@@ -447,6 +453,29 @@ export class GameModel extends Multisynq.Model {
       
       this.future(1000).countdownTick(gameSessionId);
     }
+  }
+
+  speedBoostLoop(gameSessionId: string) {
+    const gameSessionIndex = this.gameSessions.findIndex(g => g.id === gameSessionId);
+    if (gameSessionIndex === -1) return;
+
+    const gameSession = this.gameSessions[gameSessionIndex];
+    if (gameSession.status !== 'playing') return;
+
+    // 增加20%速度
+    const newSpeedMultiplier = (gameSession.speedMultiplier || 1.0) * 1.2;
+    
+    this.gameSessions[gameSessionIndex] = {
+      ...gameSession,
+      speedMultiplier: newSpeedMultiplier,
+      lastSpeedIncrease: this.now()
+    };
+
+    console.log(`GameModel: Speed increased to ${newSpeedMultiplier.toFixed(2)}x for game ${gameSessionId}`);
+    this.publish("game", "refresh");
+
+    // 30秒后再次增加速度
+    this.future(30000).speedBoostLoop(gameSessionId);
   }
 
   gameStep(gameSessionId: string) {
@@ -566,7 +595,12 @@ export class GameModel extends Multisynq.Model {
 
     this.publish("game", "refresh");
     
-    this.future(150).gameStep(gameSessionId);
+    // 根据速度倍数调整游戏步进间隔
+    const baseInterval = 150;
+    const speedMultiplier = gameSession.speedMultiplier || 1.0;
+    const adjustedInterval = Math.max(50, Math.floor(baseInterval / speedMultiplier));
+    
+    this.future(adjustedInterval).gameStep(gameSessionId);
   }
 
   segmentSpawnLoop(gameSessionId: string) {

@@ -23,12 +23,14 @@ export const GameArea: React.FC<GameAreaProps> = ({
 
   const currentPlayerSnake = snakes.find(snake => snake.isPlayer);
   
+  // 增加战争迷雾视野范围从10到15
+  const visionRange = 15;
+  
   const getVisibleElements = <T extends { position: { x: number; y: number } }>(elements: T[]): T[] => {
     if (isSpectator || !currentPlayerSnake || !currentPlayerSnake.isAlive) {
       return elements;
     }
 
-    const visionRange = 10;
     const playerHead = currentPlayerSnake.segments[0];
     
     return elements.filter(element => {
@@ -42,7 +44,6 @@ export const GameArea: React.FC<GameAreaProps> = ({
       return snakes;
     }
 
-    const visionRange = 10;
     const playerHead = currentPlayerSnake.segments[0];
     
     return snakes.map(snake => {
@@ -62,7 +63,9 @@ export const GameArea: React.FC<GameAreaProps> = ({
     });
   };
 
-  const visibleFoods = getVisibleElements(foods);
+  // 道具不受战争迷雾限制，始终显示所有道具
+  const visibleFoods = isSpectator ? foods : foods;
+  // 能量段仍然受战争迷雾限制
   const visibleSegments = getVisibleElements(segments);
   const visibleSnakes = getVisibleSnakes();
 
@@ -202,7 +205,7 @@ export const GameArea: React.FC<GameAreaProps> = ({
             }}
           />
 
-          {/* Fog of War Effect (only for non-spectators with living players) */}
+          {/* Fog of War Effect with increased range */}
           {!isSpectator && currentPlayerSnake && currentPlayerSnake.isAlive && (
             <div className="absolute inset-0 pointer-events-none">
               <div 
@@ -212,26 +215,26 @@ export const GameArea: React.FC<GameAreaProps> = ({
                   top: 0,
                   right: 0,
                   bottom: 0,
-                  mask: `radial-gradient(circle ${10 * cellSize}px at ${currentPlayerSnake.segments[0].x * cellSize + cellSize/2}px ${currentPlayerSnake.segments[0].y * cellSize + cellSize/2}px, transparent 70%, black 100%)`
+                  mask: `radial-gradient(circle ${visionRange * cellSize}px at ${currentPlayerSnake.segments[0].x * cellSize + cellSize/2}px ${currentPlayerSnake.segments[0].y * cellSize + cellSize/2}px, transparent 70%, black 100%)`
                 }}
               />
             </div>
           )}
 
-          {/* Food */}
+          {/* Food - 始终显示，不受战争迷雾限制 */}
           {visibleFoods.map((food, index) => (
             <div
               key={`food-${index}`}
-              className={`absolute rounded-full ${
+              className={`absolute rounded-sm ${
                 food.type === 'bonus' 
-                  ? 'bg-cyber-yellow animate-pulse' 
-                  : 'bg-cyber-green'
-              }`}
+                  ? 'bg-yellow-400 animate-pulse' 
+                  : 'bg-green-400'
+              } snake-segment`}
               style={{
-                left: food.position.x * cellSize + 2,
-                top: food.position.y * cellSize + 2,
-                width: cellSize - 4,
-                height: cellSize - 4,
+                left: food.position.x * cellSize + 1,
+                top: food.position.y * cellSize + 1,
+                width: cellSize - 2,
+                height: cellSize - 2,
                 boxShadow: isSpectator ? '0 0 8px currentColor' : '0 0 4px currentColor'
               }}
             />
@@ -241,7 +244,7 @@ export const GameArea: React.FC<GameAreaProps> = ({
           {visibleSegments.map((segment) => (
             <div
               key={segment.id}
-              className="absolute rounded animate-pulse"
+              className="absolute animate-pulse snake-segment"
               style={{
                 left: segment.position.x * cellSize + 1,
                 top: segment.position.y * cellSize + 1,
@@ -253,13 +256,13 @@ export const GameArea: React.FC<GameAreaProps> = ({
             />
           ))}
 
-          {/* Snakes */}
+          {/* Snakes with angular styling */}
           {visibleSnakes.map((snake) => (
             <div key={snake.id}>
               {snake.segments.map((segment, segmentIndex) => (
                 <div
                   key={`${snake.id}-segment-${segmentIndex}`}
-                  className={`absolute transition-all duration-150 ${
+                  className={`absolute transition-all duration-150 snake-segment ${
                     !snake.isAlive ? 'opacity-30' : ''
                   } ${snake.isSpectator ? 'animate-pulse' : ''}`}
                   style={{
@@ -269,11 +272,13 @@ export const GameArea: React.FC<GameAreaProps> = ({
                     height: cellSize,
                     backgroundColor: snake.color,
                     border: segmentIndex === 0 ? '2px solid white' : 'none',
-                    borderRadius: segmentIndex === 0 ? '50%' : '2px',
+                    // 使用方形样式保持棱角风格，头部稍微小一点但仍然是方形
+                    borderRadius: segmentIndex === 0 ? '1px' : '0px',
                     boxShadow: isSpectator ? '0 0 6px currentColor' : snake.isPlayer ? '0 0 4px currentColor' : 'none',
                     opacity: snake.isAlive ? 1 : 0.5,
                     zIndex: snake.isPlayer ? 10 : 5,
-                    transform: segmentIndex === 0 ? 'scale(1.1)' : 'scale(1)'
+                    // 头部稍微大一点来区分
+                    transform: segmentIndex === 0 ? 'scale(1.05)' : 'scale(1)'
                   }}
                 />
               ))}
