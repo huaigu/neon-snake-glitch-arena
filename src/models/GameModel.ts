@@ -798,7 +798,8 @@ export class GameModel extends Multisynq.Model {
       };
     }
 
-    this.roomGameMap.delete(gameSession.roomId);
+    // 保留roomGameMap映射关系，这样客户端仍能找到已完成的游戏会话来显示最终结果
+    // roomGameMap会在cleanupFinishedGameSession中清理
     
     console.log(`GameModel: Game session ${gameSessionId} ended, keeping food and segments for room reuse`);
     
@@ -813,6 +814,9 @@ export class GameModel extends Multisynq.Model {
     if (gameSessionIndex !== -1) {
       const gameSession = this.gameSessions[gameSessionIndex];
       if (gameSession.status === 'finished') {
+        // 清理roomGameMap映射关系
+        this.roomGameMap.delete(gameSession.roomId);
+        // 清理游戏会话
         this.gameSessions.splice(gameSessionIndex, 1);
         console.log(`GameModel: Cleaned up finished game session ${gameSessionId} after 5 minutes`);
       }

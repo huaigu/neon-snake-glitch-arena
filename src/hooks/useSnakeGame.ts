@@ -84,6 +84,14 @@ export const useSnakeGame = () => {
     console.log('useSnakeGame: Setting up game callback, fixed gridSize:', gridSize);
     
     const gameCallback = (gameSession: any, foods: any[], segments: any[]) => {
+      console.log('=== useSnakeGame: Game callback triggered ===');
+      console.log('gameSession:', gameSession);
+      console.log('gameSession status:', gameSession?.status);
+      console.log('gameSession players:', gameSession?.players);
+      console.log('current user address:', user?.address);
+      console.log('current room:', currentRoom?.id);
+      console.log('==========================================');
+      
       console.log('useSnakeGame: Game callback triggered:', {
         hasGameSession: !!gameSession,
         sessionStatus: gameSession?.status,
@@ -162,10 +170,14 @@ export const useSnakeGame = () => {
           setGameRunning(true);
           setGameOver(false);
         } else if (gameSession.status === 'finished') {
+          // 显示房间内最近完成的游戏结果，让所有玩家都能看到
+          // 这样即使是新加入的玩家也能了解之前的游戏结果
           setGameRunning(false);
           setGameOver(true);
           setShowCountdown(false);
           setIsSpectator(false);
+          
+          console.log('useSnakeGame: Displaying finished game results for all players in room');
         }
       } else {
         setGameSessionId(null);

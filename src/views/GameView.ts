@@ -72,18 +72,32 @@ export class GameView extends Multisynq.View {
     if (this.model && this.model.gameSessions) {
       console.log('GameView: Refreshing game UI with latest state');
       
-      // 获取当前活跃的游戏会话（倒计时或进行中的游戏）
-      const activeGameSession = this.model.gameSessions.find(
+      // 简化逻辑：优先获取活跃的游戏会话
+      let currentGameSession = this.model.gameSessions.find(
         (session: GameSession) => session.status === 'countdown' || session.status === 'playing'
       ) || null;
+      
+      // 如果没有活跃会话，获取最近完成的游戏会话
+      if (!currentGameSession) {
+        // 按时间倒序排列，获取最新的已完成游戏会话
+        const finishedSessions = this.model.gameSessions
+          .filter((session: GameSession) => session.status === 'finished')
+          .sort((a: GameSession, b: GameSession) => {
+            const timeA = new Date(a.finishedAt || '').getTime();
+            const timeB = new Date(b.finishedAt || '').getTime();
+            return timeB - timeA; // 降序排列，最新的在前
+          });
+        
+        currentGameSession = finishedSessions[0] || null;
+      }
       
       // 获取食物和道具数据
       const foods = this.model.foods || [];
       const segments = this.model.segments || [];
       
       if (this.gameCallback) {
-        this.gameCallback(activeGameSession, foods, segments);
-        console.log('GameView: Game callback executed with session:', !!activeGameSession, 'foods:', foods.length, 'segments:', segments.length);
+        this.gameCallback(currentGameSession, foods, segments);
+        console.log('GameView: Game callback executed with session:', !!currentGameSession, 'status:', currentGameSession?.status, 'foods:', foods.length, 'segments:', segments.length);
       } else {
         console.log('GameView: No game callback set');
       }
@@ -149,13 +163,28 @@ export class GameView extends Multisynq.View {
     
     // 立即调用一次回调，如果有数据的话
     if (this.model && this.model.gameSessions) {
-      const activeGameSession = this.model.gameSessions.find(
+      // 优先获取活跃的游戏会话
+      let currentGameSession = this.model.gameSessions.find(
         (session: GameSession) => session.status === 'countdown' || session.status === 'playing'
       ) || null;
+      
+      // 如果没有活跃会话，获取最新的已完成游戏会话
+      if (!currentGameSession) {
+        const finishedSessions = this.model.gameSessions
+          .filter((session: GameSession) => session.status === 'finished')
+          .sort((a: GameSession, b: GameSession) => {
+            const timeA = new Date(a.finishedAt || '').getTime();
+            const timeB = new Date(b.finishedAt || '').getTime();
+            return timeB - timeA;
+          });
+        
+        currentGameSession = finishedSessions[0] || null;
+      }
+      
       const foods = this.model.foods || [];
       const segments = this.model.segments || [];
       console.log('GameView: Immediately calling game callback with current data');
-      callback(activeGameSession, foods, segments);
+      callback(currentGameSession, foods, segments);
     }
   }
 

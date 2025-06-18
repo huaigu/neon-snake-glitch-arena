@@ -28,6 +28,7 @@ export const SnakeGame: React.FC = () => {
   } = useSnakeGame();
 
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
   const playerSnake = snakes.find(snake => snake.isPlayer);
 
   return (
@@ -293,7 +294,7 @@ export const SnakeGame: React.FC = () => {
       {/* Game Over Overlay */}
       {gameOver && (
         <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-50">
-          <div className="text-center p-4">
+          <div className="text-center p-4 max-w-4xl w-full">
             <h2 className="text-4xl md:text-6xl font-bold text-cyber-red neon-text mb-6">
               Game Over
             </h2>
@@ -301,37 +302,131 @@ export const SnakeGame: React.FC = () => {
             {/* Final Scores */}
             {snakes.length > 0 && (
               <div className="bg-cyber-darker/90 p-4 md:p-6 rounded-lg border border-cyber-red/30 mb-6">
-                <h3 className="text-cyber-cyan text-lg md:text-xl mb-4">Final Scores</h3>
-                <div className="space-y-2">
-                  {snakes
-                    .sort((a, b) => b.score - a.score)
-                    .map((snake, index) => (
-                      <div key={snake.id} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="text-cyber-yellow">#{index + 1}</span>
-                          <div 
-                            className="w-3 h-3 md:w-4 md:h-4 rounded"
-                            style={{ backgroundColor: snake.color }}
-                          ></div>
-                          <span className={`text-sm md:text-base ${snake.isPlayer ? 'text-cyber-green font-bold' : 'text-cyber-cyan'}`}>
-                            {snake.name}
-                          </span>
-                          {snake.isSpectator && (
-                            <span className="text-cyber-cyan/50 text-xs">(Spectator)</span>
-                          )}
+                <h3 className="text-cyber-cyan text-lg md:text-xl mb-6">Final Results</h3>
+                
+                {/* Top 3 Podium */}
+                <div className="mb-8">
+                  <h4 className="text-cyber-yellow text-md mb-4">🏆 Top 3 Players</h4>
+                  <div className="flex justify-center items-end gap-4 mb-6">
+                    {snakes
+                      .sort((a, b) => b.score - a.score)
+                      .slice(0, 3)
+                      .map((snake, index) => {
+                        const position = index + 1;
+                        const heights = ['h-20', 'h-24', 'h-16']; // 第一名最高，第二名中等，第三名最低
+                        const colors = ['text-yellow-400', 'text-gray-300', 'text-orange-600'];
+                        const bgColors = ['bg-yellow-400/20', 'bg-gray-300/20', 'bg-orange-600/20'];
+                        const medals = ['🥇', '🥈', '🥉'];
+                        
+                        return (
+                          <div key={snake.id} className={`flex flex-col items-center ${index === 1 ? 'order-first' : ''}`}>
+                            <div className="text-2xl mb-2">{medals[index]}</div>
+                            <div className={`${bgColors[index]} border-2 border-current ${colors[index]} rounded-lg p-3 ${heights[index]} flex flex-col justify-center items-center min-w-[100px]`}>
+                              <div 
+                                className="w-6 h-6 rounded-full mb-2"
+                                style={{ backgroundColor: snake.color }}
+                              ></div>
+                              <div className={`font-bold text-sm ${snake.isPlayer ? 'text-cyber-green' : ''}`}>
+                                {snake.name}
+                                {snake.isPlayer && <div className="text-xs text-cyber-green">(You)</div>}
+                              </div>
+                              <div className="text-lg font-bold mt-1">{snake.score}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+                
+                {/* Current Player Rank (if not in top 3) */}
+                {(() => {
+                  const sortedSnakes = snakes.sort((a, b) => b.score - a.score);
+                  const playerSnake = sortedSnakes.find(snake => snake.isPlayer);
+                  const playerRank = sortedSnakes.findIndex(snake => snake.isPlayer) + 1;
+                  
+                  if (playerSnake && playerRank > 3) {
+                    return (
+                      <div className="mb-6">
+                        <h4 className="text-cyber-green text-md mb-3">Your Ranking</h4>
+                        <div className="bg-cyber-green/10 border border-cyber-green/50 rounded-lg p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <span className="text-2xl font-bold text-cyber-green">#{playerRank}</span>
+                              <div 
+                                className="w-6 h-6 rounded-full"
+                                style={{ backgroundColor: playerSnake.color }}
+                              ></div>
+                              <span className="text-cyber-green font-bold text-lg">{playerSnake.name} (You)</span>
+                            </div>
+                            <span className="text-cyber-green font-bold text-xl">{playerSnake.score}</span>
+                          </div>
                         </div>
-                        <span className="text-cyber-yellow font-bold text-sm md:text-base">
-                          {snake.score}
-                        </span>
                       </div>
-                    ))}
+                    );
+                  }
+                  return null;
+                })()}
+                
+                {/* Complete Leaderboard */}
+                <div className="mb-4">
+                  <h4 className="text-cyber-purple text-md mb-3">Complete Leaderboard</h4>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {snakes
+                      .sort((a, b) => b.score - a.score)
+                      .map((snake, index) => (
+                        <div 
+                          key={snake.id} 
+                          className={`flex items-center justify-between p-3 rounded border ${
+                            snake.isPlayer 
+                              ? 'border-cyber-green bg-cyber-green/10' 
+                              : 'border-gray-600 bg-gray-800/30'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className={`text-lg font-bold ${
+                              index < 3 ? 'text-cyber-yellow' : 'text-cyber-purple'
+                            }`}>
+                              #{index + 1}
+                            </span>
+                            <div 
+                              className="w-4 h-4 rounded-full"
+                              style={{ backgroundColor: snake.color }}
+                            ></div>
+                            <span className={`text-sm md:text-base ${
+                              snake.isPlayer ? 'text-cyber-green font-bold' : 'text-cyber-cyan'
+                            }`}>
+                              {snake.name}
+                              {snake.isPlayer && ' (You)'}
+                            </span>
+                            {snake.isSpectator && (
+                              <span className="text-cyber-cyan/50 text-xs">(Spectator)</span>
+                            )}
+                          </div>
+                          <span className="text-cyber-yellow font-bold text-sm md:text-base">
+                            {snake.score}
+                          </span>
+                        </div>
+                      ))}
+                  </div>
                 </div>
               </div>
             )}
 
-            <p className="text-cyber-cyan/70 text-sm md:text-base">
-              Return to lobby to start a new game
-            </p>
+            <div className="space-y-4">
+              <p className="text-cyber-cyan/70 text-sm md:text-base">
+                Game has ended. Return to lobby to start a new game.
+              </p>
+              
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <button 
+                  onClick={() => navigate('/lobby')}
+                  className="bg-cyber-cyan hover:bg-cyber-cyan/80 text-cyber-darker font-bold py-3 px-6 rounded-lg neon-border transition-all"
+                >
+                  Return to Lobby
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
