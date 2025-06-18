@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useGameContext } from '../contexts/GameContext';
 import { useRoomContext } from '../contexts/RoomContext';
@@ -19,6 +18,7 @@ export interface Snake {
   score: number;
   isPlayer: boolean;
   name: string;
+  isSpectator?: boolean; // New field for spectator mode
 }
 
 export interface Food {
@@ -50,6 +50,7 @@ export const useSnakeGame = () => {
   const [countdown, setCountdown] = useState(0);
   const [showCountdown, setShowCountdown] = useState(false);
   const [gameSessionId, setGameSessionId] = useState<string | null>(null);
+  const [isSpectator, setIsSpectator] = useState(false); // New state for spectator mode
 
   // 设置游戏回调
   useEffect(() => {
@@ -81,10 +82,17 @@ export const useSnakeGame = () => {
           isAlive: player.isAlive,
           score: player.score,
           isPlayer: player.address === user?.address,
-          name: player.name
+          name: player.name,
+          isSpectator: player.isSpectator || false
         }));
         
         setSnakes(gameSnakes);
+        
+        // Check if current player is in spectator mode
+        const currentPlayerSnake = gameSnakes.find((snake: Snake) => snake.isPlayer);
+        if (currentPlayerSnake) {
+          setIsSpectator(currentPlayerSnake.isSpectator || false);
+        }
         
         // 转换食物
         const gameFoods = foods.map(food => ({
@@ -118,6 +126,7 @@ export const useSnakeGame = () => {
           setGameRunning(false);
           setGameOver(true);
           setShowCountdown(false);
+          setIsSpectator(false); // Reset spectator mode when game ends
         }
       } else {
         // 没有活跃的游戏会话
@@ -128,6 +137,7 @@ export const useSnakeGame = () => {
         setGameRunning(false);
         setShowCountdown(false);
         setGameOver(false);
+        setIsSpectator(false);
       }
     };
     
@@ -148,13 +158,15 @@ export const useSnakeGame = () => {
   }, [gameView, isConnected, currentRoom, user?.address]);
 
   const changeDirection = useCallback((direction: 'up' | 'down' | 'left' | 'right') => {
-    if (!gameView || !gameSessionId || !user?.address || !gameRunning) {
+    // Don't allow direction changes if player is in spectator mode
+    if (!gameView || !gameSessionId || !user?.address || !gameRunning || isSpectator) {
+      console.log('useSnakeGame: Cannot change direction - spectator mode or game not running');
       return;
     }
 
     console.log('useSnakeGame: Changing direction:', direction);
     gameView.changeDirection(gameSessionId, user.address, direction);
-  }, [gameView, gameSessionId, user?.address, gameRunning]);
+  }, [gameView, gameSessionId, user?.address, gameRunning, isSpectator]);
 
   const startGame = useCallback(() => {
     console.log('useSnakeGame: Start game called - games are started automatically when all players are ready');
@@ -171,7 +183,8 @@ export const useSnakeGame = () => {
   // 键盘控制
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (!gameRunning) return;
+      // Don't handle key presses if in spectator mode or game not running
+      if (!gameRunning || isSpectator) return;
       
       switch (e.key.toLowerCase()) {
         case 'w':
@@ -199,9 +212,9 @@ export const useSnakeGame = () => {
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [gameRunning, changeDirection]);
+  }, [gameRunning, changeDirection, isSpectator]);
 
-  console.log('useSnakeGame render - multiplayer mode, snakes:', snakes.length, 'gameRunning:', gameRunning, 'countdown:', countdown, 'segments:', segments.length);
+  console.log('useSnakeGame render - multiplayer mode, snakes:', snakes.length, 'gameRunning:', gameRunning, 'countdown:', countdown, 'segments:', segments.length, 'isSpectator:', isSpectator);
 
   return {
     snakes,
@@ -214,6 +227,7 @@ export const useSnakeGame = () => {
     resetGame,
     gridSize: GRID_SIZE,
     countdown,
-    showCountdown
+    showCountdown,
+    isSpectator // Export spectator state
   };
 };

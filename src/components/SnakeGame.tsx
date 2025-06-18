@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useSnakeGame } from '../hooks/useSnakeGame';
 import { InfoPanel } from './InfoPanel';
@@ -8,6 +7,7 @@ export const SnakeGame: React.FC = () => {
   const {
     snakes,
     foods,
+    segments,
     gameRunning,
     gameOver,
     startGame,
@@ -15,7 +15,8 @@ export const SnakeGame: React.FC = () => {
     resetGame,
     gridSize,
     countdown,
-    showCountdown
+    showCountdown,
+    isSpectator
   } = useSnakeGame();
 
   return (
@@ -32,10 +33,25 @@ export const SnakeGame: React.FC = () => {
       
       {/* Game Area */}
       <div className="relative flex-1">
+        {/* Spectator Mode Indicator */}
+        {isSpectator && gameRunning && (
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-40">
+            <div className="bg-cyber-darker/90 border border-cyber-cyan/50 rounded-lg px-6 py-3">
+              <div className="flex items-center gap-3">
+                <div className="w-3 h-3 bg-cyber-cyan rounded-full animate-pulse"></div>
+                <span className="text-cyber-cyan font-bold">观察者模式</span>
+                <span className="text-cyber-cyan/70 text-sm">| 你可以观察所有玩家的状态</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         <GameArea
           snakes={snakes}
           foods={foods}
+          segments={segments}
           gridSize={gridSize}
+          isSpectator={isSpectator}
         />
         
         {/* Countdown Overlay */}
@@ -114,6 +130,20 @@ export const SnakeGame: React.FC = () => {
               <p className="text-cyber-cyan/70">
                 返回大厅重新开始游戏
               </p>
+            </div>
+          </div>
+        )}
+
+        {/* Spectator Controls Overlay */}
+        {isSpectator && gameRunning && (
+          <div className="absolute bottom-4 right-4 z-40">
+            <div className="bg-cyber-darker/90 border border-cyber-cyan/30 rounded-lg p-4">
+              <h3 className="text-cyber-cyan font-bold mb-2">观察者控制</h3>
+              <div className="text-cyber-cyan/70 text-sm space-y-1">
+                <p>• 无战争迷雾限制</p>
+                <p>• 可查看所有玩家状态</p>
+                <p>• 等待游戏结束或返回大厅</p>
+              </div>
             </div>
           </div>
         )}

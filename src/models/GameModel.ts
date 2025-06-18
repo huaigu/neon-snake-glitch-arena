@@ -41,6 +41,7 @@ export interface GamePlayer {
   position: { x: number; y: number };
   direction: 'up' | 'down' | 'left' | 'right';
   segments: { x: number; y: number }[];
+  isSpectator?: boolean; // New field for spectator mode
 }
 
 export interface Food {
@@ -696,17 +697,28 @@ export class GameModel extends Multisynq.Model {
     if (playerIndex === -1) return;
 
     const updatedPlayers = [...gameSession.players];
-    updatedPlayers[playerIndex] = {
-      ...updatedPlayers[playerIndex],
-      isAlive: false
-    };
+    const testMode = this.isTestMode();
+    
+    // In test mode, set player as spectator instead of just marking as dead
+    if (testMode) {
+      updatedPlayers[playerIndex] = {
+        ...updatedPlayers[playerIndex],
+        isAlive: false,
+        isSpectator: true
+      };
+      console.log(`GameModel: Player ${data.playerAddress} entered spectator mode`);
+    } else {
+      updatedPlayers[playerIndex] = {
+        ...updatedPlayers[playerIndex],
+        isAlive: false
+      };
+      console.log(`GameModel: Player ${data.playerAddress} died`);
+    }
 
     this.gameSessions[gameSessionIndex] = {
       ...gameSession,
       players: updatedPlayers
     };
-    
-    console.log(`GameModel: Player ${data.playerAddress} died manually`);
     
     // Check game ending conditions with test mode consideration
     const alivePlayers = updatedPlayers.filter(p => p.isAlive);
@@ -714,7 +726,6 @@ export class GameModel extends Multisynq.Model {
     console.log(`GameModel: After manual death, alive players: ${alivePlayers.length}/${totalPlayers}`);
     
     // Modified game ending logic based on test mode
-    const testMode = this.isTestMode();
     let shouldEndGame = false;
 
     if (testMode) {
