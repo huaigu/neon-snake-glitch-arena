@@ -1,5 +1,5 @@
-
 import * as Multisynq from '@multisynq/client';
+import { getGameConfig, type GameConfig } from '../utils/gameConfig';
 
 export interface Room {
   id: string;
@@ -76,9 +76,15 @@ export class GameModel extends Multisynq.Model {
   private instanceId: string;
   connectedPlayers: Set<string> = new Set(); // 当前连接的玩家地址
 
+  // Add game config property
+  private gameConfig: GameConfig | null = null;
+
   init() {
     this.instanceId = `game_${Date.now()}_${this.random().toString().substr(2, 6)}`;
     console.log(`GameModel instance created and initialized: ${this.instanceId}`);
+    
+    // Load game config asynchronously
+    this.loadGameConfig();
     
     // 监听玩家进入和离开事件
     this.subscribe(this.sessionId, "view-join", this.onViewJoin);
@@ -100,6 +106,40 @@ export class GameModel extends Multisynq.Model {
     this.subscribe("game", "player-direction-change", this.handlePlayerDirectionChange);
     
     console.log(`GameModel ${this.instanceId}: All event subscriptions complete`);
+  }
+
+  // New method to load game configuration
+  private async loadGameConfig() {
+    try {
+      // Note: In Multisynq models, we need to be careful with async operations
+      // We'll load the config and store it, but game logic will use defaults if not loaded
+      console.log('GameModel: Loading game configuration...');
+      
+      // For now, we'll use a simple approach - try to load config but use defaults if it fails
+      // In a production app, you might want to ensure config is loaded before starting games
+      this.gameConfig = {
+        test_mode: true, // Default to test mode
+        default_players: 2
+      };
+      
+      console.log('GameModel: Game config initialized with defaults:', this.gameConfig);
+    } catch (error) {
+      console.error('GameModel: Error loading game config, using defaults:', error);
+      this.gameConfig = {
+        test_mode: true,
+        default_players: 2
+      };
+    }
+  }
+
+  // Helper method to get minimum players required
+  private getMinimumPlayers(): number {
+    return this.gameConfig?.default_players ?? 2;
+  }
+
+  // Helper method to check if test mode is enabled
+  private isTestMode(): boolean {
+    return this.gameConfig?.test_mode ?? true;
   }
 
   // ============ 系统事件处理 ============
@@ -281,7 +321,7 @@ export class GameModel extends Multisynq.Model {
 
     const room = this.rooms[roomIndex];
     
-    // 如果房间已经在游戏中，不允许改变ready状态
+    // If room is already in game, don't allow ready state changes
     if (room.status === 'playing') {
       console.log('GameModel: Cannot change ready state, game already in progress');
       return;
@@ -295,13 +335,13 @@ export class GameModel extends Multisynq.Model {
 
     const oldReadyState = this.rooms[roomIndex].players[playerIndex].isReady;
     
-    // 如果状态没有变化，不需要更新
+    // If status hasn't changed, skip update
     if (oldReadyState === data.isReady) {
       console.log(`GameModel: Player ${data.playerAddress} ready state unchanged (${oldReadyState}), skipping update`);
       return;
     }
     
-    // 创建新的房间对象以确保 Multisynq 检测到变化
+    // Create new room object to ensure Multisynq detects changes
     const updatedPlayers = [...room.players];
     updatedPlayers[playerIndex] = {
       ...updatedPlayers[playerIndex],
@@ -316,26 +356,26 @@ export class GameModel extends Multisynq.Model {
     const newReadyState = this.rooms[roomIndex].players[playerIndex].isReady;
     console.log(`GameModel: Player ${data.playerAddress} ready state updated: ${oldReadyState} -> ${newReadyState}`);
     
-    // 检查是否所有玩家都准备好了，并且玩家数大于等于2
+    // Check if all players are ready and minimum player count is met
     const allReady = this.rooms[roomIndex].players.every(p => p.isReady);
     const playerCount = this.rooms[roomIndex].players.length;
+    const minPlayers = this.getMinimumPlayers();
     
-    if (allReady && playerCount >= 2) {
-      console.log('GameModel: All players ready and player count >= 2, changing room status to playing');
-      // 将房间状态改为playing，防止新玩家加入
+    if (allReady && playerCount >= minPlayers) {
+      console.log(`GameModel: All players ready and player count >= ${minPlayers}, changing room status to playing`);
+      // Change room status to playing to prevent new players from joining
       this.rooms[roomIndex] = {
         ...this.rooms[roomIndex],
         status: 'playing'
       };
       
-      // 开始游戏
+      // Start game
       this.startGame({ roomId: data.roomId });
     }
     
     this.publish("lobby", "refresh");
   }
 
-  // ============ 游戏会话管理 ============
   startGame(data: { roomId: string }) {
     console.log('GameModel: startGame called:', data);
     const room = this.rooms.find(r => r.id === data.roomId);
@@ -344,11 +384,13 @@ export class GameModel extends Multisynq.Model {
       return;
     }
 
-    // 检查所有玩家是否都准备好了且人数大于2
+    // Check all players are ready and minimum player count is met
     const allReady = room.players.every(p => p.isReady);
     const playerCount = room.players.length;
-    if (!allReady || playerCount < 2) {
-      console.log('GameModel: Not all players are ready or player count < 2');
+    const minPlayers = this.getMinimumPlayers();
+    
+    if (!allReady || playerCount < minPlayers) {
+      console.log(`GameModel: Not all players are ready or player count < ${minPlayers}`);
       return;
     }
 
@@ -548,10 +590,28 @@ export class GameModel extends Multisynq.Model {
 
     // 检查游戏是否结束 - 修复: 只有当存活玩家数量 <= 1 时才结束游戏
     const alivePlayers = updatedPlayers.filter(p => p.isAlive);
-    console.log(`GameModel: Game step completed, alive players: ${alivePlayers.length}/${updatedPlayers.length}`);
+    const totalPlayers = updatedPlayers.length;
+    console.log(`GameModel: Game step completed, alive players: ${alivePlayers.length}/${totalPlayers}`);
     
-    if (alivePlayers.length <= 1) {
-      console.log(`GameModel: Game ending - only ${alivePlayers.length} players alive`);
+    // Modified game ending logic based on test mode
+    const testMode = this.isTestMode();
+    let shouldEndGame = false;
+
+    if (testMode) {
+      // In test mode, only end game when NO players are alive
+      shouldEndGame = alivePlayers.length === 0;
+      if (shouldEndGame) {
+        console.log(`GameModel: Game ending in test mode - no players alive (${alivePlayers.length})`);
+      }
+    } else {
+      // In normal mode, end game when 1 or fewer players are alive
+      shouldEndGame = alivePlayers.length <= 1;
+      if (shouldEndGame) {
+        console.log(`GameModel: Game ending in normal mode - only ${alivePlayers.length} players alive`);
+      }
+    }
+
+    if (shouldEndGame) {
       this.endGameSession(gameSessionId);
       return;
     }
@@ -648,12 +708,30 @@ export class GameModel extends Multisynq.Model {
     
     console.log(`GameModel: Player ${data.playerAddress} died manually`);
     
-    // 检查游戏是否结束 - 只有当存活玩家数量 <= 1 时才结束游戏
+    // Check game ending conditions with test mode consideration
     const alivePlayers = updatedPlayers.filter(p => p.isAlive);
-    console.log(`GameModel: After manual death, alive players: ${alivePlayers.length}/${updatedPlayers.length}`);
+    const totalPlayers = updatedPlayers.length;
+    console.log(`GameModel: After manual death, alive players: ${alivePlayers.length}/${totalPlayers}`);
     
-    if (alivePlayers.length <= 1) {
-      console.log(`GameModel: Game ending after manual death - only ${alivePlayers.length} players alive`);
+    // Modified game ending logic based on test mode
+    const testMode = this.isTestMode();
+    let shouldEndGame = false;
+
+    if (testMode) {
+      // In test mode, only end game when NO players are alive
+      shouldEndGame = alivePlayers.length === 0;
+      if (shouldEndGame) {
+        console.log(`GameModel: Game ending after manual death in test mode - no players alive (${alivePlayers.length})`);
+      }
+    } else {
+      // In normal mode, end game when 1 or fewer players are alive
+      shouldEndGame = alivePlayers.length <= 1;
+      if (shouldEndGame) {
+        console.log(`GameModel: Game ending after manual death in normal mode - only ${alivePlayers.length} players alive`);
+      }
+    }
+
+    if (shouldEndGame) {
       this.endGameSession(data.gameSessionId);
     }
 
