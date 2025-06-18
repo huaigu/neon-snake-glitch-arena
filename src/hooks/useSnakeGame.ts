@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useGameContext } from '../contexts/GameContext';
 import { useRoomContext } from '../contexts/RoomContext';
@@ -80,7 +79,7 @@ export const useSnakeGame = () => {
       return;
     }
 
-    console.log('useSnakeGame: Setting up game callback, current gridSize:', gridSize);
+    console.log('useSnakeGame: Setting up game callback, fixed gridSize:', gridSize);
     
     const gameCallback = (gameSession: any, foods: any[], segments: any[]) => {
       console.log('useSnakeGame: Game callback triggered:', {
@@ -92,7 +91,6 @@ export const useSnakeGame = () => {
         segmentsCount: segments.length,
         speedMultiplier: gameSession?.speedMultiplier,
         gridSize: gridSize,
-        gameSessionGridSize: gameSession?.gridSize
       });
 
       if (gameSession) {
