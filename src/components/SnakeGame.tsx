@@ -1,10 +1,9 @@
-
 import React from 'react';
 import { useSnakeGame } from '../hooks/useSnakeGame';
 import { useIsMobile } from '../hooks/use-mobile';
 import { InfoPanel } from './InfoPanel';
 import { GameArea } from './GameArea';
-import { Timer, Zap } from 'lucide-react';
+import { Timer, Zap, TrendingUp, Target, Activity } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const SnakeGame: React.FC = () => {
@@ -24,10 +23,12 @@ export const SnakeGame: React.FC = () => {
     isSpectator,
     enterSpectatorMode,
     speedMultiplier,
-    segmentCountdown
+    segmentCountdown,
+    speedBoostCountdown
   } = useSnakeGame();
 
   const isMobile = useIsMobile();
+  const playerSnake = snakes.find(snake => snake.isPlayer);
 
   return (
     <div className="min-h-screen bg-cyber-darker flex flex-col">
@@ -42,71 +43,100 @@ export const SnakeGame: React.FC = () => {
             onPause={pauseGame}
             onReset={resetGame}
           />
-          <div className="relative flex-1">
-            {/* Game Status Indicators */}
-            <div className="absolute top-4 left-4 right-4 z-40 flex justify-between items-start">
-              {/* Segment Refresh Countdown */}
-              {gameRunning && (
-                <div className="bg-cyber-darker/90 border border-cyber-purple/50 rounded-lg px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <Timer className="w-4 h-4 text-cyber-purple" />
-                    <span className="text-cyber-purple font-bold text-sm">
-                      Segments: {segmentCountdown}s
-                    </span>
+          <div className="relative flex-1 flex flex-col">
+            {/* 游戏信息面板 - 桌面版 */}
+            {gameRunning && (
+              <div className="bg-cyber-darker/95 border-b border-cyber-cyan/30 px-6 py-3">
+                <div className="grid grid-cols-4 gap-6">
+                  {/* Segments 倒计时 */}
+                  <div className="flex items-center gap-3 bg-cyber-darker/60 border border-cyber-purple/50 rounded-lg px-4 py-2">
+                    <div className="flex items-center justify-center w-8 h-8 bg-cyber-purple/20 rounded-full">
+                      <Timer className="w-4 h-4 text-cyber-purple" />
+                    </div>
+                    <div>
+                      <div className="text-xs text-cyber-purple/70 uppercase tracking-wide">Segments Drop</div>
+                      <div className="text-cyber-purple font-bold text-lg">{segmentCountdown}s</div>
+                    </div>
+                  </div>
+
+                  {/* 当前速度 */}
+                  <div className="flex items-center gap-3 bg-cyber-darker/60 border border-cyber-yellow/50 rounded-lg px-4 py-2">
+                    <div className="flex items-center justify-center w-8 h-8 bg-cyber-yellow/20 rounded-full">
+                      <Zap className="w-4 h-4 text-cyber-yellow" />
+                    </div>
+                    <div>
+                      <div className="text-xs text-cyber-yellow/70 uppercase tracking-wide">Current Speed</div>
+                      <div className="text-cyber-yellow font-bold text-lg">{speedMultiplier.toFixed(1)}x</div>
+                    </div>
+                  </div>
+
+                  {/* 下一次速度提升倒计时 */}
+                  <div className="flex items-center gap-3 bg-cyber-darker/60 border border-cyber-green/50 rounded-lg px-4 py-2">
+                    <div className="flex items-center justify-center w-8 h-8 bg-cyber-green/20 rounded-full">
+                      <TrendingUp className="w-4 h-4 text-cyber-green" />
+                    </div>
+                    <div>
+                      <div className="text-xs text-cyber-green/70 uppercase tracking-wide">Next Speed Up</div>
+                      <div className="text-cyber-green font-bold text-lg">{speedBoostCountdown}s</div>
+                    </div>
+                  </div>
+
+                  {/* 当前长度 */}
+                  <div className="flex items-center gap-3 bg-cyber-darker/60 border border-cyber-cyan/50 rounded-lg px-4 py-2">
+                    <div className="flex items-center justify-center w-8 h-8 bg-cyber-cyan/20 rounded-full">
+                      <Activity className="w-4 h-4 text-cyber-cyan" />
+                    </div>
+                    <div>
+                      <div className="text-xs text-cyber-cyan/70 uppercase tracking-wide">Snake Length</div>
+                      <div className="text-cyber-cyan font-bold text-lg">
+                        {playerSnake ? playerSnake.segments.length : 0}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 游戏区域容器 */}
+            <div className="relative flex-1">
+              {/* Spectator Mode Indicator */}
+              {isSpectator && gameRunning && (
+                <div className="absolute top-6 left-1/2 transform -translate-x-1/2 z-40">
+                  <div className="bg-cyber-darker/90 border border-cyber-cyan/50 rounded-lg px-4 py-2">
+                    <div className="flex items-center gap-2 justify-center">
+                      <div className="w-3 h-3 bg-cyber-cyan rounded-full animate-pulse"></div>
+                      <span className="text-cyber-cyan font-bold text-sm">Spectator Mode</span>
+                      <span className="text-cyber-cyan/70 text-xs">| Watch all players</span>
+                    </div>
                   </div>
                 </div>
               )}
 
-              {/* Speed Indicator */}
-              {gameRunning && (
-                <div className="bg-cyber-darker/90 border border-cyber-yellow/50 rounded-lg px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-cyber-yellow" />
-                    <span className="text-cyber-yellow font-bold text-sm">
-                      Speed: {speedMultiplier.toFixed(1)}x
-                    </span>
+              <GameArea
+                snakes={snakes}
+                foods={foods}
+                segments={segments}
+                gridSize={gridSize}
+                cellSize={cellSize}
+                isSpectator={isSpectator}
+              />
+
+              {/* Death Notification for Spectator Mode Entry */}
+              {snakes.find(snake => snake.isPlayer && !snake.isAlive && !snake.isSpectator) && gameRunning && (
+                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50">
+                  <div className="bg-cyber-darker/95 border border-cyber-red/50 rounded-lg p-4 md:p-6 text-center">
+                    <h3 className="text-cyber-red text-lg md:text-xl font-bold mb-4">You Died</h3>
+                    <p className="text-cyber-cyan/70 mb-4 text-sm md:text-base">
+                      You've entered spectator mode automatically
+                    </p>
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-3 h-3 bg-cyber-cyan rounded-full animate-pulse"></div>
+                      <span className="text-cyber-cyan text-sm">Watching other players...</span>
+                    </div>
                   </div>
                 </div>
               )}
             </div>
-
-            {/* Spectator Mode Indicator */}
-            {isSpectator && gameRunning && (
-              <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-40">
-                <div className="bg-cyber-darker/90 border border-cyber-cyan/50 rounded-lg px-4 py-2">
-                  <div className="flex items-center gap-2 justify-center">
-                    <div className="w-3 h-3 bg-cyber-cyan rounded-full animate-pulse"></div>
-                    <span className="text-cyber-cyan font-bold text-sm">Spectator Mode</span>
-                    <span className="text-cyber-cyan/70 text-xs">| Watch all players</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <GameArea
-              snakes={snakes}
-              foods={foods}
-              segments={segments}
-              gridSize={gridSize}
-              cellSize={cellSize}
-              isSpectator={isSpectator}
-            />
-
-            {/* Death Notification for Spectator Mode Entry */}
-            {snakes.find(snake => snake.isPlayer && !snake.isAlive && !snake.isSpectator) && gameRunning && (
-              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50">
-                <div className="bg-cyber-darker/95 border border-cyber-red/50 rounded-lg p-4 md:p-6 text-center">
-                  <h3 className="text-cyber-red text-lg md:text-xl font-bold mb-4">You Died</h3>
-                  <p className="text-cyber-cyan/70 mb-4 text-sm md:text-base">
-                    You've entered spectator mode automatically
-                  </p>
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="w-3 h-3 bg-cyber-cyan rounded-full animate-pulse"></div>
-                    <span className="text-cyber-cyan text-sm">Watching other players...</span>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       )}
@@ -138,38 +168,56 @@ export const SnakeGame: React.FC = () => {
             />
           </div>
 
+          {/* 游戏信息面板 - 移动版 */}
+          {gameRunning && (
+            <div className="bg-cyber-darker/95 border-b border-cyber-cyan/30 px-3 py-2">
+              <div className="grid grid-cols-2 gap-3">
+                {/* Segments 倒计时 */}
+                <div className="flex items-center gap-2 bg-cyber-darker/60 border border-cyber-purple/50 rounded-lg px-3 py-1">
+                  <Timer className="w-3 h-3 text-cyber-purple" />
+                  <div>
+                    <div className="text-xs text-cyber-purple/70">Segments</div>
+                    <div className="text-cyber-purple font-bold text-sm">{segmentCountdown}s</div>
+                  </div>
+                </div>
+
+                {/* 当前速度 */}
+                <div className="flex items-center gap-2 bg-cyber-darker/60 border border-cyber-yellow/50 rounded-lg px-3 py-1">
+                  <Zap className="w-3 h-3 text-cyber-yellow" />
+                  <div>
+                    <div className="text-xs text-cyber-yellow/70">Speed</div>
+                    <div className="text-cyber-yellow font-bold text-sm">{speedMultiplier.toFixed(1)}x</div>
+                  </div>
+                </div>
+
+                {/* 下一次速度提升倒计时 */}
+                <div className="flex items-center gap-2 bg-cyber-darker/60 border border-cyber-green/50 rounded-lg px-3 py-1">
+                  <TrendingUp className="w-3 h-3 text-cyber-green" />
+                  <div>
+                    <div className="text-xs text-cyber-green/70">Speed Up</div>
+                    <div className="text-cyber-green font-bold text-sm">{speedBoostCountdown}s</div>
+                  </div>
+                </div>
+
+                {/* 当前长度 */}
+                <div className="flex items-center gap-2 bg-cyber-darker/60 border border-cyber-cyan/50 rounded-lg px-3 py-1">
+                  <Activity className="w-3 h-3 text-cyber-cyan" />
+                  <div>
+                    <div className="text-xs text-cyber-cyan/70">Length</div>
+                    <div className="text-cyber-cyan font-bold text-sm">
+                      {playerSnake ? playerSnake.segments.length : 0}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Game Area Container */}
           <div className="relative flex-1">
-            {/* Game Status Indicators */}
-            <div className="absolute top-2 left-2 right-2 z-40 flex justify-between items-start">
-              {/* Segment Refresh Countdown */}
-              {gameRunning && (
-                <div className="bg-cyber-darker/90 border border-cyber-purple/50 rounded-lg px-2 py-1">
-                  <div className="flex items-center gap-1">
-                    <Timer className="w-3 h-3 text-cyber-purple" />
-                    <span className="text-cyber-purple font-bold text-xs">
-                      {segmentCountdown}s
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {/* Speed Indicator */}
-              {gameRunning && (
-                <div className="bg-cyber-darker/90 border border-cyber-yellow/50 rounded-lg px-2 py-1">
-                  <div className="flex items-center gap-1">
-                    <Zap className="w-3 h-3 text-cyber-yellow" />
-                    <span className="text-cyber-yellow font-bold text-xs">
-                      {speedMultiplier.toFixed(1)}x
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-
             {/* Spectator Mode Indicator */}
             {isSpectator && gameRunning && (
-              <div className="absolute top-12 left-2 right-2 z-40">
+              <div className="absolute top-4 left-2 right-2 z-40">
                 <div className="bg-cyber-darker/90 border border-cyber-cyan/50 rounded-lg px-2 py-1">
                   <div className="flex items-center gap-1 justify-center">
                     <div className="w-2 h-2 bg-cyber-cyan rounded-full animate-pulse"></div>
@@ -288,21 +336,6 @@ export const SnakeGame: React.FC = () => {
         </div>
       )}
 
-      {/* Death Notification for Spectator Mode Entry */}
-      {snakes.find(snake => snake.isPlayer && !snake.isAlive && !snake.isSpectator) && gameRunning && (
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50">
-          <div className="bg-cyber-darker/95 border border-cyber-red/50 rounded-lg p-4 md:p-6 text-center">
-            <h3 className="text-cyber-red text-lg md:text-xl font-bold mb-4">You Died</h3>
-            <p className="text-cyber-cyan/70 mb-4 text-sm md:text-base">
-              You've entered spectator mode automatically
-            </p>
-            <div className="flex items-center justify-center gap-2">
-              <div className="w-3 h-3 bg-cyber-cyan rounded-full animate-pulse"></div>
-              <span className="text-cyber-cyan text-sm">Watching other players...</span>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

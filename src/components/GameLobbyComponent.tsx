@@ -280,7 +280,7 @@ export const GameLobbyComponent: React.FC = () => {
                 </Button>
 
                 {/* 增强的调试信息 */}
-                <div className="text-xs text-cyan-400 bg-gray-800 p-2 rounded space-y-1">
+                <div hidden={true} className="text-xs text-cyan-400 bg-gray-800 p-2 rounded space-y-1">
                   <div>Debug Info:</div>
                   <div>Player: {currentPlayer.name}</div>
                   <div>Address: {currentPlayer.address}</div>

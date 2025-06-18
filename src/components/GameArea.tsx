@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Snake, Food, Segment } from '../hooks/useSnakeGame';
 
@@ -79,7 +78,7 @@ export const GameArea: React.FC<GameAreaProps> = ({
   return (
     <div className="flex-1 flex items-center justify-center p-2 md:p-4">
       {/* Debug info overlay */}
-      {process.env.NODE_ENV === 'development' && (
+      {false && process.env.NODE_ENV === 'development' && (
         <div className="absolute top-4 left-4 bg-black/80 text-white text-xs p-2 rounded z-50">
           <div>Grid: {gridSize}x{gridSize}</div>
           <div>Cell: {cellSize}px</div>
@@ -267,20 +266,6 @@ export const GameArea: React.FC<GameAreaProps> = ({
                   />
                 );
               })}
-              
-              {/* Debug coordinates for player snake head */}
-              {snake.isPlayer && snake.segments.length > 0 && process.env.NODE_ENV === 'development' && (
-                <div
-                  className="absolute text-xs text-yellow-400 font-bold pointer-events-none bg-black/50 px-1 rounded"
-                  style={{
-                    left: snake.segments[0].x * cellSize + cellSize + 2,
-                    top: snake.segments[0].y * cellSize - 2,
-                    zIndex: 20
-                  }}
-                >
-                  ({snake.segments[0].x}, {snake.segments[0].y})
-                </div>
-              )}
               
               {/* Spectator indicator */}
               {snake.isSpectator && !snake.isAlive && snake.segments.length > 0 && (

@@ -31,6 +31,8 @@ export interface GameSession {
   countdown?: number;
   speedMultiplier?: number;
   lastSpeedIncrease?: number;
+  speedBoostCountdown?: number;
+  segmentCountdown?: number;
 }
 
 export interface GamePlayer {
@@ -432,7 +434,10 @@ export class GameModel extends Multisynq.Model {
       this.gameSessions[gameSessionIndex] = {
         ...gameSession,
         status: 'playing',
-        countdown: 0
+        countdown: 0,
+        lastSpeedIncrease: this.now(),
+        speedBoostCountdown: 20,
+        segmentCountdown: 10
       };
       
       console.log('GameModel: Countdown finished, starting game');
@@ -440,8 +445,9 @@ export class GameModel extends Multisynq.Model {
       
       this.future(150).gameStep(gameSessionId);
       this.future(3000).segmentSpawnLoop(gameSessionId);
-      // 启动速度提升循环
-      this.future(30000).speedBoostLoop(gameSessionId);
+      this.future(20000).speedBoostLoop(gameSessionId);
+      this.future(1000).speedBoostCountdownTick(gameSessionId);
+      this.future(1000).segmentCountdownTick(gameSessionId);
     } else {
       this.gameSessions[gameSessionIndex] = {
         ...gameSession,
@@ -455,6 +461,46 @@ export class GameModel extends Multisynq.Model {
     }
   }
 
+  speedBoostCountdownTick(gameSessionId: string) {
+    const gameSessionIndex = this.gameSessions.findIndex(g => g.id === gameSessionId);
+    if (gameSessionIndex === -1) return;
+
+    const gameSession = this.gameSessions[gameSessionIndex];
+    if (gameSession.status !== 'playing') return;
+
+    const currentCountdown = gameSession.speedBoostCountdown || 20;
+    const newCountdown = currentCountdown > 0 ? currentCountdown - 1 : 20;
+
+    this.gameSessions[gameSessionIndex] = {
+      ...gameSession,
+      speedBoostCountdown: newCountdown
+    };
+
+    this.publish("game", "refresh");
+    
+    this.future(1000).speedBoostCountdownTick(gameSessionId);
+  }
+
+  segmentCountdownTick(gameSessionId: string) {
+    const gameSessionIndex = this.gameSessions.findIndex(g => g.id === gameSessionId);
+    if (gameSessionIndex === -1) return;
+
+    const gameSession = this.gameSessions[gameSessionIndex];
+    if (gameSession.status !== 'playing') return;
+
+    const currentCountdown = gameSession.segmentCountdown || 10;
+    const newCountdown = currentCountdown > 0 ? currentCountdown - 1 : 10;
+
+    this.gameSessions[gameSessionIndex] = {
+      ...gameSession,
+      segmentCountdown: newCountdown
+    };
+
+    this.publish("game", "refresh");
+    
+    this.future(1000).segmentCountdownTick(gameSessionId);
+  }
+
   speedBoostLoop(gameSessionId: string) {
     const gameSessionIndex = this.gameSessions.findIndex(g => g.id === gameSessionId);
     if (gameSessionIndex === -1) return;
@@ -462,20 +508,19 @@ export class GameModel extends Multisynq.Model {
     const gameSession = this.gameSessions[gameSessionIndex];
     if (gameSession.status !== 'playing') return;
 
-    // 增加20%速度
     const newSpeedMultiplier = (gameSession.speedMultiplier || 1.0) * 1.2;
     
     this.gameSessions[gameSessionIndex] = {
       ...gameSession,
       speedMultiplier: newSpeedMultiplier,
-      lastSpeedIncrease: this.now()
+      lastSpeedIncrease: this.now(),
+      speedBoostCountdown: 20
     };
 
     console.log(`GameModel: Speed increased to ${newSpeedMultiplier.toFixed(2)}x for game ${gameSessionId}`);
     this.publish("game", "refresh");
 
-    // 30秒后再次增加速度
-    this.future(30000).speedBoostLoop(gameSessionId);
+    this.future(20000).speedBoostLoop(gameSessionId);
   }
 
   gameStep(gameSessionId: string) {
@@ -595,7 +640,6 @@ export class GameModel extends Multisynq.Model {
 
     this.publish("game", "refresh");
     
-    // 根据速度倍数调整游戏步进间隔
     const baseInterval = 150;
     const speedMultiplier = gameSession.speedMultiplier || 1.0;
     const adjustedInterval = Math.max(50, Math.floor(baseInterval / speedMultiplier));
@@ -604,11 +648,21 @@ export class GameModel extends Multisynq.Model {
   }
 
   segmentSpawnLoop(gameSessionId: string) {
-    const gameSession = this.gameSessions.find(g => g.id === gameSessionId);
-    if (!gameSession || gameSession.status !== 'playing') return;
+    const gameSessionIndex = this.gameSessions.findIndex(g => g.id === gameSessionId);
+    if (gameSessionIndex === -1) return;
 
-    if (this.random() < 0.3 && this.segments.length < 5) {
-      this.generateSegment();
+    const gameSession = this.gameSessions[gameSessionIndex];
+    if (gameSession.status !== 'playing') return;
+
+    if ((gameSession.segmentCountdown || 10) <= 1) {
+      if (this.random() < 0.3 && this.segments.length < 5) {
+        this.generateSegment();
+      }
+      
+      this.gameSessions[gameSessionIndex] = {
+        ...gameSession,
+        segmentCountdown: 10
+      };
     }
 
     const currentTime = this.now();
@@ -618,8 +672,7 @@ export class GameModel extends Multisynq.Model {
 
     this.publish("game", "refresh");
     
-    const nextSpawnDelay = 3000 + this.random() * 5000;
-    this.future(nextSpawnDelay).segmentSpawnLoop(gameSessionId);
+    this.future(1000).segmentSpawnLoop(gameSessionId);
   }
 
   handlePlayerDirectionChange(data: { gameSessionId: string; playerAddress: string; direction: 'up' | 'down' | 'left' | 'right' }) {
@@ -747,12 +800,23 @@ export class GameModel extends Multisynq.Model {
 
     this.roomGameMap.delete(gameSession.roomId);
     
-    this.foods = [];
-    this.segments = [];
+    console.log(`GameModel: Game session ${gameSessionId} ended, keeping food and segments for room reuse`);
     
-    console.log(`GameModel: Game session ${gameSessionId} ended`);
+    this.future(300000).cleanupFinishedGameSession(gameSessionId);
+    
     this.publish("game", "refresh");
     this.publish("lobby", "refresh");
+  }
+
+  cleanupFinishedGameSession(gameSessionId: string) {
+    const gameSessionIndex = this.gameSessions.findIndex(g => g.id === gameSessionId);
+    if (gameSessionIndex !== -1) {
+      const gameSession = this.gameSessions[gameSessionIndex];
+      if (gameSession.status === 'finished') {
+        this.gameSessions.splice(gameSessionIndex, 1);
+        console.log(`GameModel: Cleaned up finished game session ${gameSessionId} after 5 minutes`);
+      }
+    }
   }
 
   handleEnterSpectatorMode(data: { gameSessionId: string; playerAddress: string }) {

@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useGameContext } from '../contexts/GameContext';
 import { useRoomContext } from '../contexts/RoomContext';
@@ -57,6 +56,7 @@ export const useSnakeGame = () => {
   const [isSpectator, setIsSpectator] = useState(false);
   const [speedMultiplier, setSpeedMultiplier] = useState(1.0);
   const [segmentCountdown, setSegmentCountdown] = useState(10);
+  const [speedBoostCountdown, setSpeedBoostCountdown] = useState(20);
 
   // Define changeDirection first
   const changeDirection = useCallback((direction: 'up' | 'down' | 'left' | 'right') => {
@@ -75,25 +75,6 @@ export const useSnakeGame = () => {
     isEnabled: isMobile && gameRunning && !isSpectator
   });
 
-  // Segment refresh countdown timer
-  useEffect(() => {
-    if (!gameRunning) {
-      setSegmentCountdown(10);
-      return;
-    }
-
-    const timer = setInterval(() => {
-      setSegmentCountdown(prev => {
-        if (prev <= 1) {
-          return 10; // Reset to 10 seconds
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [gameRunning]);
-
   // 设置游戏回调
   useEffect(() => {
     if (!gameView || !isConnected) {
@@ -111,12 +92,19 @@ export const useSnakeGame = () => {
         foodsCount: foods.length,
         segmentsCount: segments.length,
         speedMultiplier: gameSession?.speedMultiplier,
+        lastSpeedIncrease: gameSession?.lastSpeedIncrease,
+        speedBoostCountdown: gameSession?.speedBoostCountdown,
+        segmentCountdown: gameSession?.segmentCountdown,
         gridSize: gridSize,
       });
 
       if (gameSession) {
         setGameSessionId(gameSession.id);
         setSpeedMultiplier(gameSession.speedMultiplier || 1.0);
+        
+        // 直接使用服务器端的倒计时状态
+        setSpeedBoostCountdown(gameSession.speedBoostCountdown || 20);
+        setSegmentCountdown(gameSession.segmentCountdown || 10);
         
         const gameSnakes = gameSession.players.map((player: any) => ({
           id: player.id,
@@ -189,6 +177,7 @@ export const useSnakeGame = () => {
         setGameOver(false);
         setIsSpectator(false);
         setSpeedMultiplier(1.0);
+        setSpeedBoostCountdown(20);
       }
     };
     
@@ -280,6 +269,7 @@ export const useSnakeGame = () => {
     isSpectator,
     enterSpectatorMode,
     speedMultiplier,
-    segmentCountdown
+    segmentCountdown,
+    speedBoostCountdown
   };
 };

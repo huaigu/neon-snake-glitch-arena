@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -81,6 +80,14 @@ export const InfoPanel: React.FC<InfoPanelProps> = ({
                 {playerSnake.isAlive ? 'ALIVE' : 'DEAD'}
               </span>
             </div>
+            {playerSnake.segments.length > 0 && (
+              <div className="flex justify-between items-center">
+                <span className="text-gray-300">Position:</span>
+                <span className="text-cyber-cyan font-mono text-sm">
+                  ({playerSnake.segments[0].x}, {playerSnake.segments[0].y})
+                </span>
+              </div>
+            )}
           </div>
         </Card>
       )}
