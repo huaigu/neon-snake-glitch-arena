@@ -228,7 +228,13 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
           const newRoom = rooms.find(r => r.hostAddress === user.address);
           if (newRoom) {
             clearTimeout(timeout);
-            setCurrentRoom(newRoom);
+            console.log('RoomContext: Found newly created room, setting as currentRoom:', {
+              roomId: newRoom.id,
+              roomName: newRoom.name,
+              hostAddress: newRoom.hostAddress,
+              timestamp: new Date().toISOString()
+            });
+            setCurrentRoom({ ...newRoom }); // 创建新的对象引用
             setLoading(false);
             resolve(newRoom.id);
           } else {
@@ -262,6 +268,11 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
       // 设置当前房间
       const room = rooms.find(r => r.id === roomId);
       if (room) {
+        console.log('RoomContext: Setting current room after joining:', {
+          roomId: room.id,
+          roomName: room.name,
+          timestamp: new Date().toISOString()
+        });
         setCurrentRoom({ ...room }); // 创建新的对象引用
       }
       
