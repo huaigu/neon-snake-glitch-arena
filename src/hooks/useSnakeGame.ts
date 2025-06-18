@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useGameContext } from '../contexts/GameContext';
 import { useRoomContext } from '../contexts/RoomContext';
@@ -55,6 +56,7 @@ export const useSnakeGame = () => {
   const [gameSessionId, setGameSessionId] = useState<string | null>(null);
   const [isSpectator, setIsSpectator] = useState(false);
   const [speedMultiplier, setSpeedMultiplier] = useState(1.0);
+  const [segmentCountdown, setSegmentCountdown] = useState(10);
 
   // Define changeDirection first
   const changeDirection = useCallback((direction: 'up' | 'down' | 'left' | 'right') => {
@@ -72,6 +74,25 @@ export const useSnakeGame = () => {
     onDirectionChange: changeDirection,
     isEnabled: isMobile && gameRunning && !isSpectator
   });
+
+  // Segment refresh countdown timer
+  useEffect(() => {
+    if (!gameRunning) {
+      setSegmentCountdown(10);
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setSegmentCountdown(prev => {
+        if (prev <= 1) {
+          return 10; // Reset to 10 seconds
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [gameRunning]);
 
   // 设置游戏回调
   useEffect(() => {
@@ -258,6 +279,7 @@ export const useSnakeGame = () => {
     showCountdown,
     isSpectator,
     enterSpectatorMode,
-    speedMultiplier
+    speedMultiplier,
+    segmentCountdown
   };
 };
