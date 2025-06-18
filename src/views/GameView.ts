@@ -1,4 +1,3 @@
-
 import * as Multisynq from '@multisynq/client';
 import { Room, Player, GameSession, GamePlayer, Food, Segment } from '../models/GameModel';
 
@@ -114,22 +113,18 @@ export class GameView extends Multisynq.View {
   // ============ 事件响应方法 ============
   onRoomCreated(data: { roomId: string; room: Room }) {
     console.log('GameView: Room created event received:', data);
-    // Model 已经发布了 "lobby refresh" 事件，会自动刷新 UI
   }
 
   onJoinRoomSuccess(data: { roomId: string }) {
     console.log('GameView: Join room success event received:', data);
-    // Model 已经发布了 "lobby refresh" 事件，会自动刷新 UI
   }
 
   onJoinRoomFailed(data: { error: string }) {
     console.log('GameView: Join room failed event received:', data);
-    // 可以在这里处理错误显示
   }
 
   onRoomCreationFailed(data: { error: string }) {
     console.log('GameView: Room creation failed event received:', data);
-    // 可以在这里处理错误显示
   }
 
   // ============ 回调设置方法 ============
@@ -216,6 +211,12 @@ export class GameView extends Multisynq.View {
   endGame(gameSessionId: string) {
     console.log('GameView: Publishing end-game event');
     this.publish("game", "end-game", { gameSessionId });
+  }
+
+  // 进入观察者模式方法
+  enterSpectatorMode(gameSessionId: string, playerAddress: string) {
+    console.log('GameView: Publishing enter-spectator-mode event');
+    this.publish("game", "enter-spectator-mode", { gameSessionId, playerAddress });
   }
 
   // ============ 查询方法 ============

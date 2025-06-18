@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useSnakeGame } from '../hooks/useSnakeGame';
 import { InfoPanel } from './InfoPanel';
@@ -16,7 +17,8 @@ export const SnakeGame: React.FC = () => {
     gridSize,
     countdown,
     showCountdown,
-    isSpectator
+    isSpectator,
+    enterSpectatorMode
   } = useSnakeGame();
 
   return (
@@ -117,6 +119,9 @@ export const SnakeGame: React.FC = () => {
                             <span className={snake.isPlayer ? 'text-cyber-green font-bold' : 'text-cyber-cyan'}>
                               {snake.name}
                             </span>
+                            {snake.isSpectator && (
+                              <span className="text-cyber-cyan/50 text-xs">(观察者)</span>
+                            )}
                           </div>
                           <span className="text-cyber-yellow font-bold">
                             {snake.score}
@@ -138,11 +143,27 @@ export const SnakeGame: React.FC = () => {
         {isSpectator && gameRunning && (
           <div className="absolute bottom-4 right-4 z-40">
             <div className="bg-cyber-darker/90 border border-cyber-cyan/30 rounded-lg p-4">
-              <h3 className="text-cyber-cyan font-bold mb-2">观察者控制</h3>
+              <h3 className="text-cyber-cyan font-bold mb-2">观察者模式</h3>
               <div className="text-cyber-cyan/70 text-sm space-y-1">
                 <p>• 无战争迷雾限制</p>
                 <p>• 可查看所有玩家状态</p>
-                <p>• 等待游戏结束或返回大厅</p>
+                <p>• 实时观察游戏进程</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Death Notification for Spectator Mode Entry */}
+        {snakes.find(snake => snake.isPlayer && !snake.isAlive && !snake.isSpectator) && gameRunning && (
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50">
+            <div className="bg-cyber-darker/95 border border-cyber-red/50 rounded-lg p-6 text-center">
+              <h3 className="text-cyber-red text-xl font-bold mb-4">你已死亡</h3>
+              <p className="text-cyber-cyan/70 mb-4">
+                在测试模式下，你已自动进入观察者模式
+              </p>
+              <div className="flex items-center justify-center gap-2">
+                <div className="w-3 h-3 bg-cyber-cyan rounded-full animate-pulse"></div>
+                <span className="text-cyber-cyan">正在观察其他玩家...</span>
               </div>
             </div>
           </div>

@@ -18,7 +18,7 @@ export interface Snake {
   score: number;
   isPlayer: boolean;
   name: string;
-  isSpectator?: boolean; // New field for spectator mode
+  isSpectator?: boolean;
 }
 
 export interface Food {
@@ -50,7 +50,7 @@ export const useSnakeGame = () => {
   const [countdown, setCountdown] = useState(0);
   const [showCountdown, setShowCountdown] = useState(false);
   const [gameSessionId, setGameSessionId] = useState<string | null>(null);
-  const [isSpectator, setIsSpectator] = useState(false); // New state for spectator mode
+  const [isSpectator, setIsSpectator] = useState(false);
 
   // 设置游戏回调
   useEffect(() => {
@@ -73,7 +73,6 @@ export const useSnakeGame = () => {
       if (gameSession) {
         setGameSessionId(gameSession.id);
         
-        // 转换游戏玩家为蛇
         const gameSnakes = gameSession.players.map((player: any) => ({
           id: player.id,
           segments: player.segments || [player.position],
@@ -88,13 +87,11 @@ export const useSnakeGame = () => {
         
         setSnakes(gameSnakes);
         
-        // Check if current player is in spectator mode
         const currentPlayerSnake = gameSnakes.find((snake: Snake) => snake.isPlayer);
         if (currentPlayerSnake) {
           setIsSpectator(currentPlayerSnake.isSpectator || false);
         }
         
-        // 转换食物
         const gameFoods = foods.map(food => ({
           position: food.position,
           type: food.type,
@@ -102,7 +99,6 @@ export const useSnakeGame = () => {
         }));
         setFoods(gameFoods);
         
-        // 转换道具
         const gameSegments = segments.map(segment => ({
           id: segment.id,
           position: segment.position,
@@ -112,7 +108,6 @@ export const useSnakeGame = () => {
         }));
         setSegments(gameSegments);
         
-        // 处理游戏状态
         if (gameSession.status === 'countdown') {
           setShowCountdown(true);
           setCountdown(gameSession.countdown || 3);
@@ -126,10 +121,9 @@ export const useSnakeGame = () => {
           setGameRunning(false);
           setGameOver(true);
           setShowCountdown(false);
-          setIsSpectator(false); // Reset spectator mode when game ends
+          setIsSpectator(false);
         }
       } else {
-        // 没有活跃的游戏会话
         setGameSessionId(null);
         setSnakes([]);
         setFoods([]);
@@ -143,7 +137,6 @@ export const useSnakeGame = () => {
     
     gameView.setGameCallback(gameCallback);
 
-    // 获取初始状态
     if (currentRoom && gameView.model) {
       const gameSession = gameView.getGameSessionByRoom(currentRoom.id);
       const foods = gameView.model.foods || [];
@@ -158,7 +151,6 @@ export const useSnakeGame = () => {
   }, [gameView, isConnected, currentRoom, user?.address]);
 
   const changeDirection = useCallback((direction: 'up' | 'down' | 'left' | 'right') => {
-    // Don't allow direction changes if player is in spectator mode
     if (!gameView || !gameSessionId || !user?.address || !gameRunning || isSpectator) {
       console.log('useSnakeGame: Cannot change direction - spectator mode or game not running');
       return;
@@ -167,6 +159,16 @@ export const useSnakeGame = () => {
     console.log('useSnakeGame: Changing direction:', direction);
     gameView.changeDirection(gameSessionId, user.address, direction);
   }, [gameView, gameSessionId, user?.address, gameRunning, isSpectator]);
+
+  const enterSpectatorMode = useCallback(() => {
+    if (!gameView || !gameSessionId || !user?.address || !gameRunning) {
+      console.log('useSnakeGame: Cannot enter spectator mode - game not running');
+      return;
+    }
+
+    console.log('useSnakeGame: Entering spectator mode');
+    gameView.enterSpectatorMode(gameSessionId, user.address);
+  }, [gameView, gameSessionId, user?.address, gameRunning]);
 
   const startGame = useCallback(() => {
     console.log('useSnakeGame: Start game called - games are started automatically when all players are ready');
@@ -183,7 +185,6 @@ export const useSnakeGame = () => {
   // 键盘控制
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      // Don't handle key presses if in spectator mode or game not running
       if (!gameRunning || isSpectator) return;
       
       switch (e.key.toLowerCase()) {
@@ -228,6 +229,7 @@ export const useSnakeGame = () => {
     gridSize: GRID_SIZE,
     countdown,
     showCountdown,
-    isSpectator // Export spectator state
+    isSpectator,
+    enterSpectatorMode
   };
 };

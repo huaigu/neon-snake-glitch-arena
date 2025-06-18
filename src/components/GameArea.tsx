@@ -21,18 +21,13 @@ export const GameArea: React.FC<GameAreaProps> = ({
   const boardWidth = gridSize * cellSize;
   const boardHeight = gridSize * cellSize;
 
-  // Get current player snake
   const currentPlayerSnake = snakes.find(snake => snake.isPlayer);
   
-  // In spectator mode, show all elements without fog of war
-  // In normal mode, only show elements within vision range of current player
   const getVisibleElements = <T extends { position: { x: number; y: number } }>(elements: T[]): T[] => {
     if (isSpectator || !currentPlayerSnake || !currentPlayerSnake.isAlive) {
-      // Show all elements if in spectator mode or if player is dead
       return elements;
     }
 
-    // Apply fog of war for living players (vision range around snake head)
     const visionRange = 10;
     const playerHead = currentPlayerSnake.segments[0];
     
@@ -44,21 +39,17 @@ export const GameArea: React.FC<GameAreaProps> = ({
 
   const getVisibleSnakes = (): Snake[] => {
     if (isSpectator || !currentPlayerSnake || !currentPlayerSnake.isAlive) {
-      // Show all snakes if in spectator mode or if player is dead
       return snakes;
     }
 
-    // Apply fog of war for living players
     const visionRange = 10;
     const playerHead = currentPlayerSnake.segments[0];
     
     return snakes.map(snake => {
       if (snake.isPlayer) {
-        // Always show current player's full snake
         return snake;
       }
       
-      // For other snakes, only show segments within vision range
       const visibleSegments = snake.segments.filter(segment => {
         const distance = Math.abs(segment.x - playerHead.x) + Math.abs(segment.y - playerHead.y);
         return distance <= visionRange;
@@ -179,6 +170,20 @@ export const GameArea: React.FC<GameAreaProps> = ({
                 }}
               />
             ))}
+            
+            {/* Spectator indicator for dead snakes */}
+            {snake.isSpectator && !snake.isAlive && snake.segments.length > 0 && (
+              <div
+                className="absolute text-xs text-cyber-cyan/70 font-bold pointer-events-none"
+                style={{
+                  left: snake.segments[0].x * cellSize - 10,
+                  top: snake.segments[0].y * cellSize - 20,
+                  zIndex: 20
+                }}
+              >
+                观察者
+              </div>
+            )}
           </div>
         ))}
 
