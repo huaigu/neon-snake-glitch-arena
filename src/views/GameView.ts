@@ -1,13 +1,13 @@
 
 import * as Multisynq from '@multisynq/client';
-import { Room, Player, GameSession, GamePlayer, Food } from '../models/GameModel';
+import { Room, Player, GameSession, GamePlayer, Food, Segment } from '../models/GameModel';
 
 export class GameView extends Multisynq.View {
   public model: any;
   
   // 回调函数
   private lobbyCallback: ((data: { rooms: Room[]; connectedPlayers: number }) => void) | null = null;
-  private gameCallback: ((gameSession: GameSession | null, foods: Food[]) => void) | null = null;
+  private gameCallback: ((gameSession: GameSession | null, foods: Food[], segments: Segment[]) => void) | null = null;
   private systemCallback: ((data: { connectedPlayers: Set<string> }) => void) | null = null;
 
   constructor(model: any) {
@@ -78,12 +78,13 @@ export class GameView extends Multisynq.View {
         (session: GameSession) => session.status === 'countdown' || session.status === 'playing'
       ) || null;
       
-      // 获取食物数据
+      // 获取食物和道具数据
       const foods = this.model.foods || [];
+      const segments = this.model.segments || [];
       
       if (this.gameCallback) {
-        this.gameCallback(activeGameSession, foods);
-        console.log('GameView: Game callback executed with session:', !!activeGameSession, 'foods:', foods.length);
+        this.gameCallback(activeGameSession, foods, segments);
+        console.log('GameView: Game callback executed with session:', !!activeGameSession, 'foods:', foods.length, 'segments:', segments.length);
       } else {
         console.log('GameView: No game callback set');
       }
@@ -147,7 +148,7 @@ export class GameView extends Multisynq.View {
     }
   }
 
-  setGameCallback(callback: (gameSession: GameSession | null, foods: Food[]) => void) {
+  setGameCallback(callback: (gameSession: GameSession | null, foods: Food[], segments: Segment[]) => void) {
     console.log('GameView: Setting game callback');
     this.gameCallback = callback;
     
@@ -157,8 +158,9 @@ export class GameView extends Multisynq.View {
         (session: GameSession) => session.status === 'countdown' || session.status === 'playing'
       ) || null;
       const foods = this.model.foods || [];
+      const segments = this.model.segments || [];
       console.log('GameView: Immediately calling game callback with current data');
-      callback(activeGameSession, foods);
+      callback(activeGameSession, foods, segments);
     }
   }
 

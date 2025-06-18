@@ -27,6 +27,14 @@ export interface Food {
   value: number;
 }
 
+export interface Segment {
+  id: string;
+  position: Position;
+  type: 'speed' | 'score' | 'length';
+  value: number;
+  color: string;
+}
+
 const GRID_SIZE = 60;
 
 export const useSnakeGame = () => {
@@ -36,6 +44,7 @@ export const useSnakeGame = () => {
   
   const [snakes, setSnakes] = useState<Snake[]>([]);
   const [foods, setFoods] = useState<Food[]>([]);
+  const [segments, setSegments] = useState<Segment[]>([]);
   const [gameRunning, setGameRunning] = useState(false);
   const [gameOver, setGameOver] = useState(false);
   const [countdown, setCountdown] = useState(0);
@@ -50,13 +59,14 @@ export const useSnakeGame = () => {
 
     console.log('useSnakeGame: Setting up game callback');
     
-    const gameCallback = (gameSession: any, foods: any[]) => {
+    const gameCallback = (gameSession: any, foods: any[], segments: any[]) => {
       console.log('useSnakeGame: Game callback triggered:', {
         hasGameSession: !!gameSession,
         sessionStatus: gameSession?.status,
         countdown: gameSession?.countdown,
         playersCount: gameSession?.players?.length || 0,
-        foodsCount: foods.length
+        foodsCount: foods.length,
+        segmentsCount: segments.length
       });
 
       if (gameSession) {
@@ -84,6 +94,16 @@ export const useSnakeGame = () => {
         }));
         setFoods(gameFoods);
         
+        // 转换道具
+        const gameSegments = segments.map(segment => ({
+          id: segment.id,
+          position: segment.position,
+          type: segment.type,
+          value: segment.value,
+          color: segment.color
+        }));
+        setSegments(gameSegments);
+        
         // 处理游戏状态
         if (gameSession.status === 'countdown') {
           setShowCountdown(true);
@@ -104,6 +124,7 @@ export const useSnakeGame = () => {
         setGameSessionId(null);
         setSnakes([]);
         setFoods([]);
+        setSegments([]);
         setGameRunning(false);
         setShowCountdown(false);
         setGameOver(false);
@@ -116,7 +137,8 @@ export const useSnakeGame = () => {
     if (currentRoom && gameView.model) {
       const gameSession = gameView.getGameSessionByRoom(currentRoom.id);
       const foods = gameView.model.foods || [];
-      gameCallback(gameSession, foods);
+      const segments = gameView.model.segments || [];
+      gameCallback(gameSession, foods, segments);
     }
 
     return () => {
@@ -179,11 +201,12 @@ export const useSnakeGame = () => {
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [gameRunning, changeDirection]);
 
-  console.log('useSnakeGame render - multiplayer mode, snakes:', snakes.length, 'gameRunning:', gameRunning, 'countdown:', countdown);
+  console.log('useSnakeGame render - multiplayer mode, snakes:', snakes.length, 'gameRunning:', gameRunning, 'countdown:', countdown, 'segments:', segments.length);
 
   return {
     snakes,
     foods,
+    segments,
     gameRunning,
     gameOver,
     startGame,

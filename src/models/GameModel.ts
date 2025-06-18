@@ -50,6 +50,15 @@ export interface Food {
   value: number;
 }
 
+export interface Segment {
+  id: string;
+  position: { x: number; y: number };
+  type: 'speed' | 'score' | 'length';
+  value: number;
+  color: string;
+  spawnTime: number;
+}
+
 export class GameModel extends Multisynq.Model {
   // 房间管理
   rooms: Room[] = [];
@@ -61,13 +70,14 @@ export class GameModel extends Multisynq.Model {
   
   // 游戏状态
   foods: Food[] = [];
+  segments: Segment[] = []; // 新增：随机道具
   
   // 系统管理
   private instanceId: string;
   connectedPlayers: Set<string> = new Set(); // 当前连接的玩家地址
 
   init() {
-    this.instanceId = `game_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    this.instanceId = `game_${Date.now()}_${this.random().toString().substr(2, 6)}`;
     console.log(`GameModel instance created and initialized: ${this.instanceId}`);
     
     // 监听玩家进入和离开事件
@@ -140,7 +150,7 @@ export class GameModel extends Multisynq.Model {
       return;
     }
 
-    const roomId = `room_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const roomId = `room_${Date.now()}_${this.random().toString().substr(2, 9)}`;
     const newRoom: Room = {
       id: roomId,
       name: data.roomName,
@@ -343,7 +353,7 @@ export class GameModel extends Multisynq.Model {
     }
 
     // 创建游戏会话
-    const gameSessionId = `game_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const gameSessionId = `game_${Date.now()}_${this.random().toString().substr(2, 9)}`;
     const gameSession: GameSession = {
       id: gameSessionId,
       roomId: data.roomId,
@@ -374,8 +384,9 @@ export class GameModel extends Multisynq.Model {
     const roomIndex = this.rooms.findIndex(r => r.id === data.roomId);
     this.rooms[roomIndex].status = 'playing';
 
-    // 生成初始食物
+    // 生成初始食物和道具
     this.generateInitialFood(8);
+    this.generateInitialSegments(3);
 
     console.log(`GameModel: Game session ${gameSessionId} created with countdown`);
     this.publish("game", "refresh");
@@ -422,8 +433,9 @@ export class GameModel extends Multisynq.Model {
       console.log('GameModel: Countdown finished, starting game');
       this.publish("game", "refresh");
       
-      // 开始游戏循环
+      // 开始游戏循环和道具生成循环
       this.future(150).gameStep(gameSessionId);
+      this.future(3000).segmentSpawnLoop(gameSessionId);
     } else {
       // 继续倒计时
       this.gameSessions[gameSessionIndex] = {
@@ -481,6 +493,10 @@ export class GameModel extends Multisynq.Model {
 
       // 检查食物碰撞
       const eatenFood = this.foods.find(food => food.position.x === head.x && food.position.y === head.y);
+      
+      // 检查道具碰撞
+      const eatenSegment = this.segments.find(segment => segment.position.x === head.x && segment.position.y === head.y);
+      
       let newSegments = [head, ...player.segments];
       let newScore = player.score;
 
@@ -492,8 +508,27 @@ export class GameModel extends Multisynq.Model {
         this.foods = this.foods.filter(food => food.id !== eatenFood.id);
         // 生成新食物
         this.generateFood();
+      } else if (eatenSegment) {
+        // 吃到道具，根据道具类型处理
+        switch (eatenSegment.type) {
+          case 'score':
+            newScore += eatenSegment.value;
+            newSegments.pop(); // 移除尾部，不增长
+            break;
+          case 'length':
+            newScore += 20;
+            // 不移除尾部，增长身体
+            break;
+          case 'speed':
+            newScore += 30;
+            newSegments.pop(); // 移除尾部，不增长
+            break;
+        }
+        console.log(`GameModel: Player ${player.name} ate ${eatenSegment.type} segment, score: ${newScore}`);
+        // 移除被吃掉的道具
+        this.segments = this.segments.filter(segment => segment.id !== eatenSegment.id);
       } else {
-        // 没吃到食物，移除尾部
+        // 没吃到任何东西，移除尾部
         newSegments.pop();
       }
 
@@ -525,6 +560,29 @@ export class GameModel extends Multisynq.Model {
     
     // 继续游戏循环
     this.future(150).gameStep(gameSessionId);
+  }
+
+  // 新增：道具生成循环
+  segmentSpawnLoop(gameSessionId: string) {
+    const gameSession = this.gameSessions.find(g => g.id === gameSessionId);
+    if (!gameSession || gameSession.status !== 'playing') return;
+
+    // 随机生成道具（概率控制）
+    if (this.random() < 0.3 && this.segments.length < 5) { // 30%概率生成，最多5个道具
+      this.generateSegment();
+    }
+
+    // 清理过期的道具（存在超过20秒）
+    const currentTime = this.now();
+    this.segments = this.segments.filter(segment => 
+      currentTime - segment.spawnTime < 20000
+    );
+
+    this.publish("game", "refresh");
+    
+    // 继续道具生成循环（每3-8秒检查一次）
+    const nextSpawnDelay = 3000 + this.random() * 5000;
+    this.future(nextSpawnDelay).segmentSpawnLoop(gameSessionId);
   }
 
   handlePlayerDirectionChange(data: { gameSessionId: string; playerAddress: string; direction: 'up' | 'down' | 'left' | 'right' }) {
@@ -631,8 +689,9 @@ export class GameModel extends Multisynq.Model {
 
     this.roomGameMap.delete(gameSession.roomId);
     
-    // 清理食物
+    // 清理食物和道具
     this.foods = [];
+    this.segments = [];
     
     console.log(`GameModel: Game session ${gameSessionId} ended`);
     this.publish("game", "refresh");
@@ -648,20 +707,69 @@ export class GameModel extends Multisynq.Model {
   }
 
   generateFood() {
-    const foodId = `food_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
-    const type = Math.random() < 0.8 ? 'normal' : 'bonus';
+    const foodId = `food_${this.now()}_${this.random().toString().substr(2, 6)}`;
+    const type = this.random() < 0.8 ? 'normal' : 'bonus';
     
     const newFood: Food = {
       id: foodId,
       position: {
-        x: Math.floor(Math.random() * 60),
-        y: Math.floor(Math.random() * 60)
+        x: Math.floor(this.random() * 60),
+        y: Math.floor(this.random() * 60)
       },
       type,
       value: type === 'normal' ? 10 : 50
     };
     
     this.foods.push(newFood);
+  }
+
+  // ============ 道具管理 ============
+  generateInitialSegments(count: number) {
+    this.segments = [];
+    for (let i = 0; i < count; i++) {
+      this.generateSegment();
+    }
+  }
+
+  generateSegment() {
+    const segmentId = `segment_${this.now()}_${this.random().toString().substr(2, 6)}`;
+    const types = ['speed', 'score', 'length'];
+    const typeIndex = Math.floor(this.random() * types.length);
+    const type = types[typeIndex] as 'speed' | 'score' | 'length';
+    
+    // 根据类型设置不同的属性
+    let value: number;
+    let color: string;
+    
+    switch (type) {
+      case 'speed':
+        value = 30;
+        color = '#ffff00'; // 黄色
+        break;
+      case 'score':
+        value = 100;
+        color = '#ff00ff'; // 紫色
+        break;
+      case 'length':
+        value = 20;
+        color = '#00ffff'; // 青色
+        break;
+    }
+    
+    const newSegment: Segment = {
+      id: segmentId,
+      position: {
+        x: Math.floor(this.random() * 60),
+        y: Math.floor(this.random() * 60)
+      },
+      type,
+      value,
+      color,
+      spawnTime: this.now()
+    };
+    
+    this.segments.push(newSegment);
+    console.log(`GameModel: Generated ${type} segment at (${newSegment.position.x}, ${newSegment.position.y})`);
   }
 
   // ============ 工具方法 ============
