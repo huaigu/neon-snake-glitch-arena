@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Snake, Food, Segment } from '../hooks/useSnakeGame';
 
@@ -76,7 +77,39 @@ export const GameArea: React.FC<GameAreaProps> = ({
   const visibleSnakes = getVisibleSnakes();
 
   return (
-    <div className="flex-1 flex items-center justify-center p-2 md:p-4">
+    <div className="flex-1 flex flex-col items-center justify-center p-2 md:p-4">
+      {/* Segment Legend */}
+      <div className="mb-2 flex flex-wrap gap-2 justify-center bg-cyber-darker/80 backdrop-blur-sm rounded-lg p-2 border border-cyber-cyan/30">
+        <div className="text-xs text-cyber-cyan font-bold mb-1 w-full text-center">POWER-UP SEGMENTS</div>
+        <div className="flex items-center gap-1">
+          <div 
+            className="w-4 h-4 rounded-sm flex items-center justify-center text-xs font-bold text-black"
+            style={{ backgroundColor: '#00ffff' }}
+          >
+            1
+          </div>
+          <span className="text-xs text-gray-300">+1 Length</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div 
+            className="w-4 h-4 rounded-sm flex items-center justify-center text-xs font-bold text-black"
+            style={{ backgroundColor: '#ffff00' }}
+          >
+            2
+          </div>
+          <span className="text-xs text-gray-300">+2 Length</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div 
+            className="w-4 h-4 rounded-sm flex items-center justify-center text-xs font-bold text-black"
+            style={{ backgroundColor: '#ff00ff' }}
+          >
+            3
+          </div>
+          <span className="text-xs text-gray-300">+3 Length</span>
+        </div>
+      </div>
+
       {/* Debug info overlay */}
       {false && process.env.NODE_ENV === 'development' && (
         <div className="absolute top-4 left-4 bg-black/80 text-white text-xs p-2 rounded z-50">
@@ -219,11 +252,11 @@ export const GameArea: React.FC<GameAreaProps> = ({
             />
           ))}
 
-          {/* Power-up Segments */}
+          {/* Power-up Segments with numbers */}
           {visibleSegments.map((segment) => (
             <div
               key={segment.id}
-              className="absolute animate-pulse snake-segment"
+              className="absolute animate-pulse snake-segment flex items-center justify-center"
               style={{
                 left: segment.position.x * cellSize + 1,
                 top: segment.position.y * cellSize + 1,
@@ -232,7 +265,17 @@ export const GameArea: React.FC<GameAreaProps> = ({
                 backgroundColor: segment.color,
                 boxShadow: isSpectator ? '0 0 8px currentColor' : '0 0 4px currentColor'
               }}
-            />
+            >
+              <span 
+                className="font-bold text-black"
+                style={{ 
+                  fontSize: Math.max(8, cellSize * 0.6) + 'px',
+                  lineHeight: '1'
+                }}
+              >
+                {segment.type}
+              </span>
+            </div>
           ))}
 
           {/* Snakes */}

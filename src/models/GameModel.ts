@@ -58,7 +58,7 @@ export interface Food {
 export interface Segment {
   id: string;
   position: { x: number; y: number };
-  type: 'speed' | 'score' | 'length';
+  type: 1 | 2 | 3; // 改为数字类型：1=+1长度, 2=+2长度, 3=+3长度
   value: number;
   color: string;
   spawnTime: number;
@@ -582,20 +582,16 @@ export class GameModel extends Multisynq.Model {
         this.foods = this.foods.filter(food => food.id !== eatenFood.id);
         this.generateFood();
       } else if (eatenSegment) {
-        switch (eatenSegment.type) {
-          case 'score':
-            newScore += eatenSegment.value;
-            newSegments.pop();
-            break;
-          case 'length':
-            newScore += 20;
-            break;
-          case 'speed':
-            newScore += 30;
-            newSegments.pop();
-            break;
+        // 根据segment类型增加不同长度
+        const lengthIncrease = eatenSegment.type; // 1, 2, 或 3
+        newScore += eatenSegment.value;
+        
+        // 增加相应长度的segment，不移除尾部
+        for (let i = 0; i < lengthIncrease; i++) {
+          // 保持所有现有segments
         }
-        console.log(`GameModel: Player ${player.name} ate ${eatenSegment.type} segment, score: ${newScore}`);
+        
+        console.log(`GameModel: Player ${player.name} ate type ${eatenSegment.type} segment, added ${lengthIncrease} length, score: ${newScore}`);
         this.segments = this.segments.filter(segment => segment.id !== eatenSegment.id);
       } else {
         newSegments.pop();
@@ -655,8 +651,12 @@ export class GameModel extends Multisynq.Model {
     if (gameSession.status !== 'playing') return;
 
     if ((gameSession.segmentCountdown || 10) <= 1) {
-      if (this.random() < 0.3 && this.segments.length < 5) {
-        this.generateSegment();
+      // 根据配置生成1-3个segments
+      const spawnCount = this.getRandomSegmentSpawnCount();
+      for (let i = 0; i < spawnCount; i++) {
+        if (this.segments.length < 8) { // 最大8个segments
+          this.generateSegment();
+        }
       }
       
       this.gameSessions[gameSessionIndex] = {
@@ -673,6 +673,14 @@ export class GameModel extends Multisynq.Model {
     this.publish("game", "refresh");
     
     this.future(1000).segmentSpawnLoop(gameSessionId);
+  }
+
+  // 获取随机生成segment数量（1-3个，概率递减）
+  private getRandomSegmentSpawnCount(): number {
+    const rand = this.random();
+    if (rand < 0.5) return 1;      // 50% 概率生成1个
+    if (rand < 0.8) return 2;      // 30% 概率生成2个  
+    return 3;                      // 20% 概率生成3个
   }
 
   handlePlayerDirectionChange(data: { gameSessionId: string; playerAddress: string; direction: 'up' | 'down' | 'left' | 'right' }) {
@@ -881,26 +889,25 @@ export class GameModel extends Multisynq.Model {
 
   generateSegment() {
     const segmentId = `segment_${this.now()}_${this.random().toString().substr(2, 6)}`;
-    const types = ['speed', 'score', 'length'];
-    const typeIndex = Math.floor(this.random() * types.length);
-    const type = types[typeIndex] as 'speed' | 'score' | 'length';
     
+    // 生成随机类型：1(50%), 2(30%), 3(20%)
+    const rand = this.random();
+    let type: 1 | 2 | 3;
     let value: number;
     let color: string;
     
-    switch (type) {
-      case 'speed':
-        value = 30;
-        color = '#ffff00';
-        break;
-      case 'score':
-        value = 100;
-        color = '#ff00ff';
-        break;
-      case 'length':
-        value = 20;
-        color = '#00ffff';
-        break;
+    if (rand < 0.5) {
+      type = 1;
+      value = 20;
+      color = '#00ffff'; // 青色
+    } else if (rand < 0.8) {
+      type = 2;
+      value = 50;
+      color = '#ffff00'; // 黄色
+    } else {
+      type = 3;
+      value = 100;
+      color = '#ff00ff'; // 紫色
     }
     
     const newSegment: Segment = {
@@ -916,7 +923,7 @@ export class GameModel extends Multisynq.Model {
     };
     
     this.segments.push(newSegment);
-    console.log(`GameModel: Generated ${type} segment at (${newSegment.position.x}, ${newSegment.position.y})`);
+    console.log(`GameModel: Generated type ${type} segment (+${type} length) at (${newSegment.position.x}, ${newSegment.position.y})`);
   }
 
   private getPlayerColor(index: number): string {
