@@ -58,7 +58,7 @@ export interface Food {
 export interface Segment {
   id: string;
   position: { x: number; y: number };
-  type: 1 | 2 | 3; // 改为数字类型：1=+1长度, 2=+2长度, 3=+3长度
+  type: 1 | 2 | 3;
   value: number;
   color: string;
   spawnTime: number;
@@ -582,16 +582,16 @@ export class GameModel extends Multisynq.Model {
         this.foods = this.foods.filter(food => food.id !== eatenFood.id);
         this.generateFood();
       } else if (eatenSegment) {
-        // 根据segment类型增加不同长度
-        const lengthIncrease = eatenSegment.type; // 1, 2, 或 3
+        const lengthIncrease = eatenSegment.type;
         newScore += eatenSegment.value;
         
-        // 增加相应长度的segment，不移除尾部
-        for (let i = 0; i < lengthIncrease; i++) {
-          // 保持所有现有segments
+        const tailPosition = player.segments[player.segments.length - 1];
+        
+        for (let i = 1; i < lengthIncrease; i++) {
+          newSegments.push({ ...tailPosition });
         }
         
-        console.log(`GameModel: Player ${player.name} ate type ${eatenSegment.type} segment, added ${lengthIncrease} length, score: ${newScore}`);
+        console.log(`GameModel: Player ${player.name} ate type ${eatenSegment.type} segment, added ${lengthIncrease} length, new total length: ${newSegments.length}, score: ${newScore}`);
         this.segments = this.segments.filter(segment => segment.id !== eatenSegment.id);
       } else {
         newSegments.pop();
@@ -651,10 +651,9 @@ export class GameModel extends Multisynq.Model {
     if (gameSession.status !== 'playing') return;
 
     if ((gameSession.segmentCountdown || 10) <= 1) {
-      // 根据配置生成1-3个segments
       const spawnCount = this.getRandomSegmentSpawnCount();
       for (let i = 0; i < spawnCount; i++) {
-        if (this.segments.length < 8) { // 最大8个segments
+        if (this.segments.length < 8) {
           this.generateSegment();
         }
       }
@@ -890,7 +889,6 @@ export class GameModel extends Multisynq.Model {
   generateSegment() {
     const segmentId = `segment_${this.now()}_${this.random().toString().substr(2, 6)}`;
     
-    // 生成随机类型：1(50%), 2(30%), 3(20%)
     const rand = this.random();
     let type: 1 | 2 | 3;
     let value: number;

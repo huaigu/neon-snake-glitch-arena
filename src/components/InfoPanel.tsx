@@ -58,63 +58,6 @@ export const InfoPanel: React.FC<InfoPanelProps> = ({
         </Button>
       </Card>
 
-      {/* Power-up Guide */}
-      <Card className="cyber-panel p-4">
-        <h2 className="text-lg font-semibold text-cyber-cyan mb-3 neon-text">POWER-UPS</h2>
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-green-400 rounded-sm"></div>
-              <span className="text-gray-300 text-sm">Food</span>
-            </div>
-            <span className="text-cyber-green text-xs">+10 Points</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-yellow-400 rounded-sm"></div>
-              <span className="text-gray-300 text-sm">Bonus</span>
-            </div>
-            <span className="text-cyber-green text-xs">+50 Points</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div 
-                className="w-4 h-4 rounded-sm flex items-center justify-center text-xs font-bold text-black"
-                style={{ backgroundColor: '#00ffff' }}
-              >
-                1
-              </div>
-              <span className="text-gray-300 text-sm">Segment</span>
-            </div>
-            <span className="text-cyber-green text-xs">+1 Length</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div 
-                className="w-4 h-4 rounded-sm flex items-center justify-center text-xs font-bold text-black"
-                style={{ backgroundColor: '#ffff00' }}
-              >
-                2
-              </div>
-              <span className="text-gray-300 text-sm">Segment</span>
-            </div>
-            <span className="text-cyber-green text-xs">+2 Length</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div 
-                className="w-4 h-4 rounded-sm flex items-center justify-center text-xs font-bold text-black"
-                style={{ backgroundColor: '#ff00ff' }}
-              >
-                3
-              </div>
-              <span className="text-gray-300 text-sm">Segment</span>
-            </div>
-            <span className="text-cyber-green text-xs">+3 Length</span>
-          </div>
-        </div>
-      </Card>
-
       {/* Player Stats */}
       {playerSnake && (
         <Card className="cyber-panel p-4">

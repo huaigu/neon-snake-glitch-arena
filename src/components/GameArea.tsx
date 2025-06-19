@@ -70,6 +70,40 @@ export const GameArea: React.FC<GameAreaProps> = ({
     });
   };
 
+  // Get segment size and animations based on type
+  const getSegmentStyle = (segment: Segment) => {
+    const baseSize = cellSize - 2;
+    let size: number;
+    let animationClass: string;
+    
+    switch (segment.type) {
+      case 1:
+        size = baseSize * 0.7; // 70% of cell size
+        animationClass = 'animate-pulse';
+        break;
+      case 2:
+        size = baseSize * 0.85; // 85% of cell size
+        animationClass = 'animate-pulse';
+        break;
+      case 3:
+        size = baseSize; // Full cell size
+        animationClass = 'animate-pulse animate-bounce';
+        break;
+      default:
+        size = baseSize;
+        animationClass = 'animate-pulse';
+    }
+    
+    const offset = (cellSize - size) / 2;
+    
+    return {
+      size,
+      offset,
+      animationClass,
+      fontSize: Math.max(6, size * 0.4)
+    };
+  };
+
   // Food is always visible
   const visibleFoods = foods;
   // Power segments affected by fog of war
@@ -78,35 +112,51 @@ export const GameArea: React.FC<GameAreaProps> = ({
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-2 md:p-4">
-      {/* Segment Legend */}
-      <div className="mb-2 flex flex-wrap gap-2 justify-center bg-cyber-darker/80 backdrop-blur-sm rounded-lg p-2 border border-cyber-cyan/30">
-        <div className="text-xs text-cyber-cyan font-bold mb-1 w-full text-center">POWER-UP SEGMENTS</div>
-        <div className="flex items-center gap-1">
-          <div 
-            className="w-4 h-4 rounded-sm flex items-center justify-center text-xs font-bold text-black"
-            style={{ backgroundColor: '#00ffff' }}
-          >
-            1
+      {/* Prominent Segment Legend at the top */}
+      <div className="mb-4 w-full max-w-4xl">
+        <div className="bg-cyber-darker/90 backdrop-blur-sm rounded-lg p-4 border-2 border-cyber-cyan/50 neon-border">
+          <div className="text-center mb-3">
+            <h2 className="text-lg md:text-xl font-bold text-cyber-cyan neon-text">POWER-UP SEGMENTS</h2>
+            <div className="h-0.5 bg-gradient-to-r from-transparent via-cyber-cyan to-transparent mt-2"></div>
           </div>
-          <span className="text-xs text-gray-300">+1 Length</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div 
-            className="w-4 h-4 rounded-sm flex items-center justify-center text-xs font-bold text-black"
-            style={{ backgroundColor: '#ffff00' }}
-          >
-            2
+          <div className="flex flex-wrap justify-center gap-4 md:gap-8">
+            <div className="flex items-center gap-2">
+              <div 
+                className="w-6 h-6 md:w-8 md:h-8 rounded-sm flex items-center justify-center text-sm md:text-base font-bold text-black animate-pulse"
+                style={{ backgroundColor: '#00ffff' }}
+              >
+                1
+              </div>
+              <div className="text-center">
+                <span className="block text-xs md:text-sm text-gray-300">Type 1</span>
+                <span className="block text-xs text-cyber-green font-bold">+1 Length</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div 
+                className="w-7 h-7 md:w-9 md:h-9 rounded-sm flex items-center justify-center text-sm md:text-base font-bold text-black animate-pulse"
+                style={{ backgroundColor: '#ffff00' }}
+              >
+                2
+              </div>
+              <div className="text-center">
+                <span className="block text-xs md:text-sm text-gray-300">Type 2</span>
+                <span className="block text-xs text-cyber-green font-bold">+2 Length</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div 
+                className="w-8 h-8 md:w-10 md:h-10 rounded-sm flex items-center justify-center text-sm md:text-base font-bold text-black animate-pulse animate-bounce"
+                style={{ backgroundColor: '#ff00ff' }}
+              >
+                3
+              </div>
+              <div className="text-center">
+                <span className="block text-xs md:text-sm text-gray-300">Type 3</span>
+                <span className="block text-xs text-cyber-green font-bold">+3 Length</span>
+              </div>
+            </div>
           </div>
-          <span className="text-xs text-gray-300">+2 Length</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div 
-            className="w-4 h-4 rounded-sm flex items-center justify-center text-xs font-bold text-black"
-            style={{ backgroundColor: '#ff00ff' }}
-          >
-            3
-          </div>
-          <span className="text-xs text-gray-300">+3 Length</span>
         </div>
       </div>
 
@@ -252,31 +302,36 @@ export const GameArea: React.FC<GameAreaProps> = ({
             />
           ))}
 
-          {/* Power-up Segments with numbers */}
-          {visibleSegments.map((segment) => (
-            <div
-              key={segment.id}
-              className="absolute animate-pulse snake-segment flex items-center justify-center"
-              style={{
-                left: segment.position.x * cellSize + 1,
-                top: segment.position.y * cellSize + 1,
-                width: cellSize - 2,
-                height: cellSize - 2,
-                backgroundColor: segment.color,
-                boxShadow: isSpectator ? '0 0 8px currentColor' : '0 0 4px currentColor'
-              }}
-            >
-              <span 
-                className="font-bold text-black"
-                style={{ 
-                  fontSize: Math.max(8, cellSize * 0.6) + 'px',
-                  lineHeight: '1'
+          {/* Power-up Segments with different sizes and animations */}
+          {visibleSegments.map((segment) => {
+            const segmentStyle = getSegmentStyle(segment);
+            
+            return (
+              <div
+                key={segment.id}
+                className={`absolute snake-segment flex items-center justify-center ${segmentStyle.animationClass}`}
+                style={{
+                  left: segment.position.x * cellSize + segmentStyle.offset,
+                  top: segment.position.y * cellSize + segmentStyle.offset,
+                  width: segmentStyle.size,
+                  height: segmentStyle.size,
+                  backgroundColor: segment.color,
+                  boxShadow: isSpectator ? '0 0 8px currentColor' : `0 0 ${4 + segment.type * 2}px currentColor`,
+                  borderRadius: segment.type === 3 ? '4px' : '2px'
                 }}
               >
-                {segment.type}
-              </span>
-            </div>
-          ))}
+                <span 
+                  className="font-bold text-black"
+                  style={{ 
+                    fontSize: segmentStyle.fontSize + 'px',
+                    lineHeight: '1'
+                  }}
+                >
+                  {segment.type}
+                </span>
+              </div>
+            );
+          })}
 
           {/* Snakes */}
           {visibleSnakes.map((snake) => (
