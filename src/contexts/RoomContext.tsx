@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useWeb3Auth } from './Web3AuthContext';
 import { useMultisynq } from './MultisynqContext';
@@ -119,15 +120,10 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     
     gameView.setLobbyCallback(lobbyCallback);
     
-    // 立即获取当前数据
-    if (gameView.model) {
-      const currentRooms = gameView.model.rooms || [];
-      const currentConnectedCount = gameView.model.connectedPlayers?.size || 0;
-      
-      lobbyCallback({
-        rooms: currentRooms,
-        connectedPlayers: currentConnectedCount
-      });
+    // 立即获取当前数据 - Updated to use lobby model
+    if (gameView.model?.lobby) {
+      const currentState = gameView.model.lobby.getLobbyState();
+      lobbyCallback(currentState);
     }
   }, [isConnected]); // 只依赖连接状态
 

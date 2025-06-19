@@ -1,5 +1,5 @@
 
-import { Multisynq } from '@multisynq/client';
+import * as Multisynq from '@multisynq/client';
 import GameModel from '../models/GameModel';
 
 export class GameView extends Multisynq.View {

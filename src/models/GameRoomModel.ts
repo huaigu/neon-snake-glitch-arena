@@ -1,5 +1,5 @@
 
-import { Multisynq } from '@multisynq/client';
+import * as Multisynq from '@multisynq/client';
 import { SnakeModel } from './SnakeModel';
 import { PlayerModel } from './PlayerModel';
 
@@ -406,7 +406,10 @@ export class GameRoomModel extends Multisynq.Model {
       hostAddress: this.hostAddress,
       status: this.status,
       players: playersArray,
-      maxPlayers: 8
+      maxPlayers: 8,
+      host: this.hostAddress, // Added for UI compatibility
+      isPrivate: false, // Added for UI compatibility
+      createdAt: new Date().toISOString() // Added for UI compatibility
     };
   }
 

@@ -1,5 +1,5 @@
 
-import { Multisynq } from '@multisynq/client';
+import * as Multisynq from '@multisynq/client';
 import { GameRoomModel } from './GameRoomModel';
 import { PlayerModel } from './PlayerModel';
 

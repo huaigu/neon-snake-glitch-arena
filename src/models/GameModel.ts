@@ -1,5 +1,5 @@
 
-import { Multisynq } from '@multisynq/client';
+import * as Multisynq from '@multisynq/client';
 import { LobbyModel } from './LobbyModel';
 
 export default class GameModel extends Multisynq.Model {
@@ -22,14 +22,17 @@ export default class GameModel extends Multisynq.Model {
 
 GameModel.register("GameModel");
 
-// Export types for backward compatibility
+// Export updated interfaces to match actual data structure
 export interface Room {
   id: string;
   name: string;
-  status: 'waiting' | 'playing' | 'finished';
+  status: 'waiting' | 'countdown' | 'playing' | 'finished';
   players: Player[];
   hostAddress: string;
   maxPlayers: number;
+  host?: string; // Added for UI compatibility
+  isPrivate?: boolean; // Added for UI compatibility  
+  createdAt?: string; // Added for UI compatibility
 }
 
 export interface Player {

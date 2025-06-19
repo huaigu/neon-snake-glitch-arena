@@ -1,5 +1,5 @@
 
-import { Multisynq } from '@multisynq/client';
+import * as Multisynq from '@multisynq/client';
 
 export class PlayerModel extends Multisynq.Model {
   viewId!: string;
