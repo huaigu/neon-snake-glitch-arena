@@ -50,11 +50,13 @@ export const GameLobbyComponent: React.FC = () => {
     
     console.log('GameLobbyComponent: Converting room players to game format:', {
       roomId: currentRoom.id,
+      roomStatus: currentRoom.status,
       roomPlayers: currentRoom.players.map(p => ({ 
         name: p.name, 
         isReady: p.isReady, 
         address: p.address 
-      }))
+      })),
+      timestamp: new Date().toISOString()
     });
     
     return currentRoom.players.map((roomPlayer, index) => ({
@@ -64,7 +66,7 @@ export const GameLobbyComponent: React.FC = () => {
       isReady: roomPlayer.isReady,
       isBot: false
     }));
-  }, [currentRoom?.players]); // 更精确的依赖项
+  }, [currentRoom?.players, currentRoom?.status]); // 添加 status 作为依赖项
 
   // Find current player - 强制重新计算当玩家数据变化时
   const currentPlayer = React.useMemo(() => {
@@ -187,6 +189,18 @@ export const GameLobbyComponent: React.FC = () => {
       navigate('/game');
     }
   }, [canStartGame, navigate]);
+
+  // 专门监控房间状态变化，特别是游戏结束后的状态重置
+  useEffect(() => {
+    console.log('=== ROOM STATUS CHANGE MONITOR ===');
+    console.log('GameLobbyComponent: Room status or players changed:', {
+      roomId: currentRoom?.id,
+      roomStatus: currentRoom?.status,
+      playersCount: currentRoom?.players?.length || 0,
+      playersReady: currentRoom?.players?.map(p => ({ name: p.name, isReady: p.isReady })) || [],
+      timestamp: new Date().toISOString()
+    });
+  }, [currentRoom?.status, currentRoom?.players]);
 
   // Auto-start game when all players are ready
   useEffect(() => {

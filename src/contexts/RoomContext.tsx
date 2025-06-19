@@ -141,22 +141,30 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
         return null;
       }
 
-      // 详细比较玩家数据
+      // 详细比较房间数据，包括状态和玩家数据
+      const roomStatusChanged = prevCurrentRoom.status !== updatedRoom.status;
       const playersDataChanged = JSON.stringify(prevCurrentRoom.players) !== JSON.stringify(updatedRoom.players);
+      const anyChange = roomStatusChanged || playersDataChanged;
       
       console.log('RoomContext: Current room update analysis:', {
         roomId: prevCurrentRoom.id,
+        roomStatusChanged,
         playersDataChanged,
+        anyChange,
+        oldStatus: prevCurrentRoom.status,
+        newStatus: updatedRoom.status,
         oldPlayersCount: prevCurrentRoom.players.length,
         newPlayersCount: updatedRoom.players.length,
+        oldPlayersReady: prevCurrentRoom.players.map(p => ({ name: p.name, isReady: p.isReady })),
+        newPlayersReady: updatedRoom.players.map(p => ({ name: p.name, isReady: p.isReady })),
         timestamp: new Date().toISOString()
       });
       
-      if (playersDataChanged) {
-        console.log('RoomContext: Players data changed, creating new room object reference');
+      if (anyChange) {
+        console.log('RoomContext: Room data changed, creating new room object reference');
         return { 
           ...updatedRoom,
-          players: [...updatedRoom.players]
+          players: [...updatedRoom.players] // 确保创建新的玩家数组引用
         };
       } else {
         console.log('RoomContext: Room data unchanged, keeping existing reference');

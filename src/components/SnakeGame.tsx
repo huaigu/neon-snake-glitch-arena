@@ -313,7 +313,7 @@ export const SnakeGame: React.FC = () => {
                       .slice(0, 3)
                       .map((snake, index) => {
                         const position = index + 1;
-                        const heights = ['h-20', 'h-24', 'h-16']; // 第一名最高，第二名中等，第三名最低
+                        const heights = ['h-24', 'h-20', 'h-16']; // 第一名最高，第二名中等，第三名最低
                         const colors = ['text-yellow-400', 'text-gray-300', 'text-orange-600'];
                         const bgColors = ['bg-yellow-400/20', 'bg-gray-300/20', 'bg-orange-600/20'];
                         const medals = ['🥇', '🥈', '🥉'];
@@ -485,19 +485,27 @@ const MobileInfoPanel: React.FC<{
             <div 
               key={snake.id} 
               className={`flex items-center justify-between ${
-                snake.isPlayer ? 'bg-cyber-cyan/10' : 'bg-gray-800/30'
-              } rounded px-1`}
+                snake.isPlayer ? 'bg-cyber-cyan/10' : 
+                snake.isAlive ? 'bg-gray-800/30' : 'bg-gray-900/20'
+              } rounded px-1 ${!snake.isAlive ? 'opacity-60' : ''}`}
             >
               <div className="flex items-center gap-1">
                 <div 
                   className="w-2 h-2 rounded" 
-                  style={{ backgroundColor: snake.color }}
+                  style={{ 
+                    backgroundColor: snake.isAlive ? snake.color : '#6b7280',
+                    opacity: snake.isAlive ? 1 : 0.5
+                  }}
                 ></div>
-                <span className="text-gray-300 truncate" style={{ maxWidth: '50px' }}>
+                <span className={`truncate ${
+                  snake.isAlive ? 'text-gray-300' : 'text-gray-500'
+                }`} style={{ maxWidth: '50px' }}>
                   {snake.name}
                 </span>
               </div>
-              <span className="text-cyber-green text-xs">{snake.score}</span>
+              <span className={`text-xs ${
+                snake.isAlive ? 'text-cyber-green' : 'text-gray-500'
+              }`}>{snake.score}</span>
             </div>
           ))}
         </div>

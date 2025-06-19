@@ -1,0 +1,22 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+---
+description: multisynq规范补充
+globs: 
+alwaysApply: false
+---
+## Model
+Model是纯粹的数据层，他只保存数据，并且其中所有的成员数据都会自动同步。
+
+## View
+View是观测层，当Model中的数据被修改后，他可以通过订阅的方式得到修改事件。
+
+## 规范
+任何地方都不应该直接修改Model的状态，无论什么情况下都应该通过View层然后publish事件来进行修改。
+Model的一些修改操作也可以通过publish到当前viewid进行传递，view也可以进行订阅。  
+RootModel不应该承担所有子Model的数据同步责任，比如一个RPG游戏中，世界Model只负责整体数据同步，比如天气，人数等。而玩家位置则是应该由玩家Model进行同步。
+
+multisynq的默认tps是20，如果有移动场景，如果是本地用户移动，则需要使用在本地计算的方式来更新位置，但是数据提交到model的速度保持和multisynq的20一致，而其他客户端处理的方式则是使用smooth方式优化。

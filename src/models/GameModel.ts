@@ -309,10 +309,10 @@ export class GameModel extends Multisynq.Model {
 
     const oldReadyState = this.rooms[roomIndex].players[playerIndex].isReady;
     
-    if (oldReadyState === data.isReady) {
-      console.log(`GameModel: Player ${data.playerAddress} ready state unchanged (${oldReadyState}), skipping update`);
-      return;
-    }
+    // if (oldReadyState === data.isReady) {
+    //   console.log(`GameModel: Player ${data.playerAddress} ready state unchanged (${oldReadyState}), skipping update`);
+    //   return;
+    // }
     
     const updatedPlayers = [...room.players];
     updatedPlayers[playerIndex] = {
@@ -791,11 +791,21 @@ export class GameModel extends Multisynq.Model {
     const room = this.rooms.find(r => r.id === gameSession.roomId);
     if (room) {
       const roomIndex = this.rooms.findIndex(r => r.id === gameSession.roomId);
+      // 创建新的房间对象，确保所有玩家状态重置
       this.rooms[roomIndex] = {
         ...room,
         status: 'waiting',
-        players: room.players.map(player => ({ ...player, isReady: false }))
+        players: room.players.map(player => ({ 
+          ...player, 
+          isReady: false 
+        }))
       };
+      
+      console.log(`GameModel: Room ${gameSession.roomId} status reset to waiting, all players set to not ready:`, {
+        roomId: gameSession.roomId,
+        playersCount: this.rooms[roomIndex].players.length,
+        playersReadyStates: this.rooms[roomIndex].players.map(p => ({ name: p.name, isReady: p.isReady }))
+      });
     }
 
     // 保留roomGameMap映射关系，这样客户端仍能找到已完成的游戏会话来显示最终结果
@@ -805,6 +815,8 @@ export class GameModel extends Multisynq.Model {
     
     this.future(300000).cleanupFinishedGameSession(gameSessionId);
     
+    // 先发布游戏状态更新，再发布大厅状态更新
+    console.log(`GameModel: Publishing refresh events for game end - game first, then lobby`);
     this.publish("game", "refresh");
     this.publish("lobby", "refresh");
   }

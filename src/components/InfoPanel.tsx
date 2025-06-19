@@ -100,22 +100,38 @@ export const InfoPanel: React.FC<InfoPanelProps> = ({
             <div 
               key={snake.id}
               className={`flex items-center justify-between p-2 rounded border ${
-                snake.isPlayer ? 'border-cyber-cyan bg-cyber-cyan/10' : 'border-gray-600 bg-gray-800/50'
-              }`}
+                snake.isPlayer ? 'border-cyber-cyan bg-cyber-cyan/10' : 
+                snake.isAlive ? 'border-gray-600 bg-gray-800/50' : 'border-gray-700 bg-gray-900/30'
+              } ${!snake.isAlive ? 'opacity-60' : ''}`}
             >
               <div className="flex items-center space-x-2">
-                <span className="text-lg font-bold text-cyber-orange">#{index + 1}</span>
+                <span className={`text-lg font-bold ${
+                  snake.isAlive ? 'text-cyber-orange' : 'text-gray-500'
+                }`}>#{index + 1}</span>
                 <div 
                   className="w-4 h-4 rounded snake-segment"
-                  style={{ backgroundColor: snake.color }}
+                  style={{ 
+                    backgroundColor: snake.isAlive ? snake.color : '#6b7280',
+                    opacity: snake.isAlive ? 1 : 0.5
+                  }}
                 ></div>
-                <span className={`font-mono text-sm ${snake.isPlayer ? 'text-cyber-cyan' : 'text-gray-300'}`}>
+                <span className={`font-mono text-sm ${
+                  snake.isPlayer ? 'text-cyber-cyan' : 
+                  snake.isAlive ? 'text-gray-300' : 'text-gray-500'
+                }`}>
                   {snake.name}
+                  {!snake.isAlive && (
+                    <span className="ml-2 text-xs text-gray-600">💀 DEAD</span>
+                  )}
                 </span>
               </div>
               <div className="text-right">
-                <div className="text-cyber-green font-bold">{snake.score}</div>
-                <div className="text-xs text-gray-400">{snake.segments.length} segments</div>
+                <div className={`font-bold ${
+                  snake.isAlive ? 'text-cyber-green' : 'text-gray-500'
+                }`}>{snake.score}</div>
+                <div className={`text-xs ${
+                  snake.isAlive ? 'text-gray-400' : 'text-gray-600'
+                }`}>{snake.segments.length} segments</div>
               </div>
             </div>
           ))}

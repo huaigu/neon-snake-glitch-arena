@@ -49,10 +49,25 @@ export class GameView extends Multisynq.View {
     
     if (this.model && this.model.rooms) {
       console.log('GameView: Refreshing lobby UI with latest state');
+      // 创建深拷贝确保所有引用都是新的，特别是玩家数据
       const lobbyData = {
-        rooms: [...this.model.rooms], // 创建新的数组引用
+        rooms: this.model.rooms.map((room: any) => ({
+          ...room,
+          players: room.players.map((player: any) => ({ ...player }))
+        })),
         connectedPlayers: this.model.connectedPlayers.size
       };
+      
+      console.log('GameView: Lobby data prepared with detailed room states:', {
+        roomsCount: lobbyData.rooms.length,
+        roomsDetails: lobbyData.rooms.map(r => ({
+          id: r.id,
+          name: r.name,
+          status: r.status,
+          playersCount: r.players.length,
+          playersReady: r.players.map((p: any) => ({ name: p.name, isReady: p.isReady }))
+        }))
+      });
       
       if (this.lobbyCallback) {
         console.log('GameView: Executing lobby callback with rooms:', lobbyData.rooms.length);
@@ -148,8 +163,12 @@ export class GameView extends Multisynq.View {
     
     // 立即调用一次回调，如果有数据的话
     if (this.model && this.model.rooms) {
+      // 使用与 refreshLobbyState 相同的深拷贝逻辑
       const lobbyData = {
-        rooms: [...this.model.rooms],
+        rooms: this.model.rooms.map((room: any) => ({
+          ...room,
+          players: room.players.map((player: any) => ({ ...player }))
+        })),
         connectedPlayers: this.model.connectedPlayers.size
       };
       console.log('GameView: Immediately calling lobby callback with current data:', lobbyData.rooms.length, 'rooms');
