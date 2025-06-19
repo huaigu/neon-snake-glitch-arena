@@ -33,7 +33,7 @@ export interface Food {
 export interface Segment {
   id: string;
   position: Position;
-  type: 'speed' | 'score' | 'length';
+  type: 1 | 2 | 3; // 改为数字类型：1=+1长度, 2=+2长度, 3=+3长度
   value: number;
   color: string;
 }
@@ -218,18 +218,6 @@ export const useSnakeGame = () => {
     gameView.enterSpectatorMode(gameSessionId, user.address);
   }, [gameView, gameSessionId, user?.address, gameRunning]);
 
-  const startGame = useCallback(() => {
-    console.log('useSnakeGame: Start game called - games are started automatically when all players are ready');
-  }, []);
-
-  const pauseGame = useCallback(() => {
-    console.log('useSnakeGame: Pause game called - not implemented for multiplayer');
-  }, []);
-
-  const resetGame = useCallback(() => {
-    console.log('useSnakeGame: Reset game called - not implemented for multiplayer');
-  }, []);
-
   // Keyboard controls
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -271,9 +259,9 @@ export const useSnakeGame = () => {
     segments,
     gameRunning,
     gameOver,
-    startGame,
-    pauseGame,
-    resetGame,
+    startGame: () => {},
+    pauseGame: () => {},
+    resetGame: () => {},
     gridSize,
     cellSize,
     countdown,
