@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useWeb3Auth } from './Web3AuthContext';
 import { useMultisynq } from './MultisynqContext';
@@ -60,12 +59,11 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
       return;
     }
 
-    console.log('RoomContext: Setting up GameView lobby callback immediately');
+    console.log('RoomContext: Setting up GameView lobby callback for new model architecture');
     
-    // 立即设置大厅回调函数
     const lobbyCallback = (lobbyData: { rooms: Room[]; connectedPlayers: number }) => {
-      console.log('=== LOBBY CALLBACK TRIGGERED ===');
-      console.log('RoomContext: Received lobby data from GameView:', {
+      console.log('=== LOBBY CALLBACK TRIGGERED (NEW MODEL) ===');
+      console.log('RoomContext: Received lobby data from new model:', {
         roomsCount: lobbyData.rooms.length,
         connectedPlayers: lobbyData.connectedPlayers,
         detailedRooms: lobbyData.rooms.map(r => ({
@@ -81,47 +79,23 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
         timestamp: new Date().toISOString()
       });
       
-      // 强制更新房间列表状态
       setRooms(lobbyData.rooms);
       setConnectedPlayersCount(lobbyData.connectedPlayers);
     };
     
-    // 立即设置回调，即使还没连接
     gameView.setLobbyCallback(lobbyCallback);
 
-    // 如果已经连接且有模型数据，立即获取初始状态
-    if (isConnected && gameView.model) {
-      console.log('RoomContext: Getting initial data from GameView model');
-      const initialRooms = gameView.model.rooms || [];
-      const initialConnectedCount = gameView.model.connectedPlayers?.size || 0;
-      
-      console.log('RoomContext: Initial rooms data:', {
-        roomsCount: initialRooms.length,
-        rooms: initialRooms.map(r => ({
-          id: r.id,
-          name: r.name,
-          playersCount: r.players.length,
-          players: r.players.map(p => ({ 
-            name: p.name, 
-            isReady: p.isReady, 
-            address: p.address 
-          }))
-        }))
-      });
-      
-      // 立即调用回调来设置初始状态
-      lobbyCallback({
-        rooms: initialRooms,
-        connectedPlayers: initialConnectedCount
-      });
+    // Get initial state if connected
+    if (isConnected && gameView.model?.lobby) {
+      console.log('RoomContext: Getting initial data from new lobby model');
+      const initialState = gameView.model.lobby.getLobbyState();
+      lobbyCallback(initialState);
     }
 
     return () => {
       console.log('RoomContext: Cleaning up GameView callbacks');
-      // 不要清空回调，而是保持回调的连续性
-      // gameView.setLobbyCallback(() => {});
     };
-  }, [gameView]); // 移除 isConnected 依赖
+  }, [gameView, isConnected]);
 
   // 当连接状态变化时，确保回调仍然有效
   useEffect(() => {
@@ -131,7 +105,6 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     
     console.log('RoomContext: Connection state changed, re-ensuring lobby callback');
     
-    // 重新确保回调函数存在
     const lobbyCallback = (lobbyData: { rooms: Room[]; connectedPlayers: number }) => {
       console.log('=== LOBBY CALLBACK TRIGGERED (CONNECTION CHANGE) ===');
       console.log('RoomContext: Received lobby data after connection change:', {
@@ -144,7 +117,6 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
       setConnectedPlayersCount(lobbyData.connectedPlayers);
     };
     
-    // 重新设置回调
     gameView.setLobbyCallback(lobbyCallback);
     
     // 立即获取当前数据

@@ -75,16 +75,16 @@ export const useSnakeGame = () => {
     isEnabled: isMobile && gameRunning && !isSpectator
   });
 
-  // 设置游戏回调
+  // Updated game callback setup to work with new model structure
   useEffect(() => {
     if (!gameView || !isConnected) {
       return;
     }
 
-    console.log('useSnakeGame: Setting up game callback, fixed gridSize:', gridSize);
+    console.log('useSnakeGame: Setting up game callback with new model architecture, fixed gridSize:', gridSize);
     
     const gameCallback = (gameSession: any, foods: any[], segments: any[]) => {
-      console.log('=== useSnakeGame: Game callback triggered ===');
+      console.log('=== useSnakeGame: Game callback triggered (NEW MODEL) ===');
       console.log('gameSession:', gameSession);
       console.log('gameSession status:', gameSession?.status);
       console.log('gameSession players:', gameSession?.players);
@@ -92,28 +92,15 @@ export const useSnakeGame = () => {
       console.log('current room:', currentRoom?.id);
       console.log('==========================================');
       
-      console.log('useSnakeGame: Game callback triggered:', {
-        hasGameSession: !!gameSession,
-        sessionStatus: gameSession?.status,
-        countdown: gameSession?.countdown,
-        playersCount: gameSession?.players?.length || 0,
-        foodsCount: foods.length,
-        segmentsCount: segments.length,
-        speedMultiplier: gameSession?.speedMultiplier,
-        lastSpeedIncrease: gameSession?.lastSpeedIncrease,
-        speedBoostCountdown: gameSession?.speedBoostCountdown,
-        segmentCountdown: gameSession?.segmentCountdown,
-        gridSize: gridSize,
-      });
-
       if (gameSession) {
         setGameSessionId(gameSession.id);
         setSpeedMultiplier(gameSession.speedMultiplier || 1.0);
         
-        // 直接使用服务器端的倒计时状态
+        // Use model-provided countdown values
         setSpeedBoostCountdown(gameSession.speedBoostCountdown || 20);
         setSegmentCountdown(gameSession.segmentCountdown || 10);
         
+        // Map players to snakes format
         const gameSnakes = gameSession.players.map((player: any) => ({
           id: player.id,
           segments: player.segments || [player.position],
@@ -121,7 +108,7 @@ export const useSnakeGame = () => {
           color: player.color,
           isAlive: player.isAlive,
           score: player.score,
-          isPlayer: player.address === user?.address,
+          isPlayer: player.id === user?.address,
           name: player.name,
           isSpectator: player.isSpectator || false
         }));
@@ -144,22 +131,18 @@ export const useSnakeGame = () => {
           }
         }
         
+        // Map foods to expected format
         const gameFoods = foods.map(food => ({
-          position: food.position,
+          position: { x: food.x, y: food.y },
           type: food.type,
           value: food.value
         }));
         setFoods(gameFoods);
         
-        const gameSegments = segments.map(segment => ({
-          id: segment.id,
-          position: segment.position,
-          type: segment.type,
-          value: segment.value,
-          color: segment.color
-        }));
-        setSegments(gameSegments);
+        // Keep segments for backward compatibility
+        setSegments(segments || []);
         
+        // Handle game state
         if (gameSession.status === 'countdown') {
           setShowCountdown(true);
           setCountdown(gameSession.countdown || 3);
@@ -170,8 +153,6 @@ export const useSnakeGame = () => {
           setGameRunning(true);
           setGameOver(false);
         } else if (gameSession.status === 'finished') {
-          // 显示房间内最近完成的游戏结果，让所有玩家都能看到
-          // 这样即使是新加入的玩家也能了解之前的游戏结果
           setGameRunning(false);
           setGameOver(true);
           setShowCountdown(false);
@@ -180,6 +161,7 @@ export const useSnakeGame = () => {
           console.log('useSnakeGame: Displaying finished game results for all players in room');
         }
       } else {
+        // Reset state when no game session
         setGameSessionId(null);
         setSnakes([]);
         setFoods([]);
@@ -195,11 +177,12 @@ export const useSnakeGame = () => {
     
     gameView.setGameCallback(gameCallback);
 
+    // Try to get initial game state for current room
     if (currentRoom && gameView.model) {
       const gameSession = gameView.getGameSessionByRoom(currentRoom.id);
-      const foods = gameView.model.foods || [];
-      const segments = gameView.model.segments || [];
-      gameCallback(gameSession, foods, segments);
+      if (gameSession) {
+        gameCallback(gameSession, [], []);
+      }
     }
 
     return () => {
