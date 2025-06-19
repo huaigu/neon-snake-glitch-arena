@@ -45,6 +45,7 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [connectedPlayersCount, setConnectedPlayersCount] = useState(0);
+  const [pendingRoomCreation, setPendingRoomCreation] = useState<{roomName: string, hostAddress: string} | null>(null);
 
   // 从用户地址生成显示名称
   useEffect(() => {
@@ -82,6 +83,27 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
       
       setRooms(lobbyData.rooms);
       setConnectedPlayersCount(lobbyData.connectedPlayers);
+
+      // Handle pending room creation - check if our created room appears
+      if (pendingRoomCreation) {
+        const newRoom = lobbyData.rooms.find(r => 
+          r.name === pendingRoomCreation.roomName && 
+          r.hostAddress === pendingRoomCreation.hostAddress &&
+          r.players.some(p => p.address === pendingRoomCreation.hostAddress)
+        );
+        
+        if (newRoom) {
+          console.log('RoomContext: Found newly created room with host player, setting as currentRoom:', {
+            roomId: newRoom.id,
+            roomName: newRoom.name,
+            hostAddress: newRoom.hostAddress,
+            timestamp: new Date().toISOString()
+          });
+          setCurrentRoom({ ...newRoom });
+          setLoading(false);
+          setPendingRoomCreation(null);
+        }
+      }
     };
     
     gameView.setLobbyCallback(lobbyCallback);
@@ -96,7 +118,7 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     return () => {
       console.log('RoomContext: Cleaning up GameView callbacks');
     };
-  }, [gameView, isConnected]);
+  }, [gameView, isConnected, pendingRoomCreation]);
 
   // 当连接状态变化时，确保回调仍然有效
   useEffect(() => {
@@ -125,7 +147,7 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
       const currentState = gameView.model.lobby.getLobbyState();
       lobbyCallback(currentState);
     }
-  }, [isConnected]); // 只依赖连接状态
+  }, [isConnected]);
 
   // 更新当前房间
   useEffect(() => {
@@ -190,39 +212,42 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
 
     try {
       console.log('RoomContext: Creating room via GameView');
+      
+      // Set pending room creation state to track when room is created
+      setPendingRoomCreation({
+        roomName: roomName,
+        hostAddress: user.address
+      });
+      
       gameView.createRoom(roomName, currentPlayerName, user.address);
       
-      // 等待房间创建完成
+      // Return a promise that resolves when the room is found and current room is set
       return new Promise((resolve) => {
         const timeout = setTimeout(() => {
+          console.log('RoomContext: Room creation timeout');
           setLoading(false);
+          setPendingRoomCreation(null);
           resolve(null);
-        }, 5000);
+        }, 10000); // Increased timeout to 10 seconds
 
-        const checkForRoom = () => {
-          const newRoom = rooms.find(r => r.hostAddress === user.address);
-          if (newRoom) {
+        // Check if we already have a current room set (this would happen in the lobby callback)
+        const checkForCurrentRoom = () => {
+          if (currentRoom && currentRoom.hostAddress === user.address && currentRoom.name === roomName) {
             clearTimeout(timeout);
-            console.log('RoomContext: Found newly created room, setting as currentRoom:', {
-              roomId: newRoom.id,
-              roomName: newRoom.name,
-              hostAddress: newRoom.hostAddress,
-              timestamp: new Date().toISOString()
-            });
-            setCurrentRoom({ ...newRoom });
-            setLoading(false);
-            resolve(newRoom.id);
+            console.log('RoomContext: Room creation completed, currentRoom is set');
+            resolve(currentRoom.id);
           } else {
-            setTimeout(checkForRoom, 100);
+            setTimeout(checkForCurrentRoom, 100);
           }
         };
         
-        setTimeout(checkForRoom, 100);
+        setTimeout(checkForCurrentRoom, 100);
       });
     } catch (err) {
       console.error('Error creating room:', err);
       setError('Failed to create room');
       setLoading(false);
+      setPendingRoomCreation(null);
       return null;
     }
   };
