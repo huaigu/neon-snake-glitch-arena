@@ -22,6 +22,7 @@ export interface Snake {
   isPlayer: boolean;
   name: string;
   isSpectator?: boolean;
+  hasNFT?: boolean; // NFT holder flag for rainbow snake effect
 }
 
 export interface Food {
@@ -110,7 +111,12 @@ export const useSnakeGame = () => {
           score: player.score,
           isPlayer: player.id === user?.address,
           name: player.name,
-          isSpectator: player.isSpectator || false
+          isSpectator: player.isSpectator || false,
+          // TODO: 实际的NFT检查逻辑将在后续实现
+          // 目前临时设置：当玩家名称包含"NFT"或"VIP"时模拟NFT持有者
+          hasNFT: player.name.toLowerCase().includes('nft') || 
+                  player.name.toLowerCase().includes('vip') ||
+                  player.name.toLowerCase().includes('rainbow')
         }));
         
         setSnakes(gameSnakes);
@@ -159,6 +165,18 @@ export const useSnakeGame = () => {
           setIsSpectator(false);
           
           console.log('useSnakeGame: Displaying finished game results for all players in room');
+        } else if (gameSession.status === 'waiting') {
+          // 游戏重置回等待状态 - 重置所有UI状态
+          setShowCountdown(false);
+          setGameRunning(false);
+          setGameOver(false);
+          setIsSpectator(false);
+          setSpeedMultiplier(1.0);
+          setSpeedBoostCountdown(20);
+          setSegmentCountdown(10);
+          setCountdown(0);
+          
+          console.log('useSnakeGame: Game reset to waiting state - all UI states reset');
         }
       } else {
         // Reset state when no game session

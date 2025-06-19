@@ -132,7 +132,15 @@ export class LobbyModel extends Multisynq.Model {
     
     this.publishLobbyState();
     
-    // Notify the creator that room was created
+    // 发布房间创建成功事件，用于直接导航
+    this.publish("lobby", "room-created", {
+      roomId: roomId,
+      roomName: payload.roomName,
+      hostAddress: payload.hostAddress,
+      hostViewId: hostPlayer.viewId
+    });
+    
+    // Notify the creator that room was created (保持兼容性)
     this.publish("player", "joined-room", {
       viewId: hostPlayer.viewId,
       roomId: roomId

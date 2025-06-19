@@ -6,6 +6,8 @@ export class GameView extends Multisynq.View {
   model!: GameModel;
   private lobbyCallback: ((data: any) => void) | null = null;
   private gameCallback: ((gameSession: any, foods: any[], segments: any[]) => void) | null = null;
+  private roomJoinedCallback: ((data: any) => void) | null = null;
+  private roomCreatedCallback: ((data: any) => void) | null = null;
 
   constructor(model: GameModel) {
     super(model);
@@ -15,6 +17,9 @@ export class GameView extends Multisynq.View {
     
     // Subscribe to lobby updates
     this.subscribe("lobby", "updated", this.handleLobbyUpdate);
+    
+    // Subscribe to room created events
+    this.subscribe("lobby", "room-created", this.handleRoomCreated);
     
     // Subscribe to room updates  
     this.subscribe("room", "updated", this.handleRoomUpdate);
@@ -43,6 +48,16 @@ export class GameView extends Multisynq.View {
   setGameCallback(callback: (gameSession: any, foods: any[], segments: any[]) => void) {
     console.log('GameView: Setting game callback');
     this.gameCallback = callback;
+  }
+
+  setRoomJoinedCallback(callback: (data: any) => void) {
+    console.log('GameView: Setting room joined callback');
+    this.roomJoinedCallback = callback;
+  }
+
+  setRoomCreatedCallback(callback: (data: any) => void) {
+    console.log('GameView: Setting room created callback');
+    this.roomCreatedCallback = callback;
   }
 
   // Room management methods
@@ -131,8 +146,18 @@ export class GameView extends Multisynq.View {
 
   private handlePlayerJoinedRoom = (data: any) => {
     console.log('GameView: Player joined room notification:', data);
-    // This could trigger navigation in the UI
-    // For now, we'll let the lobby callback handle the room state change
+    // 调用房间加入成功的回调函数
+    if (this.roomJoinedCallback) {
+      this.roomJoinedCallback(data);
+    }
+  };
+
+  private handleRoomCreated = (data: any) => {
+    console.log('GameView: Room created successfully:', data);
+    // 调用房间创建成功的回调函数，用于直接导航
+    if (this.roomCreatedCallback) {
+      this.roomCreatedCallback(data);
+    }
   };
 
   private handleCreateRoomError = (data: any) => {

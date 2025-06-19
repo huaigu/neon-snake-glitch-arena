@@ -29,6 +29,7 @@ export class GameRoomModel extends Multisynq.Model {
   winner!: string | null;
   speedMultiplier!: number;
   gameStartTime!: number;
+  createdAt!: string;
   
   // Game configuration
   private readonly CONFIG: GameConfig = {
@@ -52,6 +53,7 @@ export class GameRoomModel extends Multisynq.Model {
     this.winner = null;
     this.speedMultiplier = 1.0;
     this.gameStartTime = 0;
+    this.createdAt = new Date(this.now()).toISOString(); // 在初始化时设置创建时间
 
     // Subscribe to room events
     this.subscribe("room", "change-direction", this.handleChangeDirection);
@@ -333,13 +335,24 @@ export class GameRoomModel extends Multisynq.Model {
     this.isRunning = false;
     this.status = 'finished';
     this.winner = winnerId;
+    this.speedMultiplier = 1.0; // 重置速度倍数
+    this.countdown = 0; // 重置倒计时
     
-    // Reset player ready states
+    // Reset player ready states immediately when game ends
     for (const player of this.players.values()) {
       player.isReady = false;
+      console.log('GameRoomModel: Reset player ready state:', player.name, 'isReady:', player.isReady);
+    }
+    
+    // Reset all snakes spectator status
+    for (const snake of this.snakes.values()) {
+      snake.isSpectator = false;
+      console.log('GameRoomModel: Reset snake spectator status:', snake.viewId);
     }
     
     this.publishRoomState();
+    
+    console.log('GameRoomModel: Game ended, all player states reset. Auto-reset to waiting in 5 seconds.');
     
     // Auto-reset to waiting state after a delay
     this.future(5000).resetToWaiting();
@@ -348,16 +361,28 @@ export class GameRoomModel extends Multisynq.Model {
   resetToWaiting() {
     console.log('GameRoomModel: Resetting to waiting state');
     
+    // 重置房间状态
     this.status = 'waiting';
     this.isRunning = false;
     this.winner = null;
     this.foods = [];
+    this.speedMultiplier = 1.0;
+    this.countdown = 0;
+    this.gameStartTime = 0;
+    
+    // 确保所有玩家ready状态为false
+    for (const player of this.players.values()) {
+      player.isReady = false;
+      console.log('GameRoomModel: Confirmed player ready reset:', player.name, 'isReady:', player.isReady);
+    }
     
     // Reset all snakes
     for (const snake of this.snakes.values()) {
       snake.reset();
+      snake.isSpectator = false; // 确保观察者状态也被重置
     }
     
+    console.log('GameRoomModel: Room fully reset to waiting state - all players unready, snakes reset');
     this.publishRoomState();
   }
 
@@ -453,7 +478,7 @@ export class GameRoomModel extends Multisynq.Model {
       maxPlayers: 8,
       host: this.hostAddress,
       isPrivate: false,
-      createdAt: new Date().toISOString()
+      createdAt: this.createdAt
     };
   }
 

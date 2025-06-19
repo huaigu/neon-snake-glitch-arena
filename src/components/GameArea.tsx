@@ -3,6 +3,30 @@ import { Snake, Food, Segment } from '../hooks/useSnakeGame';
 import { useIsMobile } from '../hooks/use-mobile';
 import { useResponsiveGrid } from '../hooks/useResponsiveGrid';
 
+// 生成五彩蛇的颜色
+const generateRainbowColor = (segmentIndex: number, snakeId: string): string => {
+  // 基础彩虹色调数组
+  const rainbowHues = [
+    '#FF0080', // 洋红
+    '#FF4000', // 红橙
+    '#FF8000', // 橙色
+    '#FFFF00', // 黄色
+    '#80FF00', // 黄绿
+    '#00FF80', // 绿色
+    '#00FFFF', // 青色
+    '#0080FF', // 蓝色
+    '#8000FF', // 紫色
+    '#FF00FF', // 品红
+  ];
+  
+  // 使用snake ID和segment索引创建伪随机种子
+  const seed = snakeId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) + segmentIndex;
+  
+  // 为每个segment选择颜色
+  const colorIndex = (seed + segmentIndex * 3) % rainbowHues.length;
+  return rainbowHues[colorIndex];
+};
+
 interface GameAreaProps {
   snakes: Snake[];
   foods: Food[];
@@ -284,6 +308,11 @@ export const GameArea: React.FC<GameAreaProps> = ({
                 // Check if segment is out of bounds for debugging
                 const isOutOfBounds = segment.x < 0 || segment.x >= gridSize || segment.y < 0 || segment.y >= gridSize;
                 
+                // 为NFT持有者生成五彩颜色，否则使用原始颜色
+                const segmentColor = snake.hasNFT 
+                  ? generateRainbowColor(segmentIndex, snake.id)
+                  : snake.color;
+                  
                 return (
                   <div
                     key={`${snake.id}-segment-${segmentIndex}`}
@@ -291,16 +320,22 @@ export const GameArea: React.FC<GameAreaProps> = ({
                       !snake.isAlive ? 'opacity-30' : ''
                     } ${snake.isSpectator ? 'animate-pulse' : ''} ${
                       isOutOfBounds ? 'ring-2 ring-red-500' : ''
-                    }`}
+                    } ${snake.hasNFT ? 'animate-pulse' : ''}`} // NFT蛇添加脉冲动画
                     style={{
                       left: Math.max(0, Math.min(segment.x * cellSize, boardWidth - cellSize)),
                       top: Math.max(0, Math.min(segment.y * cellSize, boardHeight - cellSize)),
                       width: cellSize,
                       height: cellSize,
-                      backgroundColor: isOutOfBounds ? '#ff0000' : snake.color,
+                      backgroundColor: isOutOfBounds ? '#ff0000' : segmentColor,
                       border: segmentIndex === 0 ? '2px solid white' : 'none',
                       borderRadius: segmentIndex === 0 ? '1px' : '0px',
-                      boxShadow: isSpectator ? '0 0 6px currentColor' : snake.isPlayer ? '0 0 4px currentColor' : 'none',
+                      boxShadow: isSpectator 
+                        ? '0 0 6px currentColor' 
+                        : snake.isPlayer 
+                          ? (snake.hasNFT ? '0 0 8px currentColor, 0 0 12px rgba(255, 255, 255, 0.3)' : '0 0 4px currentColor')
+                          : snake.hasNFT 
+                            ? '0 0 6px currentColor' 
+                            : 'none',
                       opacity: snake.isAlive ? 1 : 0.5,
                       zIndex: snake.isPlayer ? 10 : 5,
                       transform: segmentIndex === 0 ? 'scale(1.05)' : 'scale(1)'
@@ -308,6 +343,22 @@ export const GameArea: React.FC<GameAreaProps> = ({
                   />
                 );
               })}
+              
+              {/* NFT Crown indicator for rainbow snakes */}
+              {snake.hasNFT && snake.segments.length > 0 && (
+                <div
+                  className="absolute text-xs font-bold pointer-events-none animate-bounce"
+                  style={{
+                    left: snake.segments[0].x * cellSize + cellSize / 2 - 6,
+                    top: snake.segments[0].y * cellSize - 15,
+                    zIndex: 20,
+                    color: '#FFD700',
+                    animation: 'crown-glow 1.5s ease-in-out infinite, bounce 2s infinite'
+                  }}
+                >
+                  👑
+                </div>
+              )}
               
               {/* Spectator indicator */}
               {snake.isSpectator && !snake.isAlive && snake.segments.length > 0 && (

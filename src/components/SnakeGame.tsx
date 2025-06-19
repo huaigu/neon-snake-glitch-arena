@@ -289,12 +289,23 @@ export const SnakeGame: React.FC = () => {
                 <div className="flex flex-wrap justify-center gap-1">
                   {snakes.map(snake => (
                     <div key={snake.id} className="flex items-center gap-1">
-                      <div 
-                        className="w-2 h-2 md:w-3 md:h-3 rounded"
-                        style={{ backgroundColor: snake.color }}
-                      ></div>
+                      {/* NFT持有者显示彩虹色块，普通玩家显示单色 */}
+                      {snake.hasNFT ? (
+                        <div className="w-2 h-2 md:w-3 md:h-3 rounded animate-pulse"
+                             style={{
+                               background: 'linear-gradient(45deg, #FF0080, #FFFF00, #00FF80, #00FFFF, #8000FF)',
+                               backgroundSize: '200% 200%',
+                               animation: 'rainbow-shift 2s ease-in-out infinite'
+                             }}>
+                        </div>
+                      ) : (
+                        <div 
+                          className="w-2 h-2 md:w-3 md:h-3 rounded"
+                          style={{ backgroundColor: snake.color }}
+                        ></div>
+                      )}
                       <span className={`text-xs ${snake.isPlayer ? 'text-cyber-green font-bold' : 'text-cyber-cyan'}`}>
-                        {snake.name} {snake.isPlayer && '(You)'}
+                        {snake.hasNFT && '👑'} {snake.name} {snake.isPlayer && '(You)'}
                       </span>
                     </div>
                   ))}
@@ -336,12 +347,23 @@ export const SnakeGame: React.FC = () => {
                           <div key={snake.id} className={`flex flex-col items-center ${index === 1 ? 'order-first' : ''}`}>
                             <div className="text-lg mb-1">{medals[index]}</div>
                             <div className={`${bgColors[index]} border border-current ${colors[index]} rounded p-2 ${heights[index]} flex flex-col justify-center items-center min-w-[60px]`}>
-                              <div 
-                                className="w-4 h-4 rounded-full mb-1"
-                                style={{ backgroundColor: snake.color }}
-                              ></div>
+                              {/* NFT持有者显示彩虹色块，普通玩家显示单色 */}
+                              {snake.hasNFT ? (
+                                <div className="w-4 h-4 rounded-full mb-1 animate-pulse"
+                                     style={{
+                                       background: 'linear-gradient(45deg, #FF0080, #FFFF00, #00FF80, #00FFFF, #8000FF)',
+                                       backgroundSize: '200% 200%',
+                                       animation: 'rainbow-shift 2s ease-in-out infinite'
+                                     }}>
+                                </div>
+                              ) : (
+                                <div 
+                                  className="w-4 h-4 rounded-full mb-1"
+                                  style={{ backgroundColor: snake.color }}
+                                ></div>
+                              )}
                               <div className={`font-bold text-xs ${snake.isPlayer ? 'text-cyber-green' : ''}`}>
-                                {snake.name}
+                                {snake.hasNFT && '👑'} {snake.name}
                                 {snake.isPlayer && <div className="text-xs text-cyber-green">(You)</div>}
                               </div>
                               <div className="text-sm font-bold mt-1">{snake.score}</div>
@@ -402,14 +424,25 @@ export const SnakeGame: React.FC = () => {
                             }`}>
                               #{index + 1}
                             </span>
-                            <div 
-                              className="w-3 h-3 rounded-full"
-                              style={{ backgroundColor: snake.color }}
-                            ></div>
+                            {/* NFT持有者显示彩虹色块，普通玩家显示单色 */}
+                            {snake.hasNFT ? (
+                              <div className="w-3 h-3 rounded-full animate-pulse"
+                                   style={{
+                                     background: 'linear-gradient(45deg, #FF0080, #FFFF00, #00FF80, #00FFFF, #8000FF)',
+                                     backgroundSize: '200% 200%',
+                                     animation: 'rainbow-shift 2s ease-in-out infinite'
+                                   }}>
+                              </div>
+                            ) : (
+                              <div 
+                                className="w-3 h-3 rounded-full"
+                                style={{ backgroundColor: snake.color }}
+                              ></div>
+                            )}
                             <span className={`${
                               snake.isPlayer ? 'text-cyber-green font-bold' : 'text-cyber-cyan'
                             }`}>
-                              {snake.name}
+                              {snake.hasNFT && '👑'} {snake.name}
                               {snake.isPlayer && ' (You)'}
                             </span>
                           </div>

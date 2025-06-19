@@ -154,3 +154,32 @@
     transform: translateX(-1px) translateY(-1px);
   }
 }
+
+/* Rainbow color shift animation for NFT snakes */
+@keyframes rainbow-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* NFT Crown glow animation */
+@keyframes crown-glow {
+  0%, 100% {
+    text-shadow: 
+      0 0 5px rgba(255, 215, 0, 0.8),
+      0 0 10px rgba(255, 215, 0, 0.6),
+      0 0 15px rgba(255, 215, 0, 0.4);
+  }
+  50% {
+    text-shadow: 
+      0 0 10px rgba(255, 215, 0, 1),
+      0 0 20px rgba(255, 215, 0, 0.8),
+      0 0 30px rgba(255, 215, 0, 0.6);
+  }
+}

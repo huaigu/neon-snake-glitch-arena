@@ -86,6 +86,65 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     
     gameView.setLobbyCallback(lobbyCallback);
 
+    // 设置房间创建成功的回调，用于直接导航 (新的直接方式)
+    const roomCreatedCallback = (data: { roomId: string; roomName: string; hostAddress: string; hostViewId: string }) => {
+      console.log('RoomContext: Room created successfully via direct event:', data);
+      if (user?.address && data.hostAddress === user.address) {
+        console.log('RoomContext: Current user created room, handling navigation directly');
+        
+        // 处理待处理的房间创建Promise
+        const pendingCreation = (window as any).pendingRoomCreation;
+        if (pendingCreation && pendingCreation.userAddress === user.address) {
+          console.log('RoomContext: Resolving pending room creation promise directly');
+          clearTimeout(pendingCreation.timeout);
+          delete (window as any).pendingRoomCreation;
+          
+          // 直接从最新的lobby状态获取房间数据
+          if (gameView.model?.lobby) {
+            const currentState = gameView.model.lobby.getLobbyState();
+            const room = currentState.rooms.find(r => r.id === data.roomId);
+            if (room) {
+              console.log('RoomContext: Found room data, setting currentRoom and resolving promise:', room);
+              setCurrentRoom({ ...room });
+              setLoading(false);
+              pendingCreation.resolve(data.roomId);
+            } else {
+              console.log('RoomContext: Room not found in lobby state, using event data');
+              setLoading(false);
+              setError('Room created but not found in lobby');
+              pendingCreation.resolve(null);
+            }
+          }
+        }
+      }
+    };
+
+    // 设置房间加入成功的回调，用于处理普通房间加入（保持兼容性）
+    const roomJoinedCallback = (data: { viewId: string; roomId: string }) => {
+      console.log('RoomContext: Room joined successfully:', data);
+      if (user?.address && (data.viewId === user.address)) {
+        console.log('RoomContext: Current user successfully joined room');
+        
+        // 只处理普通的房间加入，创建房间已由上面的roomCreatedCallback处理
+        const pendingCreation = (window as any).pendingRoomCreation;
+        if (!pendingCreation) {
+          // 普通的房间加入（非创建）
+          if (gameView.model?.lobby) {
+            const currentState = gameView.model.lobby.getLobbyState();
+            const room = currentState.rooms.find(r => r.id === data.roomId);
+            if (room) {
+              console.log('RoomContext: Found room data, setting currentRoom:', room);
+              setCurrentRoom({ ...room });
+              setLoading(false);
+            }
+          }
+        }
+      }
+    };
+
+    gameView.setRoomCreatedCallback(roomCreatedCallback);
+    gameView.setRoomJoinedCallback(roomJoinedCallback);
+
     // Subscribe to room creation errors
     gameView.subscribe("player", "create-room-error", (errorData: { address: string; error: string }) => {
       if (user?.address === errorData.address) {
@@ -128,6 +187,43 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     };
     
     gameView.setLobbyCallback(lobbyCallback);
+    
+    // 也需要在连接状态变化时重新设置房间创建回调
+    const roomCreatedCallback = (data: { roomId: string; roomName: string; hostAddress: string; hostViewId: string }) => {
+      console.log('RoomContext: Room created successfully (connection change):', data);
+      if (user?.address && data.hostAddress === user.address) {
+        // 处理待处理的房间创建Promise (连接恢复后的情况)
+        const pendingCreation = (window as any).pendingRoomCreation;
+        if (pendingCreation && pendingCreation.userAddress === user.address) {
+          console.log('RoomContext: Resolving pending room creation promise after reconnection');
+          clearTimeout(pendingCreation.timeout);
+          delete (window as any).pendingRoomCreation;
+          
+          if (gameView.model?.lobby) {
+            const currentState = gameView.model.lobby.getLobbyState();
+            const room = currentState.rooms.find(r => r.id === data.roomId);
+            if (room) {
+              setCurrentRoom({ ...room });
+              setLoading(false);
+              pendingCreation.resolve(data.roomId);
+            } else {
+              setLoading(false);
+              setError('Room created but not found in lobby');
+              pendingCreation.resolve(null);
+            }
+          }
+        }
+      }
+    };
+
+    // 也需要在连接状态变化时重新设置房间加入回调
+    const roomJoinedCallback = (data: { viewId: string; roomId: string }) => {
+      console.log('RoomContext: Room joined successfully (connection change):', data);
+      // 普通房间加入处理，创建房间已由roomCreatedCallback处理
+    };
+    
+    gameView.setRoomCreatedCallback(roomCreatedCallback);
+    gameView.setRoomJoinedCallback(roomJoinedCallback);
     
     // 立即获取当前数据 - Updated to use lobby model
     if (gameView.model?.lobby) {
@@ -207,30 +303,20 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
       
       // 等待房间创建完成或错误
       return new Promise((resolve) => {
+        // 设置超时保护
         const timeout = setTimeout(() => {
+          console.log('RoomContext: Room creation timeout after 10 seconds');
           setLoading(false);
+          setError('Room creation timeout. Please try again.');
           resolve(null);
-        }, 5000);
+        }, 10000);
 
-        const checkForRoom = () => {
-          const newRoom = rooms.find(r => r.hostAddress === user.address);
-          if (newRoom) {
-            clearTimeout(timeout);
-            console.log('RoomContext: Found newly created room, setting as currentRoom:', {
-              roomId: newRoom.id,
-              roomName: newRoom.name,
-              hostAddress: newRoom.hostAddress,
-              timestamp: new Date().toISOString()
-            });
-            setCurrentRoom({ ...newRoom });
-            setLoading(false);
-            resolve(newRoom.id);
-          } else {
-            setTimeout(checkForRoom, 100);
-          }
+        // 临时存储resolve函数，当房间加入成功回调触发时使用
+        (window as any).pendingRoomCreation = {
+          resolve,
+          timeout,
+          userAddress: user.address
         };
-        
-        setTimeout(checkForRoom, 100);
       });
     } catch (err) {
       console.error('Error creating room:', err);
