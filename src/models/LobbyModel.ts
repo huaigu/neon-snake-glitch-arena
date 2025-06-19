@@ -72,8 +72,29 @@ export class LobbyModel extends Multisynq.Model {
     console.log('LobbyModel: Player left, remaining players:', this.players.size);
   }
 
+  // Check if a player already hosts a room
+  playerAlreadyHostsRoom(hostAddress: string): boolean {
+    for (const room of this.gameRooms.values()) {
+      if (room.hostAddress === hostAddress) {
+        console.log('LobbyModel: Player already hosts room:', room.roomId);
+        return true;
+      }
+    }
+    return false;
+  }
+
   handleCreateRoom(payload: { roomName: string; playerName: string; hostAddress: string }) {
     console.log('LobbyModel: Creating room:', payload);
+    
+    // Check if player already hosts a room
+    if (this.playerAlreadyHostsRoom(payload.hostAddress)) {
+      console.log('LobbyModel: Player already hosts a room, cannot create another');
+      this.publish("player", "create-room-error", {
+        address: payload.hostAddress,
+        error: "You can only create one room at a time"
+      });
+      return;
+    }
     
     const roomId = `room_${this.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
@@ -160,7 +181,16 @@ export class LobbyModel extends Multisynq.Model {
     const player = Array.from(this.players.values()).find(p => p.address === payload.address);
     
     if (room && player) {
+      const wasHost = room.hostAddress === payload.address;
+      
       room.removePlayer(player.viewId);
+      
+      // If the host left and there are still players, transfer host to first player
+      if (wasHost && room.players.size > 0) {
+        const firstPlayer = Array.from(room.players.values())[0];
+        console.log('LobbyModel: Transferring host from', payload.address, 'to', firstPlayer.address);
+        room.transferHost(firstPlayer.address);
+      }
       
       // If room is empty, remove it
       if (room.players.size === 0) {

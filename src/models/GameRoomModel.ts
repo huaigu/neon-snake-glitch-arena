@@ -1,3 +1,4 @@
+
 import * as Multisynq from '@multisynq/client';
 import { SnakeModel } from './SnakeModel';
 import { PlayerModel } from './PlayerModel';
@@ -98,6 +99,20 @@ export class GameRoomModel extends Multisynq.Model {
     }
     
     this.publishRoomState();
+  }
+
+  // Transfer host to a new player
+  transferHost(newHostAddress: string) {
+    console.log('GameRoomModel: Transferring host to:', newHostAddress);
+    
+    const newHostPlayer = Array.from(this.players.values()).find(p => p.address === newHostAddress);
+    if (newHostPlayer) {
+      this.hostAddress = newHostAddress;
+      console.log('GameRoomModel: Host transferred successfully to:', newHostAddress);
+      this.publishRoomState();
+    } else {
+      console.error('GameRoomModel: Cannot transfer host - new host player not found:', newHostAddress);
+    }
   }
 
   setPlayerReady(playerAddress: string, isReady: boolean) {
@@ -425,7 +440,8 @@ export class GameRoomModel extends Multisynq.Model {
     console.log('GameRoomModel: Building room state:', {
       roomId: this.roomId,
       playersCount: playersArray.length,
-      players: playersArray
+      players: playersArray,
+      hostAddress: this.hostAddress
     });
 
     return {
@@ -471,7 +487,8 @@ export class GameRoomModel extends Multisynq.Model {
     console.log('GameRoomModel: Publishing room state:', {
       roomId: this.roomId,
       roomPlayersCount: roomState.players.length,
-      gamePlayersCount: gameState.players.length
+      gamePlayersCount: gameState.players.length,
+      hostAddress: this.hostAddress
     });
     
     this.publish("room", "updated", {

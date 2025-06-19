@@ -64,6 +64,12 @@ export const RoomList: React.FC = () => {
     }
   };
 
+  // Check if current player already hosts a room
+  const currentPlayerHostsRoom = rooms.some(room => 
+    room.hostAddress && currentPlayerName && 
+    (room.hostAddress === currentPlayerName || room.host === currentPlayerName)
+  );
+
   return (
     <div className="w-full max-w-6xl mx-auto p-4">
       {/* Header */}
@@ -93,7 +99,8 @@ export const RoomList: React.FC = () => {
           <DialogTrigger asChild>
             <Button 
               className="bg-cyber-cyan hover:bg-cyber-cyan/80 text-cyber-darker"
-              disabled={loading || !isConnected}
+              disabled={loading || !isConnected || currentPlayerHostsRoom}
+              title={currentPlayerHostsRoom ? "You can only create one room at a time" : ""}
             >
               <Plus className="w-4 h-4 mr-2" />
               Create Room
@@ -152,6 +159,16 @@ export const RoomList: React.FC = () => {
           <AlertCircle className="h-4 w-4" />
           <AlertDescription className="text-red-400">
             Not connected to lobby session. Some features may not work properly.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Host Room Limit Alert */}
+      {currentPlayerHostsRoom && (
+        <Alert className="mb-6 border-yellow-500/50 bg-yellow-500/10">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="text-yellow-400">
+            You can only create one room at a time. Leave your current room to create a new one.
           </AlertDescription>
         </Alert>
       )}
@@ -286,7 +303,7 @@ export const RoomList: React.FC = () => {
           <Button
             onClick={() => setIsDialogOpen(true)}
             className="bg-cyber-cyan hover:bg-cyber-cyan/80 text-cyber-darker"
-            disabled={loading}
+            disabled={loading || currentPlayerHostsRoom}
           >
             <Plus className="w-4 h-4 mr-2" />
             Create Room

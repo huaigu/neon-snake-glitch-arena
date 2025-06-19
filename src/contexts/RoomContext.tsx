@@ -86,6 +86,15 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     
     gameView.setLobbyCallback(lobbyCallback);
 
+    // Subscribe to room creation errors
+    gameView.subscribe("player", "create-room-error", (errorData: { address: string; error: string }) => {
+      if (user?.address === errorData.address) {
+        console.log('RoomContext: Received create room error:', errorData.error);
+        setError(errorData.error);
+        setLoading(false);
+      }
+    });
+
     // Get initial state if connected
     if (isConnected && gameView.model?.lobby) {
       console.log('RoomContext: Getting initial data from new lobby model');
@@ -96,7 +105,7 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     return () => {
       console.log('RoomContext: Cleaning up GameView callbacks');
     };
-  }, [gameView, isConnected]);
+  }, [gameView, isConnected, user?.address]);
 
   // 当连接状态变化时，确保回调仍然有效
   useEffect(() => {
@@ -149,15 +158,19 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
       // 详细比较房间数据，包括状态和玩家数据
       const roomStatusChanged = prevCurrentRoom.status !== updatedRoom.status;
       const playersDataChanged = JSON.stringify(prevCurrentRoom.players) !== JSON.stringify(updatedRoom.players);
-      const anyChange = roomStatusChanged || playersDataChanged;
+      const hostChanged = prevCurrentRoom.hostAddress !== updatedRoom.hostAddress;
+      const anyChange = roomStatusChanged || playersDataChanged || hostChanged;
       
       console.log('RoomContext: Current room update analysis:', {
         roomId: prevCurrentRoom.id,
         roomStatusChanged,
         playersDataChanged,
+        hostChanged,
         anyChange,
         oldStatus: prevCurrentRoom.status,
         newStatus: updatedRoom.status,
+        oldHost: prevCurrentRoom.hostAddress,
+        newHost: updatedRoom.hostAddress,
         oldPlayersCount: prevCurrentRoom.players.length,
         newPlayersCount: updatedRoom.players.length,
         oldPlayersReady: prevCurrentRoom.players.map(p => ({ name: p.name, isReady: p.isReady })),
@@ -192,7 +205,7 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
       console.log('RoomContext: Creating room via GameView');
       gameView.createRoom(roomName, currentPlayerName, user.address);
       
-      // 等待房间创建完成
+      // 等待房间创建完成或错误
       return new Promise((resolve) => {
         const timeout = setTimeout(() => {
           setLoading(false);

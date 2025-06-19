@@ -1,3 +1,4 @@
+
 import * as Multisynq from '@multisynq/client';
 import GameModel from '../models/GameModel';
 
@@ -20,6 +21,9 @@ export class GameView extends Multisynq.View {
     
     // Subscribe to player notifications
     this.subscribe("player", "joined-room", this.handlePlayerJoinedRoom);
+    
+    // Subscribe to player errors
+    this.subscribe("player", "create-room-error", this.handleCreateRoomError);
     
     console.log('GameView: Subscriptions set up');
   }
@@ -129,5 +133,10 @@ export class GameView extends Multisynq.View {
     console.log('GameView: Player joined room notification:', data);
     // This could trigger navigation in the UI
     // For now, we'll let the lobby callback handle the room state change
+  };
+
+  private handleCreateRoomError = (data: any) => {
+    console.log('GameView: Create room error:', data);
+    // This will be handled by the RoomContext subscription
   };
 }
