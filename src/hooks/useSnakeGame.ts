@@ -6,6 +6,7 @@ import { useWeb3Auth } from '../contexts/Web3AuthContext';
 import { useResponsiveGrid } from './useResponsiveGrid';
 import { useMobileControls } from './useMobileControls';
 import { useIsMobile } from './use-mobile';
+import { assignPlayerColors } from '../utils/gameConfig';
 
 export interface Position {
   x: number;
@@ -102,11 +103,11 @@ export const useSnakeGame = () => {
         setSegmentCountdown(gameSession.segmentCountdown || 10);
         
         // Map players to snakes format
-        const gameSnakes = gameSession.players.map((player: any) => ({
+        const rawGameSnakes = gameSession.players.map((player: any) => ({
           id: player.id,
           segments: player.segments || [player.position],
           direction: player.direction,
-          color: player.color,
+          color: player.color, // 临时颜色，将被重新分配
           isAlive: player.isAlive,
           score: player.score,
           isPlayer: player.id === user?.address,
@@ -118,6 +119,35 @@ export const useSnakeGame = () => {
                   player.name.toLowerCase().includes('vip') ||
                   player.name.toLowerCase().includes('rainbow')
         }));
+        
+        // 重新分配颜色确保一致性 - 只对非NFT玩家分配预设颜色
+        const gameSnakes = assignPlayerColors(
+          rawGameSnakes, 
+          (snake) => snake.id
+        ).map(snake => ({
+          ...snake,
+          // NFT持有者保持彩虹色效果，普通玩家使用预设颜色
+          color: snake.hasNFT ? snake.color : snake.color
+        }));
+        
+        console.log('useSnakeGame: Detailed color assignment:', {
+          totalPlayers: gameSnakes.length,
+          players: gameSnakes.map((s, index) => ({ 
+            index,
+            id: s.id.slice(-6),
+            name: s.name, 
+            color: s.color, 
+            hasNFT: s.hasNFT,
+            isPlayer: s.isPlayer
+          })),
+          playerAddressSorting: rawGameSnakes
+            .sort((a, b) => a.id.localeCompare(b.id))
+            .map((s, index) => ({ 
+              sortedIndex: index,
+              id: s.id.slice(-6),
+              name: s.name 
+            }))
+        });
         
         setSnakes(gameSnakes);
         

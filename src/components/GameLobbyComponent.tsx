@@ -7,18 +7,7 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Users, Crown, Share2, Copy, Check } from 'lucide-react';
 import { useToast } from './ui/use-toast';
-
-// 预定义的玩家颜色
-const PLAYER_COLORS = [
-  '#00ffff', // cyan
-  '#ff00ff', // magenta
-  '#ffff00', // yellow
-  '#ff8800', // orange
-  '#00ff00', // green
-  '#8800ff', // purple
-  '#ff0088', // pink
-  '#88ff00', // lime
-];
+import { PLAYER_COLORS } from '../utils/gameConfig';
 
 export const GameLobbyComponent: React.FC = () => {
   console.log('=== GameLobbyComponent RENDER START ===');

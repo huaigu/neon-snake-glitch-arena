@@ -388,11 +388,24 @@ export const SnakeGame: React.FC = () => {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <span className="text-lg font-bold text-cyber-green">#{playerRank}</span>
-                              <div 
-                                className="w-4 h-4 rounded-full"
-                                style={{ backgroundColor: playerSnake.color }}
-                              ></div>
-                              <span className="text-cyber-green font-bold text-sm">{playerSnake.name} (You)</span>
+                              {/* NFT持有者显示彩虹色块，普通玩家显示单色 */}
+                              {playerSnake.hasNFT ? (
+                                <div className="w-4 h-4 rounded-full animate-pulse"
+                                     style={{
+                                       background: 'linear-gradient(45deg, #FF0080, #FFFF00, #00FF80, #00FFFF, #8000FF)',
+                                       backgroundSize: '200% 200%',
+                                       animation: 'rainbow-shift 2s ease-in-out infinite'
+                                     }}>
+                                </div>
+                              ) : (
+                                <div 
+                                  className="w-4 h-4 rounded-full"
+                                  style={{ backgroundColor: playerSnake.color }}
+                                ></div>
+                              )}
+                              <span className="text-cyber-green font-bold text-sm">
+                                {playerSnake.hasNFT && '👑'} {playerSnake.name} (You)
+                              </span>
                             </div>
                             <span className="text-cyber-green font-bold text-lg">{playerSnake.score}</span>
                           </div>

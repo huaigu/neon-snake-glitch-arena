@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface GameConfig {
@@ -84,3 +83,49 @@ export function clearConfigCache() {
   cachedConfig = null;
   configLoadPromise = null;
 }
+
+// Game configuration constants
+export const GAME_CONFIG = {
+  GRID_SIZE: 20,
+  INITIAL_SNAKE_LENGTH: 3,
+  GAME_SPEED: 200, // milliseconds
+  COUNTDOWN_DURATION: 3, // seconds
+  MAX_PLAYERS: 8,
+} as const;
+
+// 预定义的玩家颜色 - 按照加入房间的顺序分配
+export const PLAYER_COLORS = [
+  '#00ffff', // cyan - 青色
+  '#ff00ff', // magenta - 洋红
+  '#ffff00', // yellow - 黄色
+  '#ff8800', // orange - 橙色
+  '#00ff00', // green - 绿色
+  '#8800ff', // purple - 紫色
+  '#ff0088', // pink - 粉色
+  '#88ff00', // lime - 青柠色
+] as const;
+
+// 根据玩家索引获取颜色
+export const getPlayerColor = (playerIndex: number): string => {
+  return PLAYER_COLORS[playerIndex % PLAYER_COLORS.length];
+};
+
+// 为玩家数组分配颜色（保持原有顺序）
+export const assignPlayerColors = <T extends { color?: string }>(
+  players: T[], 
+  getPlayerKey: (player: T) => string
+): (T & { color: string })[] => {
+  // 创建一个稳定的排序，基于玩家的唯一标识
+  const sortedPlayers = [...players].sort((a, b) => 
+    getPlayerKey(a).localeCompare(getPlayerKey(b))
+  );
+  
+  return players.map(player => {
+    // 找到这个玩家在排序后数组中的索引
+    const sortedIndex = sortedPlayers.findIndex(p => getPlayerKey(p) === getPlayerKey(player));
+    return {
+      ...player,
+      color: getPlayerColor(sortedIndex)
+    };
+  });
+};
