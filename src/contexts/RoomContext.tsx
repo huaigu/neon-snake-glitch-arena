@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useWeb3Auth } from './Web3AuthContext';
 import { useMultisynq } from './MultisynqContext';
@@ -133,10 +132,23 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
             const currentState = gameView.model.lobby.getLobbyState();
             const room = currentState.rooms.find(r => r.id === data.roomId);
             if (room) {
-              console.log('RoomContext: Found room data, setting currentRoom:', room);
+              console.log('RoomContext: Found joined room data, setting currentRoom:', {
+                roomId: room.id,
+                roomName: room.name,
+                playersCount: room.players.length
+              });
               setCurrentRoom({ ...room });
               setLoading(false);
+              setError(null);
+            } else {
+              console.error('RoomContext: Room not found after successful join:', data.roomId);
+              setError('Room joined but data not found');
+              setLoading(false);
             }
+          } else {
+            console.error('RoomContext: No lobby model available after room join');
+            setError('Unable to load room data');
+            setLoading(false);
           }
         }
       }
@@ -219,7 +231,37 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     // 也需要在连接状态变化时重新设置房间加入回调
     const roomJoinedCallback = (data: { viewId: string; roomId: string }) => {
       console.log('RoomContext: Room joined successfully (connection change):', data);
-      // 普通房间加入处理，创建房间已由roomCreatedCallback处理
+      if (user?.address && (data.viewId === user.address)) {
+        console.log('RoomContext: Current user successfully joined room (connection change)');
+        
+        // 处理房间加入（连接恢复后的情况）
+        const pendingCreation = (window as any).pendingRoomCreation;
+        if (!pendingCreation) {
+          // 普通的房间加入（非创建）
+          if (gameView.model?.lobby) {
+            const currentState = gameView.model.lobby.getLobbyState();
+            const room = currentState.rooms.find(r => r.id === data.roomId);
+            if (room) {
+              console.log('RoomContext: Found joined room data after reconnection:', {
+                roomId: room.id,
+                roomName: room.name,
+                playersCount: room.players.length
+              });
+              setCurrentRoom({ ...room });
+              setLoading(false);
+              setError(null);
+            } else {
+              console.error('RoomContext: Room not found after successful join (reconnection):', data.roomId);
+              setError('Room joined but data not found');
+              setLoading(false);
+            }
+          } else {
+            console.error('RoomContext: No lobby model available after room join (reconnection)');
+            setError('Unable to load room data');
+            setLoading(false);
+          }
+        }
+      }
     };
     
     gameView.setRoomCreatedCallback(roomCreatedCallback);
@@ -336,27 +378,23 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
       setLoading(true);
       setError(null);
 
-      console.log('RoomContext: Joining room via GameView');
+      console.log('RoomContext: Joining room via GameView', {
+        roomId,
+        userAddress: user.address,
+        currentPlayerName
+      });
+      
       gameView.joinRoom(roomId, user.address, currentPlayerName);
       
-      // 设置当前房间
-      const room = rooms.find(r => r.id === roomId);
-      if (room) {
-        console.log('RoomContext: Setting current room after joining:', {
-          roomId: room.id,
-          roomName: room.name,
-          timestamp: new Date().toISOString()
-        });
-        setCurrentRoom({ ...room });
-      }
+      // 不要立即设置房间，等待房间加入成功的回调
+      console.log('RoomContext: joinRoom call sent, waiting for callback...');
       
       return true;
     } catch (err) {
       console.error('Error joining room:', err);
       setError('Failed to join room');
-      return false;
-    } finally {
       setLoading(false);
+      return false;
     }
   };
 

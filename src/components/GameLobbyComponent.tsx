@@ -1,4 +1,3 @@
-
 import React, { useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRoomContext } from '../contexts/RoomContext';
@@ -6,7 +5,8 @@ import { useWeb3Auth } from '../contexts/Web3AuthContext';
 import { PlayerList } from './PlayerList';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Users, Crown } from 'lucide-react';
+import { Users, Crown, Share2, Copy, Check } from 'lucide-react';
+import { useToast } from './ui/use-toast';
 
 // 预定义的玩家颜色
 const PLAYER_COLORS = [
@@ -26,6 +26,8 @@ export const GameLobbyComponent: React.FC = () => {
   const navigate = useNavigate();
   const { currentRoom, setPlayerReady } = useRoomContext();
   const { user } = useWeb3Auth();
+  const { toast } = useToast();
+  const [shareUrlCopied, setShareUrlCopied] = React.useState(false);
 
   console.log('GameLobbyComponent: Current state snapshot:', {
     hasCurrentRoom: !!currentRoom,
@@ -213,6 +215,37 @@ export const GameLobbyComponent: React.FC = () => {
     }
   }, [canStartGame, handleAutoStart]);
 
+  // Generate share URL for the room
+  const shareUrl = React.useMemo(() => {
+    if (!currentRoom) return '';
+    const baseUrl = window.location.origin;
+    return `${baseUrl}/room/${currentRoom.id}`;
+  }, [currentRoom?.id]);
+
+  // Copy share URL to clipboard
+  const handleCopyShareUrl = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setShareUrlCopied(true);
+      toast({
+        title: "Share URL Copied!",
+        description: "Room link has been copied to clipboard",
+        duration: 3000,
+      });
+      
+      // Reset copy indicator after 3 seconds
+      setTimeout(() => setShareUrlCopied(false), 3000);
+    } catch (error) {
+      console.error('Failed to copy share URL:', error);
+      toast({
+        title: "Copy Failed",
+        description: "Unable to copy URL to clipboard",
+        variant: "destructive",
+        duration: 3000,
+      });
+    }
+  }, [shareUrl, toast]);
+
   // Early return if currentRoom or currentPlayer is not yet initialized
   if (!currentRoom || !currentPlayer) {
     console.log('GameLobbyComponent: Early return - missing room or player data:', {
@@ -319,22 +352,63 @@ export const GameLobbyComponent: React.FC = () => {
                   Room Info
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-cyber-cyan/70">Room ID:</span>
-                  <span className="text-cyber-cyan text-sm font-mono">
-                    {currentRoom.id.slice(-8)}
-                  </span>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-cyber-cyan/70">Room ID:</span>
+                    <span className="text-cyber-cyan text-sm font-mono">
+                      {currentRoom.id.slice(-8)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-cyber-cyan/70">Status:</span>
+                    <span className="text-cyber-cyan capitalize">{currentRoom.status}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-cyber-cyan/70">Created:</span>
+                    <span className="text-cyber-cyan text-sm">
+                      {new Date(currentRoom.createdAt).toLocaleTimeString()}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-cyber-cyan/70">Status:</span>
-                  <span className="text-cyber-cyan capitalize">{currentRoom.status}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-cyber-cyan/70">Created:</span>
-                  <span className="text-cyber-cyan text-sm">
-                    {new Date(currentRoom.createdAt).toLocaleTimeString()}
-                  </span>
+
+                {/* Share Room Section */}
+                <div className="border-t border-cyber-cyan/20 pt-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Share2 className="w-4 h-4 text-cyber-cyan" />
+                    <span className="text-sm font-medium text-cyber-cyan">Share Room</span>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="text-xs text-cyber-cyan/70 mb-2">
+                      Share this link with friends to join the room:
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <div className="flex-1 bg-cyber-darker border border-cyber-cyan/20 rounded p-2">
+                        <div className="text-xs text-cyber-cyan/70 font-mono break-all">
+                          {shareUrl}
+                        </div>
+                      </div>
+                      
+                      <Button
+                        onClick={handleCopyShareUrl}
+                        size="sm"
+                        variant="outline"
+                        className="border-cyber-cyan/30 text-cyber-cyan hover:bg-cyber-cyan/10 flex-shrink-0"
+                      >
+                        {shareUrlCopied ? (
+                          <Check className="w-4 h-4" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
+                      </Button>
+                    </div>
+                    
+                    <div className="text-xs text-cyber-cyan/50">
+                      💡 Friends will need to sign in before joining
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>

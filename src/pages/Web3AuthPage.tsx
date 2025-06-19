@@ -13,7 +13,14 @@ const Web3AuthPage = () => {
 
   React.useEffect(() => {
     if (isAuthenticated) {
-      navigate('/lobby');
+      // 检查是否有重定向URL
+      const redirectUrl = sessionStorage.getItem('redirectAfterAuth');
+      if (redirectUrl) {
+        sessionStorage.removeItem('redirectAfterAuth');
+        navigate(redirectUrl);
+      } else {
+        navigate('/lobby');
+      }
     }
   }, [isAuthenticated, navigate]);
 
