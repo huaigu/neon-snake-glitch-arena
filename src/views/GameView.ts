@@ -1,4 +1,3 @@
-
 import * as Multisynq from '@multisynq/client';
 import GameModel from '../models/GameModel';
 
@@ -132,5 +131,3 @@ export class GameView extends Multisynq.View {
     // For now, we'll let the lobby callback handle the room state change
   };
 }
-
-GameView.register("GameView");

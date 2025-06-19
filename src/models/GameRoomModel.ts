@@ -17,7 +17,7 @@ interface GameConfig {
 }
 
 export class GameRoomModel extends Multisynq.Model {
-  id!: string;
+  roomId!: string; // Use roomId instead of id to avoid conflict
   name!: string;
   hostAddress!: string;
   players!: Map<string, PlayerModel>;
@@ -40,7 +40,7 @@ export class GameRoomModel extends Multisynq.Model {
   init(payload: { id: string; name: string; hostAddress: string }) {
     console.log('GameRoomModel: Initializing room:', payload);
     
-    this.id = payload.id;
+    this.roomId = payload.id; // Store in roomId instead of id
     this.name = payload.name;
     this.hostAddress = payload.hostAddress;
     this.players = new Map();
@@ -65,7 +65,7 @@ export class GameRoomModel extends Multisynq.Model {
     console.log('GameRoomModel: Adding player to room:', player.viewId);
     
     this.players.set(player.viewId, player);
-    player.currentRoomId = this.id;
+    player.currentRoomId = this.roomId;
     
     // Create snake for the player if game is not running
     if (this.status === 'waiting') {
@@ -401,7 +401,7 @@ export class GameRoomModel extends Multisynq.Model {
     }));
 
     return {
-      id: this.id,
+      id: this.roomId, // Use roomId here
       name: this.name,
       hostAddress: this.hostAddress,
       status: this.status,
@@ -426,7 +426,7 @@ export class GameRoomModel extends Multisynq.Model {
     }));
 
     return {
-      id: this.id,
+      id: this.roomId, // Use roomId here
       status: this.status,
       countdown: this.countdown,
       players: snakesArray,
