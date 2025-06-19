@@ -252,23 +252,61 @@ export const GameArea: React.FC<GameAreaProps> = ({
           )}
 
           {/* Food - always visible */}
-          {visibleFoods.map((food, index) => (
-            <div
-              key={`food-${index}`}
-              className={`absolute rounded-sm ${
-                food.type === 'bonus' 
-                  ? 'bg-yellow-400 animate-pulse' 
-                  : 'bg-green-400'
-              } snake-segment`}
-              style={{
-                left: food.position.x * cellSize + 1,
-                top: food.position.y * cellSize + 1,
-                width: cellSize - 2,
-                height: cellSize - 2,
-                boxShadow: isSpectator ? '0 0 8px currentColor' : '0 0 4px currentColor'
-              }}
-            />
-          ))}
+          {visibleFoods.map((food, index) => {
+            // 根据食物等级确定颜色和效果
+            let foodClass = '';
+            let foodColor = '';
+            let glow = '';
+            
+            switch (food.level) {
+              case 1:
+                foodClass = 'bg-green-400';
+                foodColor = '#4ade80';
+                glow = '0 0 4px #4ade80';
+                break;
+              case 2:
+                foodClass = 'bg-blue-400 animate-pulse';
+                foodColor = '#60a5fa';
+                glow = '0 0 6px #60a5fa';
+                break;
+              case 3:
+                foodClass = 'bg-yellow-400 animate-pulse animate-bounce';
+                foodColor = '#facc15';
+                glow = '0 0 8px #facc15, 0 0 12px #facc15';
+                break;
+              default:
+                foodClass = 'bg-green-400';
+                foodColor = '#4ade80';
+                glow = '0 0 4px #4ade80';
+            }
+            
+            return (
+              <div
+                key={`food-${index}`}
+                className={`absolute rounded-sm ${foodClass} snake-segment flex items-center justify-center`}
+                style={{
+                  left: food.position.x * cellSize + 1,
+                  top: food.position.y * cellSize + 1,
+                  width: cellSize - 2,
+                  height: cellSize - 2,
+                  boxShadow: isSpectator ? `0 0 12px ${foodColor}` : glow
+                }}
+              >
+                {/* 显示食物等级 */}
+                {food.level > 1 && (
+                  <span 
+                    className="text-black font-bold text-xs"
+                    style={{ 
+                      fontSize: Math.max(6, cellSize * 0.3) + 'px',
+                      lineHeight: '1'
+                    }}
+                  >
+                    {food.level}
+                  </span>
+                )}
+              </div>
+            );
+          })}
 
           {/* Power-up Segments with different sizes and animations */}
           {visibleSegments.map((segment) => {

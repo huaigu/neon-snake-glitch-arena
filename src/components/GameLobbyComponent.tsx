@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useRoomContext } from '../contexts/RoomContext';
 import { useWeb3Auth } from '../contexts/Web3AuthContext';
 import { PlayerList } from './PlayerList';
+import { Leaderboard } from './Leaderboard';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Users, Crown, Share2, Copy, Check } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { Users, Crown, Share2, Copy, Check, Trophy } from 'lucide-react';
 import { useToast } from './ui/use-toast';
 import { PLAYER_COLORS } from '../utils/gameConfig';
 

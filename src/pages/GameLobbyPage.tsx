@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useWeb3Auth } from '../contexts/Web3AuthContext';
 import { useMultisynq } from '../contexts/MultisynqContext';
 import { RoomList } from '../components/RoomList';
+import { Leaderboard } from '../components/Leaderboard';
 import { Web3AuthButton } from '../components/Web3AuthButton';
 import { Button } from '../components/ui/button';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { ArrowLeft, Loader2, Users, Trophy } from 'lucide-react';
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 
@@ -105,7 +107,35 @@ const GameLobbyPage = () => {
         
         <Web3AuthButton />
       </div>
-      <RoomList />
+      
+      <div className="p-4">
+        <Tabs defaultValue="rooms" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 bg-cyber-darker border border-cyber-cyan/20">
+            <TabsTrigger 
+              value="rooms" 
+              className="flex items-center gap-2 data-[state=active]:bg-cyber-cyan/20 data-[state=active]:text-cyber-cyan text-cyber-cyan/70"
+            >
+              <Users className="w-4 h-4" />
+              Game Rooms
+            </TabsTrigger>
+            <TabsTrigger 
+              value="leaderboard" 
+              className="flex items-center gap-2 data-[state=active]:bg-cyber-cyan/20 data-[state=active]:text-cyber-cyan text-cyber-cyan/70"
+            >
+              <Trophy className="w-4 h-4" />
+              Leaderboard
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="rooms" className="mt-4">
+            <RoomList />
+          </TabsContent>
+          
+          <TabsContent value="leaderboard" className="mt-4">
+            <Leaderboard />
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 };

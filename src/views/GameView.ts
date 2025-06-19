@@ -8,6 +8,7 @@ export class GameView extends Multisynq.View {
   private gameCallback: ((gameSession: any, foods: any[], segments: any[]) => void) | null = null;
   private roomJoinedCallback: ((data: any) => void) | null = null;
   private roomCreatedCallback: ((data: any) => void) | null = null;
+  private leaderboardCallback: ((data: any) => void) | null = null;
 
   constructor(model: GameModel) {
     super(model);
@@ -29,6 +30,9 @@ export class GameView extends Multisynq.View {
     
     // Subscribe to player errors
     this.subscribe("player", "create-room-error", this.handleCreateRoomError);
+    
+    // Subscribe to leaderboard updates
+    this.subscribe("leaderboard", "updated", this.handleLeaderboardUpdate);
     
     console.log('GameView: Subscriptions set up');
   }
@@ -58,6 +62,20 @@ export class GameView extends Multisynq.View {
   setRoomCreatedCallback(callback: (data: any) => void) {
     console.log('GameView: Setting room created callback');
     this.roomCreatedCallback = callback;
+  }
+
+  setLeaderboardCallback(callback: (data: any) => void) {
+    console.log('GameView: Setting leaderboard callback');
+    this.leaderboardCallback = callback;
+    
+    // Request current leaderboard data
+    this.requestLeaderboard();
+  }
+
+  // Leaderboard methods
+  requestLeaderboard() {
+    console.log('GameView: Requesting leaderboard data');
+    this.publish("leaderboard", "get-rankings", {});
   }
 
   // Room management methods
@@ -163,5 +181,12 @@ export class GameView extends Multisynq.View {
   private handleCreateRoomError = (data: any) => {
     console.log('GameView: Create room error:', data);
     // This will be handled by the RoomContext subscription
+  };
+
+  private handleLeaderboardUpdate = (data: any) => {
+    console.log('GameView: Leaderboard updated:', data);
+    if (this.leaderboardCallback) {
+      this.leaderboardCallback(data);
+    }
   };
 }

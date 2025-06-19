@@ -6,7 +6,8 @@ interface Food {
   x: number;
   y: number;
   type: 'normal' | 'bonus';
-  value: number;
+  level: 1 | 2 | 3;  // 食物等级
+  value: number;     // 根据等级计算的分数值
 }
 
 interface GameConfig {
@@ -29,6 +30,7 @@ export class GameRoomModel extends Multisynq.Model {
   speedMultiplier!: number;
   gameStartTime!: number;
   createdAt!: string;
+  tickCounter!: number;  // 用于计算每10个tick的存活分数
   
   // Game configuration
   private readonly CONFIG: GameConfig = {
@@ -53,6 +55,7 @@ export class GameRoomModel extends Multisynq.Model {
     this.speedMultiplier = 1.0;
     this.gameStartTime = 0;
     this.createdAt = new Date(this.now()).toISOString(); // 在初始化时设置创建时间
+    this.tickCounter = 0;
 
     // Subscribe to room events
     this.subscribe("room", "change-direction", this.handleChangeDirection);
@@ -218,6 +221,7 @@ export class GameRoomModel extends Multisynq.Model {
     this.isRunning = true;
     this.gameStartTime = this.now();
     this.speedMultiplier = 1.0;
+    this.tickCounter = 0;  // Reset tick counter for new game
     
     // Reset all snakes
     for (const snake of this.snakes.values()) {
@@ -240,6 +244,9 @@ export class GameRoomModel extends Multisynq.Model {
       return;
     }
 
+    // Increment tick counter
+    this.tickCounter++;
+
     // Move all snakes
     for (const snake of this.snakes.values()) {
       if (snake.isAlive) {
@@ -252,6 +259,16 @@ export class GameRoomModel extends Multisynq.Model {
 
     // Check collisions
     this.checkCollisions();
+
+    // Every 10 ticks, add 1 point to all living snakes
+    if (this.tickCounter % 10 === 0) {
+      for (const snake of this.snakes.values()) {
+        if (snake.isAlive && !snake.isSpectator) {
+          snake.score += 1;
+        }
+      }
+      console.log('GameRoomModel: Survival bonus applied to living snakes at tick', this.tickCounter);
+    }
 
     // Check win condition
     this.checkWinCondition();
@@ -274,7 +291,22 @@ export class GameRoomModel extends Multisynq.Model {
         if (head.x === food.x && head.y === food.y) {
           // Snake eats food
           snake.grow();
-          snake.score += food.value;
+          
+          // Calculate score based on food level
+          let scoreGain = 0;
+          switch (food.level) {
+            case 1:
+              scoreGain = 10;
+              break;
+            case 2:
+              scoreGain = 20;
+              break;
+            case 3:
+              scoreGain = 50;
+              break;
+          }
+          
+          snake.score += scoreGain;
           
           // Remove eaten food
           this.foods.splice(i, 1);
@@ -282,7 +314,7 @@ export class GameRoomModel extends Multisynq.Model {
           // Spawn new food
           this.spawnFood();
           
-          console.log('GameRoomModel: Snake ate food, new score:', snake.score);
+          console.log('GameRoomModel: Snake ate level', food.level, 'food, gained', scoreGain, 'points, new score:', snake.score);
           break;
         }
       }
@@ -345,6 +377,28 @@ export class GameRoomModel extends Multisynq.Model {
     this.speedMultiplier = 1.0; // 重置速度倍数
     this.countdown = 0; // 重置倒计时
     
+    // Update leaderboard with all players' scores
+    for (const snake of this.snakes.values()) {
+      const player = this.players.get(snake.viewId);
+      if (player) {
+        const isWinner = snake.viewId === winnerId;
+        console.log('GameRoomModel: Updating leaderboard for player:', {
+          address: player.address,
+          name: player.name,
+          score: snake.score,
+          isWinner: isWinner
+        });
+        
+        // Publish score update to leaderboard
+        this.publish("leaderboard", "update-score", {
+          playerAddress: player.address,
+          playerName: player.name,
+          score: snake.score,
+          isWinner: isWinner
+        });
+      }
+    }
+    
     // Reset player ready states immediately when game ends
     for (const player of this.players.values()) {
       player.isReady = false;
@@ -376,6 +430,7 @@ export class GameRoomModel extends Multisynq.Model {
     this.speedMultiplier = 1.0;
     this.countdown = 0;
     this.gameStartTime = 0;
+    this.tickCounter = 0;
     
     // 重置所有玩家状态
     for (const player of this.players.values()) {
@@ -413,14 +468,33 @@ export class GameRoomModel extends Multisynq.Model {
       }
       
       if (!occupied) {
+        // Determine food level with probability
+        // 70% level 1, 25% level 2, 5% level 3
+        const rand = this.random();
+        let level: 1 | 2 | 3;
+        let value: number;
+        
+        if (rand < 0.70) {
+          level = 1;
+          value = 10;
+        } else if (rand < 0.95) {
+          level = 2;
+          value = 20;
+        } else {
+          level = 3;
+          value = 50;
+        }
+        
         const food: Food = {
           x,
           y,
-          type: this.random() < 0.1 ? 'bonus' : 'normal',
-          value: this.random() < 0.1 ? 3 : 1
+          type: level === 3 ? 'bonus' : 'normal',
+          level: level,
+          value: value
         };
+        
         this.foods.push(food);
-        console.log('GameRoomModel: Spawned food at:', x, y);
+        console.log('GameRoomModel: Spawned level', level, 'food at:', x, y, 'worth', value, 'points');
         break;
       }
       

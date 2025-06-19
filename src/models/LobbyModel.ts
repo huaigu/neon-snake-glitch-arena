@@ -2,10 +2,12 @@
 import * as Multisynq from '@multisynq/client';
 import { GameRoomModel } from './GameRoomModel';
 import { PlayerModel } from './PlayerModel';
+import { LeaderboardModel } from './LeaderboardModel';
 
 export class LobbyModel extends Multisynq.Model {
   gameRooms!: Map<string, GameRoomModel>;
   players!: Map<string, PlayerModel>;
+  leaderboard!: LeaderboardModel;
 
   init() {
     console.log('LobbyModel: Initializing lobby model');
@@ -13,6 +15,9 @@ export class LobbyModel extends Multisynq.Model {
     // Initialize properties
     this.gameRooms = new Map();
     this.players = new Map();
+    
+    // Create leaderboard model
+    this.leaderboard = LeaderboardModel.create();
 
     // Subscribe to system events
     this.subscribe(this.sessionId, "view-join", this.handlePlayerJoin);
@@ -27,10 +32,10 @@ export class LobbyModel extends Multisynq.Model {
     console.log('LobbyModel: Initialization complete');
   }
 
-  handlePlayerJoin(viewInfo: any) {
+  handlePlayerJoin(viewInfo: { viewId: string; viewData?: { name?: string; address?: string } }) {
     console.log('LobbyModel: Player joining:', viewInfo);
     
-    const viewId = viewInfo.viewId || viewInfo;
+    const viewId = viewInfo.viewId;
     const playerData = viewInfo.viewData || {};
     
     // Create player model
@@ -48,10 +53,10 @@ export class LobbyModel extends Multisynq.Model {
     console.log('LobbyModel: Player joined, total players:', this.players.size);
   }
 
-  handlePlayerLeave(viewInfo: any) {
+  handlePlayerLeave(viewInfo: { viewId: string }) {
     console.log('LobbyModel: Player leaving:', viewInfo);
     
-    const viewId = viewInfo.viewId || viewInfo;
+    const viewId = viewInfo.viewId;
     const player = this.players.get(viewId);
     
     if (player) {
@@ -72,29 +77,10 @@ export class LobbyModel extends Multisynq.Model {
     console.log('LobbyModel: Player left, remaining players:', this.players.size);
   }
 
-  // Check if a player already hosts a room
-  playerAlreadyHostsRoom(hostAddress: string): boolean {
-    for (const room of this.gameRooms.values()) {
-      if (room.hostAddress === hostAddress) {
-        console.log('LobbyModel: Player already hosts room:', room.roomId);
-        return true;
-      }
-    }
-    return false;
-  }
+
 
   handleCreateRoom(payload: { roomName: string; playerName: string; hostAddress: string }) {
     console.log('LobbyModel: Creating room:', payload);
-    
-    // Check if player already hosts a room
-    if (this.playerAlreadyHostsRoom(payload.hostAddress)) {
-      console.log('LobbyModel: Player already hosts a room, cannot create another');
-      this.publish("player", "create-room-error", {
-        address: payload.hostAddress,
-        error: "You can only create one room at a time"
-      });
-      return;
-    }
     
     const roomId = `room_${this.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
@@ -114,6 +100,31 @@ export class LobbyModel extends Multisynq.Model {
       // Update player name if provided
       if (payload.playerName && payload.playerName !== hostPlayer.name) {
         hostPlayer.name = payload.playerName;
+      }
+      
+      // 检查玩家是否已经在其他房间中，如果是则先退出
+      if (hostPlayer.currentRoomId) {
+        console.log('LobbyModel: Player is in another room, leaving current room:', hostPlayer.currentRoomId);
+        const currentRoom = this.gameRooms.get(hostPlayer.currentRoomId);
+        if (currentRoom) {
+          const wasHost = currentRoom.hostAddress === payload.hostAddress;
+          
+          currentRoom.removePlayer(hostPlayer.viewId);
+          
+          // 如果是房主离开且房间还有其他玩家，转移房主权限
+          if (wasHost && currentRoom.players.size > 0) {
+            const firstPlayer = Array.from(currentRoom.players.values())[0];
+            console.log('LobbyModel: Transferring host from', payload.hostAddress, 'to', firstPlayer.address);
+            currentRoom.transferHost(firstPlayer.address);
+          }
+          
+          // 如果房间空了，删除房间
+          if (currentRoom.players.size === 0) {
+            currentRoom.destroy();
+            this.gameRooms.delete(hostPlayer.currentRoomId);
+            console.log('LobbyModel: Removed empty room:', hostPlayer.currentRoomId);
+          }
+        }
       }
     }
     
@@ -166,17 +177,54 @@ export class LobbyModel extends Multisynq.Model {
     }
     
     if (room && player) {
-      room.addPlayer(player);
+      // 检查玩家是否已经在其他房间中，如果是则先退出
+      if (player.currentRoomId && player.currentRoomId !== payload.roomId) {
+        console.log('LobbyModel: Player is in another room, leaving current room:', player.currentRoomId);
+        const currentRoom = this.gameRooms.get(player.currentRoomId);
+        if (currentRoom) {
+          const wasHost = currentRoom.hostAddress === payload.address;
+          
+          currentRoom.removePlayer(player.viewId);
+          
+          // 如果是房主离开且房间还有其他玩家，转移房主权限
+          if (wasHost && currentRoom.players.size > 0) {
+            const firstPlayer = Array.from(currentRoom.players.values())[0];
+            console.log('LobbyModel: Transferring host from', payload.address, 'to', firstPlayer.address);
+            currentRoom.transferHost(firstPlayer.address);
+          }
+          
+          // 如果房间空了，删除房间
+          if (currentRoom.players.size === 0) {
+            currentRoom.destroy();
+            this.gameRooms.delete(player.currentRoomId);
+            console.log('LobbyModel: Removed empty room:', player.currentRoomId);
+          }
+        }
+      }
       
-      this.publishLobbyState();
+      // 尝试加入新房间
+      const joinSuccess = room.addPlayer(player);
       
-      // Notify the player that they joined the room
-      this.publish("player", "joined-room", {
-        viewId: player.viewId,
-        roomId: payload.roomId
-      });
-      
-      console.log('LobbyModel: Player joined room successfully');
+      if (joinSuccess) {
+        this.publishLobbyState();
+        
+        // Notify the player that they joined the room
+        this.publish("player", "joined-room", {
+          viewId: player.viewId,
+          roomId: payload.roomId
+        });
+        
+        console.log('LobbyModel: Player joined room successfully');
+      } else {
+        console.log('LobbyModel: Failed to join room - room may not be in waiting state');
+        
+        // Notify the player that join failed
+        this.publish("player", "join-room-failed", {
+          viewId: player.viewId,
+          roomId: payload.roomId,
+          reason: "Room is not accepting new players"
+        });
+      }
     } else {
       console.error('LobbyModel: Failed to join room - room or player not found');
     }

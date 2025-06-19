@@ -29,6 +29,7 @@ export interface Snake {
 export interface Food {
   position: Position;
   type: 'normal' | 'bonus';
+  level: 1 | 2 | 3;  // 食物等级
   value: number;
 }
 
@@ -179,6 +180,7 @@ export const useSnakeGame = () => {
         const gameFoods = foods.map(food => ({
           position: { x: food.x, y: food.y },
           type: food.type,
+          level: food.level || 1,  // 默认为1级食物
           value: food.value
         }));
         setFoods(gameFoods);
