@@ -1,39 +1,87 @@
-
 import { useState, useEffect } from 'react';
+import { useIsMobile } from './use-mobile';
 
-export const useResponsiveGrid = () => {
-  // Fixed grid size for consistency across devices
-  const gridSize = 60;
-  const [cellSize, setCellSize] = useState(10);
+export const useResponsiveGrid = (containerRef?: React.RefObject<HTMLElement>) => {
+  // 固定逻辑网格大小，保证游戏逻辑一致性
+  const LOGICAL_GRID_SIZE = 60;
+  
+  const [cellSize, setCellSize] = useState(12); // 动态单元格大小
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const updateCellSize = () => {
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
+      let availableWidth: number;
+      let availableHeight: number;
+
+      if (containerRef?.current) {
+        // 如果提供了容器引用，使用容器的实际尺寸
+        const rect = containerRef.current.getBoundingClientRect();
+        availableWidth = rect.width;
+        availableHeight = rect.height;
+      } else {
+        // 回退到窗口尺寸计算
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        
+        // 计算游戏区域的可用空间（考虑桌面端的信息面板宽度）
+        const infoPanel = window.innerWidth >= 768 ? 320 : 0; // 桌面端320px信息面板
+        availableWidth = vw - infoPanel - 32; // 32px边距
+        availableHeight = vh - 20; // 32px边距
+        
+        // 移动端需要减去控制区域高度
+        const mobileControlsHeight = window.innerWidth < 768 ? 220 : 0; // 移动端控制区域
+        availableHeight = availableHeight - mobileControlsHeight;
+      }
+
+      // 统一按可显示区域计算，哪个维度小就按哪个优先
+      const margin = 20; // 不同设备的边距
+      const usableWidth = availableWidth - margin;
+      const usableHeight = availableHeight - margin;
       
-      // Calculate available space for game area (considering info panel width on desktop)
-      const infoPanel = window.innerWidth >= 768 ? 320 : 0; // 320px info panel on desktop
-      const availableWidth = vw - infoPanel - 32; // 32px for padding
-      const availableHeight = vh - 32; // 32px for padding
+      // 根据固定的逻辑网格大小计算最大可能的单元格大小
+      const cellFromWidth = Math.floor(usableWidth / LOGICAL_GRID_SIZE);
+      const cellFromHeight = Math.floor(usableHeight / LOGICAL_GRID_SIZE);
       
-      // For mobile, reduce height to account for controls above game area
-      const mobileControlsHeight = window.innerWidth < 768 ? 220 : 0; // Space for controls on mobile
-      const adjustedHeight = availableHeight - mobileControlsHeight;
+      // 选择较小的值确保游戏板能完全显示
+      let newCellSize = Math.min(cellFromWidth, cellFromHeight);
       
-      // Choose smaller dimension to ensure square grid fits
-      const maxSize = Math.min(availableWidth, adjustedHeight);
+      // 根据设备类型设置不同的单元格大小限制
+      const minCellSize = isMobile ? 6 : 8;
+      const maxCellSize = isMobile ? 15 : 25;
+      newCellSize = Math.max(minCellSize, Math.min(newCellSize, maxCellSize));
       
-      // Calculate optimal cell size based on available space and fixed grid size
-      const optimalCellSize = Math.floor(maxSize / gridSize);
-      
-      // Set minimum and maximum cell sizes
-      setCellSize(Math.max(4, Math.min(optimalCellSize, 12)));
+      console.log('响应式尺寸计算:', {
+        device: isMobile ? 'Mobile' : 'PC',
+        logicalGrid: LOGICAL_GRID_SIZE,
+        available: `${availableWidth}x${availableHeight}`,
+        usable: `${usableWidth}x${usableHeight}`,
+        cellFromWidth,
+        cellFromHeight,
+        finalCellSize: newCellSize,
+        finalBoard: `${LOGICAL_GRID_SIZE * newCellSize}x${LOGICAL_GRID_SIZE * newCellSize}`,
+        utilization: `${((LOGICAL_GRID_SIZE * newCellSize / availableWidth) * 100).toFixed(1)}% x ${((LOGICAL_GRID_SIZE * newCellSize / availableHeight) * 100).toFixed(1)}%`,
+        limitedBy: cellFromWidth < cellFromHeight ? 'width' : 'height'
+      });
+
+      // 只在值发生变化时更新
+      if (newCellSize !== cellSize) {
+        setCellSize(newCellSize);
+      }
     };
 
+    // 延迟执行确保DOM准备就绪
+    const timeout = setTimeout(updateCellSize, 100);
     updateCellSize();
+    
     window.addEventListener('resize', updateCellSize);
-    return () => window.removeEventListener('resize', updateCellSize);
-  }, []);
+    return () => {
+      clearTimeout(timeout);
+      window.removeEventListener('resize', updateCellSize);
+    };
+  }, [isMobile, containerRef, cellSize]);
 
-  return { gridSize, cellSize };
+  return { 
+    gridSize: LOGICAL_GRID_SIZE, // 返回固定的逻辑网格大小
+    cellSize // 返回动态计算的单元格大小
+  };
 };

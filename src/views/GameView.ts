@@ -74,7 +74,12 @@ export class GameView extends Multisynq.View {
         this.lobbyCallback(lobbyData);
         console.log('GameView: Lobby callback executed successfully');
       } else {
-        console.log('GameView: No lobby callback set - this is normal during initialization');
+        console.warn('GameView: WARNING - No lobby callback set when data is available!', {
+          availableRooms: lobbyData.rooms.length,
+          roomDetails: lobbyData.rooms.map(r => ({ id: r.id, playersCount: r.players.length })),
+          timestamp: new Date().toISOString(),
+          stackTrace: new Error().stack
+        });
       }
     } else {
       console.log('GameView: No model or rooms data available');

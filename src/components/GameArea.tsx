@@ -1,13 +1,14 @@
 import React from 'react';
 import { Snake, Food, Segment } from '../hooks/useSnakeGame';
 import { useIsMobile } from '../hooks/use-mobile';
+import { useResponsiveGrid } from '../hooks/useResponsiveGrid';
 
 interface GameAreaProps {
   snakes: Snake[];
   foods: Food[];
   segments: Segment[];
-  gridSize: number;
-  cellSize: number;
+  gridSize?: number; // 可选，主要用于向后兼容
+  cellSize?: number; // 可选，主要用于向后兼容
   isSpectator?: boolean;
 }
 
@@ -15,24 +16,29 @@ export const GameArea: React.FC<GameAreaProps> = ({
   snakes, 
   foods, 
   segments, 
-  gridSize,
-  cellSize,
   isSpectator = false 
 }) => {
+  const isMobile = useIsMobile();
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  
+  // 使用动态网格计算hook
+  const { gridSize, cellSize } = useResponsiveGrid(containerRef);
+
+  // 计算游戏板尺寸
   const boardWidth = gridSize * cellSize;
   const boardHeight = gridSize * cellSize;
-  const isMobile = useIsMobile();
+
+  console.log('GameArea 最终尺寸 :', {
+    gridSize,
+    cellSize,
+    boardSize: `${boardWidth}x${boardHeight}`,
+    isMobile
+  });
 
   const currentPlayerSnake = snakes.find(snake => snake.isPlayer);
   
   // Vision range for fog of war
   const visionRange = Math.floor(gridSize * 0.25); // 25% of grid size
-  
-  // Debug boundary information
-  React.useEffect(() => {
-    console.log('GameArea: Render with gridSize:', gridSize, 'cellSize:', cellSize, 'boardSize:', boardWidth, 'x', boardHeight);
-    console.log('GameArea: Valid coordinates are 0 to', gridSize - 1);
-  }, [gridSize, cellSize, boardWidth, boardHeight]);
   
   const getVisibleElements = <T extends { position: { x: number; y: number } }>(elements: T[]): T[] => {
     if (isSpectator || !currentPlayerSnake || !currentPlayerSnake.isAlive) {
@@ -111,33 +117,30 @@ export const GameArea: React.FC<GameAreaProps> = ({
   const visibleSegments = getVisibleElements(segments);
   const visibleSnakes = getVisibleSnakes();
 
-  return (
-    <div className="flex-1 flex flex-col items-center justify-center p-1 md:p-2 overflow-hidden">
-      {/* Debug info overlay */}
-      {false && process.env.NODE_ENV === 'development' && (
-        <div className="absolute top-4 left-4 bg-black/80 text-white text-xs p-2 rounded z-50">
-          <div>Grid: {gridSize}x{gridSize}</div>
-          <div>Cell: {cellSize}px</div>
-          <div>Board: {boardWidth}x{boardHeight}px</div>
-          <div>Valid coords: 0 to {gridSize - 1}</div>
-        </div>
-      )}
-      
-      {/* Outer container with enhanced boundary visualization */}
-      <div className="relative p-1 md:p-2">
-        {/* Animated boundary frame */}
+    return (
+    <div 
+      ref={containerRef}
+      className={`flex-1 flex flex-col items-center justify-center overflow-hidden ${
+        isMobile ? 'px-1 py-2' : 'p-2'
+      }`}
+    >
+      {/* Outer container with enhanced boundary visualization - 最大化利用空间 */}
+      <div className={`relative flex items-center justify-center ${
+        isMobile ? 'w-full max-w-full' : 'h-full max-h-full'
+      }`}>
+        {/* Animated boundary frame - 唯一的游戏边框 */}
         <div 
-          className="absolute inset-0 rounded-lg"
+          className="absolute inset-0 rounded-lg p-2 m-2"
           style={{
             background: `
               linear-gradient(45deg, transparent 30%, rgba(0, 255, 255, 0.1) 50%, transparent 70%),
               linear-gradient(-45deg, transparent 30%, rgba(0, 255, 255, 0.05) 50%, transparent 70%)
             `,
-            border: '2px solid rgba(0, 255, 255, 0.6)',
+            border: '2px solid rgba(0, 255, 255, 0.8)',
             boxShadow: `
-              0 0 20px rgba(0, 255, 255, 0.3),
-              inset 0 0 20px rgba(0, 255, 255, 0.1),
-              0 0 40px rgba(0, 255, 255, 0.2)
+              0 0 25px rgba(0, 255, 255, 0.4),
+              inset 0 0 25px rgba(0, 255, 255, 0.15),
+              0 0 50px rgba(0, 255, 255, 0.25)
             `,
             animation: 'neon-pulse 3s ease-in-out infinite'
           }}
@@ -155,16 +158,14 @@ export const GameArea: React.FC<GameAreaProps> = ({
           style={{ 
             width: boardWidth, 
             height: boardHeight,
-            filter: isSpectator ? 'brightness(1.1) saturate(1.2)' : 'none',
-            border: '1px solid rgba(0, 255, 255, 0.3)',
-            borderRadius: '4px'
+            filter: isSpectator ? 'brightness(1.1) saturate(1.2)' : 'none'
           }}
         >
           {/* Grid background */}
           <div className="absolute inset-0">
             {/* Major grid lines every 5 cells */}
             {Array.from({ length: Math.floor(gridSize / 5) + 1 }).map((_, i) => (
-              <React.Fragment key={`major-grid-${i}`}>
+              <div key={`major-grid-${i}`}>
                 <div
                   className="absolute bg-cyber-cyan/20"
                   style={{
@@ -183,33 +184,23 @@ export const GameArea: React.FC<GameAreaProps> = ({
                     height: '1px',
                   }}
                 />
-              </React.Fragment>
+              </div>
             ))}
           </div>
 
-          {/* Boundary warning indicators */}
-          <div className="absolute inset-0 pointer-events-none">
-            {/* Top boundary */}
-            <div 
-              className="absolute w-full bg-red-500/20 border-b border-red-500/50"
-              style={{ height: cellSize, top: 0 }}
-            />
-            {/* Bottom boundary */}
-            <div 
-              className="absolute w-full bg-red-500/20 border-t border-red-500/50"
-              style={{ height: cellSize, bottom: 0 }}
-            />
-            {/* Left boundary */}
-            <div 
-              className="absolute h-full bg-red-500/20 border-r border-red-500/50"
-              style={{ width: cellSize, left: 0 }}
-            />
-            {/* Right boundary */}
-            <div 
-              className="absolute h-full bg-red-500/20 border-l border-red-500/50"
-              style={{ width: cellSize, right: 0 }}
-            />
-          </div>
+          {/* Boundary warning indicators - 改为完整边框 */}
+          <div 
+            className="absolute inset-0 pointer-events-none border-2 border-red-500/60"
+            style={{
+              borderWidth: `${Math.max(2, Math.floor(cellSize / 4))}px`,
+              background: `
+                linear-gradient(to bottom, rgba(239, 68, 68, 0.2) 0%, transparent ${cellSize}px),
+                linear-gradient(to top, rgba(239, 68, 68, 0.2) 0%, transparent ${cellSize}px),
+                linear-gradient(to right, rgba(239, 68, 68, 0.2) 0%, transparent ${cellSize}px),
+                linear-gradient(to left, rgba(239, 68, 68, 0.2) 0%, transparent ${cellSize}px)
+              `
+            }}
+          />
 
           {/* Center reference point */}
           <div 

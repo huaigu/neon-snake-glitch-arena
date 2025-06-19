@@ -36,41 +36,7 @@ export const SnakeGame: React.FC = () => {
       {/* Desktop Layout - Info Panel on side */}
       {!isMobile && (
         <div className="flex h-full">
-          <div className="flex flex-col">
-            {/* PC Segment Legend - 在左侧面板顶部 */}
-            <div className="bg-cyber-darker/95 backdrop-blur-sm border-b border-cyber-cyan/50 p-4">
-              <div className="text-sm text-cyber-cyan font-bold mb-3 text-center">POWER-UP SEGMENTS</div>
-              <div className="space-y-2">
-                <div className="flex items-center gap-3">
-                  <div 
-                    className="w-5 h-5 rounded-sm flex items-center justify-center text-xs font-bold text-black animate-pulse"
-                    style={{ backgroundColor: '#00ffff' }}
-                  >
-                    1
-                  </div>
-                  <span className="text-sm text-cyber-green">+1 Length</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div 
-                    className="w-6 h-6 rounded-sm flex items-center justify-center text-xs font-bold text-black animate-pulse"
-                    style={{ backgroundColor: '#ffff00' }}
-                  >
-                    2
-                  </div>
-                  <span className="text-sm text-cyber-green">+2 Length</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div 
-                    className="w-6 h-6 rounded-sm flex items-center justify-center text-xs font-bold text-black animate-pulse animate-bounce"
-                    style={{ backgroundColor: '#ff00ff' }}
-                  >
-                    3
-                  </div>
-                  <span className="text-sm text-cyber-green">+3 Length</span>
-                </div>
-              </div>
-            </div>
-            
+          <div className="flex flex-col min-w-0">
             <InfoPanel
               snakes={snakes}
               gameRunning={gameRunning}
@@ -81,9 +47,10 @@ export const SnakeGame: React.FC = () => {
             />
           </div>
           
-          <div className="relative flex-1 flex flex-col overflow-hidden">
+          <div className="relative flex-1 flex flex-col overflow-hidden min-h-0">
+
             {/* PC游戏信息面板 - 紧密水平排列 */}
-            {gameRunning && (
+            {(
               <div className="bg-cyber-darker/95 border-b border-cyber-cyan/30 px-4 py-2">
                 <div className="flex items-center justify-center gap-4">
                   {/* Segments 倒计时 */}
@@ -115,12 +82,36 @@ export const SnakeGame: React.FC = () => {
                       {playerSnake ? playerSnake.segments.length : 0}
                     </span>
                   </div>
+
+                  {/* Power-up Segments 图例 */}
+                  <div className="flex items-center gap-2 bg-cyber-darker/80 border border-cyber-cyan/60 rounded-lg px-3 py-1.5">
+                    <div className="flex items-center gap-1">
+                      <div 
+                        className="w-4 h-4 rounded flex items-center justify-center text-xs font-bold text-black animate-pulse"
+                        style={{ backgroundColor: '#00ffff' }}
+                      >
+                        1
+                      </div>
+                      <div 
+                        className="w-4 h-4 rounded flex items-center justify-center text-xs font-bold text-black animate-pulse"
+                        style={{ backgroundColor: '#ffff00' }}
+                      >
+                        2
+                      </div>
+                      <div 
+                        className="w-4 h-4 rounded flex items-center justify-center text-xs font-bold text-black animate-pulse animate-bounce"
+                        style={{ backgroundColor: '#ff00ff' }}
+                      >
+                        3
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
 
             {/* Spectator Mode Indicator - 游戏区域正上方 */}
-            {isSpectator && gameRunning && (
+            {isSpectator && (
               <div className="bg-cyber-darker/95 border-b border-cyber-cyan/50 px-4 py-2">
                 <div className="flex items-center gap-2 justify-center">
                   <div className="w-3 h-3 bg-cyber-cyan rounded-full animate-pulse"></div>
@@ -130,13 +121,11 @@ export const SnakeGame: React.FC = () => {
             )}
 
             {/* 游戏区域容器 */}
-            <div className="relative flex-1 overflow-hidden">
+            <div className="relative flex-1 flex flex-col overflow-hidden min-h-0">
               <GameArea
                 snakes={snakes}
                 foods={foods}
                 segments={segments}
-                gridSize={gridSize}
-                cellSize={cellSize}
                 isSpectator={isSpectator}
               />
 
@@ -216,7 +205,7 @@ export const SnakeGame: React.FC = () => {
           </div>
 
           {/* 游戏信息面板 - 移动版 - 紧凑样式 */}
-          {gameRunning && (
+          {(gameRunning || isSpectator) && (
             <div className="bg-cyber-darker/95 border-b border-cyber-cyan/30 px-2 py-1">
               <div className="flex justify-between items-center">
                 {/* Segments 倒计时 */}
@@ -248,26 +237,22 @@ export const SnakeGame: React.FC = () => {
             </div>
           )}
 
+          {/* Spectator Mode Indicator - 移动端游戏区域上方 */}
+          {isSpectator && (
+            <div className="bg-cyber-darker/95 border-b border-cyber-cyan/50 px-2 py-1">
+              <div className="flex items-center gap-1 justify-center">
+                <div className="w-1 h-1 bg-cyber-cyan rounded-full animate-pulse"></div>
+                <span className="text-cyber-cyan font-bold text-xs">Spectator Mode</span>
+              </div>
+            </div>
+          )}
+
           {/* Game Area Container */}
           <div className="relative flex-1 overflow-hidden">
-            {/* Spectator Mode Indicator */}
-            {isSpectator && gameRunning && (
-              <div className="absolute top-2 left-2 right-2 z-40">
-                <div className="bg-cyber-darker/90 border border-cyber-cyan/50 rounded px-2 py-1">
-                  <div className="flex items-center gap-1 justify-center">
-                    <div className="w-1 h-1 bg-cyber-cyan rounded-full animate-pulse"></div>
-                    <span className="text-cyber-cyan font-bold text-xs">Spectator</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
             <GameArea
               snakes={snakes}
               foods={foods}
               segments={segments}
-              gridSize={gridSize}
-              cellSize={cellSize}
               isSpectator={isSpectator}
             />
 

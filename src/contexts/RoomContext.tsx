@@ -118,9 +118,46 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
 
     return () => {
       console.log('RoomContext: Cleaning up GameView callbacks');
-      gameView.setLobbyCallback(() => {});
+      // 不要清空回调，而是保持回调的连续性
+      // gameView.setLobbyCallback(() => {});
     };
-  }, [gameView, isConnected]); // 依赖 gameView 和 isConnected
+  }, [gameView]); // 移除 isConnected 依赖
+
+  // 当连接状态变化时，确保回调仍然有效
+  useEffect(() => {
+    if (!gameView || !isConnected) {
+      return;
+    }
+    
+    console.log('RoomContext: Connection state changed, re-ensuring lobby callback');
+    
+    // 重新确保回调函数存在
+    const lobbyCallback = (lobbyData: { rooms: Room[]; connectedPlayers: number }) => {
+      console.log('=== LOBBY CALLBACK TRIGGERED (CONNECTION CHANGE) ===');
+      console.log('RoomContext: Received lobby data after connection change:', {
+        roomsCount: lobbyData.rooms.length,
+        connectedPlayers: lobbyData.connectedPlayers,
+        timestamp: new Date().toISOString()
+      });
+      
+      setRooms(lobbyData.rooms);
+      setConnectedPlayersCount(lobbyData.connectedPlayers);
+    };
+    
+    // 重新设置回调
+    gameView.setLobbyCallback(lobbyCallback);
+    
+    // 立即获取当前数据
+    if (gameView.model) {
+      const currentRooms = gameView.model.rooms || [];
+      const currentConnectedCount = gameView.model.connectedPlayers?.size || 0;
+      
+      lobbyCallback({
+        rooms: currentRooms,
+        connectedPlayers: currentConnectedCount
+      });
+    }
+  }, [isConnected]); // 只依赖连接状态
 
   // 更新当前房间
   useEffect(() => {
