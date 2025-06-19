@@ -111,55 +111,7 @@ export const GameArea: React.FC<GameAreaProps> = ({
   const visibleSnakes = getVisibleSnakes();
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-2 md:p-4">
-      {/* Prominent Segment Legend at the top */}
-      <div className="mb-4 w-full max-w-4xl">
-        <div className="bg-cyber-darker/90 backdrop-blur-sm rounded-lg p-4 border-2 border-cyber-cyan/50 neon-border">
-          <div className="text-center mb-3">
-            <h2 className="text-lg md:text-xl font-bold text-cyber-cyan neon-text">POWER-UP SEGMENTS</h2>
-            <div className="h-0.5 bg-gradient-to-r from-transparent via-cyber-cyan to-transparent mt-2"></div>
-          </div>
-          <div className="flex flex-wrap justify-center gap-4 md:gap-8">
-            <div className="flex items-center gap-2">
-              <div 
-                className="w-6 h-6 md:w-8 md:h-8 rounded-sm flex items-center justify-center text-sm md:text-base font-bold text-black animate-pulse"
-                style={{ backgroundColor: '#00ffff' }}
-              >
-                1
-              </div>
-              <div className="text-center">
-                <span className="block text-xs md:text-sm text-gray-300">Type 1</span>
-                <span className="block text-xs text-cyber-green font-bold">+1 Length</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div 
-                className="w-7 h-7 md:w-9 md:h-9 rounded-sm flex items-center justify-center text-sm md:text-base font-bold text-black animate-pulse"
-                style={{ backgroundColor: '#ffff00' }}
-              >
-                2
-              </div>
-              <div className="text-center">
-                <span className="block text-xs md:text-sm text-gray-300">Type 2</span>
-                <span className="block text-xs text-cyber-green font-bold">+2 Length</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div 
-                className="w-8 h-8 md:w-10 md:h-10 rounded-sm flex items-center justify-center text-sm md:text-base font-bold text-black animate-pulse animate-bounce"
-                style={{ backgroundColor: '#ff00ff' }}
-              >
-                3
-              </div>
-              <div className="text-center">
-                <span className="block text-xs md:text-sm text-gray-300">Type 3</span>
-                <span className="block text-xs text-cyber-green font-bold">+3 Length</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
+    <div className="flex-1 flex flex-col items-center justify-center p-1 md:p-2">
       {/* Debug info overlay */}
       {false && process.env.NODE_ENV === 'development' && (
         <div className="absolute top-4 left-4 bg-black/80 text-white text-xs p-2 rounded z-50">
@@ -171,7 +123,7 @@ export const GameArea: React.FC<GameAreaProps> = ({
       )}
       
       {/* Outer container with enhanced boundary visualization */}
-      <div className="relative p-2 md:p-4">
+      <div className="relative p-1 md:p-2">
         {/* Animated boundary frame */}
         <div 
           className="absolute inset-0 rounded-lg"
@@ -195,6 +147,42 @@ export const GameArea: React.FC<GameAreaProps> = ({
         <div className="absolute -top-1 -right-1 w-4 h-4 md:w-6 md:h-6 border-r-2 border-t-2 md:border-r-4 md:border-t-4 border-cyber-cyan animate-pulse" />
         <div className="absolute -bottom-1 -left-1 w-4 h-4 md:w-6 md:h-6 border-l-2 border-b-2 md:border-l-4 md:border-b-4 border-cyber-cyan animate-pulse" />
         <div className="absolute -bottom-1 -right-1 w-4 h-4 md:w-6 md:h-6 border-r-2 border-b-2 md:border-r-4 md:border-b-4 border-cyber-cyan animate-pulse" />
+
+        {/* Compact Segment Legend - positioned in corner */}
+        <div className="absolute top-2 right-2 z-30">
+          <div className="bg-cyber-darker/95 backdrop-blur-sm rounded-lg p-2 border border-cyber-cyan/50 neon-border">
+            <div className="text-xs text-cyber-cyan font-bold mb-1">POWER-UPS</div>
+            <div className="flex gap-2">
+              <div className="flex items-center gap-1">
+                <div 
+                  className="w-3 h-3 rounded-sm flex items-center justify-center text-xs font-bold text-black animate-pulse"
+                  style={{ backgroundColor: '#00ffff' }}
+                >
+                  1
+                </div>
+                <span className="text-xs text-cyber-green">+1</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div 
+                  className="w-4 h-4 rounded-sm flex items-center justify-center text-xs font-bold text-black animate-pulse"
+                  style={{ backgroundColor: '#ffff00' }}
+                >
+                  2
+                </div>
+                <span className="text-xs text-cyber-green">+2</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div 
+                  className="w-4 h-4 rounded-sm flex items-center justify-center text-xs font-bold text-black animate-pulse animate-bounce"
+                  style={{ backgroundColor: '#ff00ff' }}
+                >
+                  3
+                </div>
+                <span className="text-xs text-cyber-green">+3</span>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Game board */}
         <div 
