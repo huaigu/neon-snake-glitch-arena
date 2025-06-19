@@ -1,4 +1,3 @@
-
 import * as Multisynq from '@multisynq/client';
 import { SnakeModel } from './SnakeModel';
 import { PlayerModel } from './PlayerModel';
@@ -32,8 +31,8 @@ export class GameRoomModel extends Multisynq.Model {
   
   // Game configuration
   private readonly CONFIG: GameConfig = {
-    BOARD_SIZE: 60, // Fixed logical grid size
-    GAME_TICK_RATE: 150, // Base tick rate in ms
+    BOARD_SIZE: 60,
+    GAME_TICK_RATE: 150,
     COUNTDOWN_DURATION: 3
   };
 
@@ -62,7 +61,12 @@ export class GameRoomModel extends Multisynq.Model {
   }
 
   addPlayer(player: PlayerModel) {
-    console.log('GameRoomModel: Adding player to room:', player.viewId);
+    console.log('GameRoomModel: Adding player to room:', {
+      playerId: player.viewId,
+      playerName: player.name,
+      playerAddress: player.address,
+      roomId: this.roomId
+    });
     
     this.players.set(player.viewId, player);
     player.currentRoomId = this.roomId;
@@ -73,6 +77,8 @@ export class GameRoomModel extends Multisynq.Model {
     }
     
     this.publishRoomState();
+    
+    console.log('GameRoomModel: Player added successfully, total players:', this.players.size);
   }
 
   removePlayer(viewId: string) {
@@ -95,15 +101,31 @@ export class GameRoomModel extends Multisynq.Model {
   }
 
   setPlayerReady(playerAddress: string, isReady: boolean) {
-    console.log('GameRoomModel: Setting player ready:', playerAddress, isReady);
+    console.log('GameRoomModel: Setting player ready:', { playerAddress, isReady, roomId: this.roomId });
     
     const player = Array.from(this.players.values()).find(p => p.address === playerAddress);
     if (player) {
+      console.log('GameRoomModel: Found player, updating ready state:', {
+        playerId: player.viewId,
+        playerName: player.name,
+        oldReady: player.isReady,
+        newReady: isReady
+      });
+      
       player.isReady = isReady;
       this.publishRoomState();
       
       // Check if all players are ready and start countdown
       this.checkStartGame();
+    } else {
+      console.error('GameRoomModel: Player not found for ready state update:', {
+        playerAddress,
+        availablePlayers: Array.from(this.players.values()).map(p => ({
+          viewId: p.viewId,
+          address: p.address,
+          name: p.name
+        }))
+      });
     }
   }
 
@@ -400,6 +422,12 @@ export class GameRoomModel extends Multisynq.Model {
       isSpectator: false
     }));
 
+    console.log('GameRoomModel: Building room state:', {
+      roomId: this.roomId,
+      playersCount: playersArray.length,
+      players: playersArray
+    });
+
     return {
       id: this.roomId,
       name: this.name,
@@ -407,9 +435,9 @@ export class GameRoomModel extends Multisynq.Model {
       status: this.status,
       players: playersArray,
       maxPlayers: 8,
-      host: this.hostAddress, // Added for UI compatibility
-      isPrivate: false, // Added for UI compatibility
-      createdAt: new Date().toISOString() // Added for UI compatibility
+      host: this.hostAddress,
+      isPrivate: false,
+      createdAt: new Date().toISOString()
     };
   }
 
@@ -431,8 +459,8 @@ export class GameRoomModel extends Multisynq.Model {
       countdown: this.countdown,
       players: snakesArray,
       speedMultiplier: this.speedMultiplier,
-      speedBoostCountdown: 20, // Placeholder
-      segmentCountdown: 10 // Placeholder
+      speedBoostCountdown: 20,
+      segmentCountdown: 10
     };
   }
 
@@ -440,11 +468,17 @@ export class GameRoomModel extends Multisynq.Model {
     const roomState = this.getRoomState();
     const gameState = this.getGameState();
     
+    console.log('GameRoomModel: Publishing room state:', {
+      roomId: this.roomId,
+      roomPlayersCount: roomState.players.length,
+      gamePlayersCount: gameState.players.length
+    });
+    
     this.publish("room", "updated", {
       room: roomState,
       game: gameState,
       foods: this.foods,
-      segments: [] // Placeholder for segments
+      segments: []
     });
   }
 }

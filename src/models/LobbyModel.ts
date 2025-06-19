@@ -77,6 +77,25 @@ export class LobbyModel extends Multisynq.Model {
     
     const roomId = `room_${this.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
+    // Find or create the host player
+    let hostPlayer = Array.from(this.players.values()).find(p => p.address === payload.hostAddress);
+    
+    if (!hostPlayer) {
+      console.log('LobbyModel: Host player not found, creating new player');
+      // Create a new player if not found (this handles the case where player joins and immediately creates room)
+      hostPlayer = PlayerModel.create({
+        viewId: payload.hostAddress, // Use address as viewId temporarily
+        name: payload.playerName,
+        address: payload.hostAddress
+      });
+      this.players.set(payload.hostAddress, hostPlayer);
+    } else {
+      // Update player name if provided
+      if (payload.playerName && payload.playerName !== hostPlayer.name) {
+        hostPlayer.name = payload.playerName;
+      }
+    }
+    
     // Create room model
     const room = GameRoomModel.create({
       id: roomId,
@@ -87,27 +106,35 @@ export class LobbyModel extends Multisynq.Model {
     this.gameRooms.set(roomId, room);
     
     // Add host to room
-    const hostPlayer = Array.from(this.players.values()).find(p => p.address === payload.hostAddress);
-    if (hostPlayer) {
-      room.addPlayer(hostPlayer);
-    }
+    console.log('LobbyModel: Adding host player to room:', hostPlayer.viewId);
+    room.addPlayer(hostPlayer);
     
     this.publishLobbyState();
     
     // Notify the creator that room was created
     this.publish("player", "joined-room", {
-      viewId: hostPlayer?.viewId,
+      viewId: hostPlayer.viewId,
       roomId: roomId
     });
     
-    console.log('LobbyModel: Room created:', roomId);
+    console.log('LobbyModel: Room created and host added:', roomId);
   }
 
   handleJoinRoom(payload: { roomId: string; address: string; playerName: string }) {
     console.log('LobbyModel: Player joining room:', payload);
     
     const room = this.gameRooms.get(payload.roomId);
-    const player = Array.from(this.players.values()).find(p => p.address === payload.address);
+    let player = Array.from(this.players.values()).find(p => p.address === payload.address);
+    
+    if (!player) {
+      console.log('LobbyModel: Player not found, creating new player for room join');
+      player = PlayerModel.create({
+        viewId: payload.address, // Use address as viewId temporarily
+        name: payload.playerName,
+        address: payload.address
+      });
+      this.players.set(payload.address, player);
+    }
     
     if (room && player) {
       room.addPlayer(player);
