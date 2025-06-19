@@ -113,7 +113,7 @@ export const GameArea: React.FC<GameAreaProps> = ({
   const visibleSnakes = getVisibleSnakes();
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-1 md:p-2">
+    <div className="flex-1 flex flex-col items-center justify-center p-1 md:p-2 overflow-hidden">
       {/* Debug info overlay */}
       {false && process.env.NODE_ENV === 'development' && (
         <div className="absolute top-4 left-4 bg-black/80 text-white text-xs p-2 rounded z-50">
@@ -124,7 +124,7 @@ export const GameArea: React.FC<GameAreaProps> = ({
         </div>
       )}
       
-      {/* PC Segment Legend - 移到游戏区域外部上方 */}
+      {/* PC Segment Legend - 在游戏区域外部上方 */}
       {!isMobile && (
         <div className="mb-2 w-full flex justify-center">
           <div className="bg-cyber-darker/95 backdrop-blur-sm rounded-lg p-3 border border-cyber-cyan/50 neon-border">
@@ -162,7 +162,7 @@ export const GameArea: React.FC<GameAreaProps> = ({
         </div>
       )}
 
-      {/* Mobile Segment Legend - 在游戏区域外部上方，使用文字说明 */}
+      {/* Mobile Segment Legend - 简化文字 */}
       {isMobile && (
         <div className="mb-1 w-full px-2">
           <div className="bg-cyber-darker/95 backdrop-blur-sm rounded px-3 py-2 border border-cyber-cyan/50">
@@ -175,7 +175,7 @@ export const GameArea: React.FC<GameAreaProps> = ({
                 >
                   1
                 </div>
-                <span className="text-cyber-green">Type 1: Adds 1 segment</span>
+                <span className="text-cyber-green">+1</span>
               </div>
               <div className="flex items-center gap-1">
                 <div 
@@ -184,7 +184,7 @@ export const GameArea: React.FC<GameAreaProps> = ({
                 >
                   2
                 </div>
-                <span className="text-cyber-green">Type 2: Adds 2 segments</span>
+                <span className="text-cyber-green">+2</span>
               </div>
               <div className="flex items-center gap-1">
                 <div 
@@ -193,7 +193,7 @@ export const GameArea: React.FC<GameAreaProps> = ({
                 >
                   3
                 </div>
-                <span className="text-cyber-green">Type 3: Adds 3 segments</span>
+                <span className="text-cyber-green">+3</span>
               </div>
             </div>
           </div>
