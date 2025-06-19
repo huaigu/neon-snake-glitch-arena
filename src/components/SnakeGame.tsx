@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useSnakeGame } from '../hooks/useSnakeGame';
 import { useIsMobile } from '../hooks/use-mobile';
@@ -37,14 +36,51 @@ export const SnakeGame: React.FC = () => {
       {/* Desktop Layout - Info Panel on side */}
       {!isMobile && (
         <div className="flex h-full">
-          <InfoPanel
-            snakes={snakes}
-            gameRunning={gameRunning}
-            gameOver={gameOver}
-            onStart={startGame}
-            onPause={pauseGame}
-            onReset={resetGame}
-          />
+          <div className="flex flex-col">
+            {/* PC Segment Legend - 在左侧面板顶部 */}
+            <div className="bg-cyber-darker/95 backdrop-blur-sm border-b border-cyber-cyan/50 p-4">
+              <div className="text-sm text-cyber-cyan font-bold mb-3 text-center">POWER-UP SEGMENTS</div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <div 
+                    className="w-5 h-5 rounded-sm flex items-center justify-center text-xs font-bold text-black animate-pulse"
+                    style={{ backgroundColor: '#00ffff' }}
+                  >
+                    1
+                  </div>
+                  <span className="text-sm text-cyber-green">+1 Length</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div 
+                    className="w-6 h-6 rounded-sm flex items-center justify-center text-xs font-bold text-black animate-pulse"
+                    style={{ backgroundColor: '#ffff00' }}
+                  >
+                    2
+                  </div>
+                  <span className="text-sm text-cyber-green">+2 Length</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div 
+                    className="w-6 h-6 rounded-sm flex items-center justify-center text-xs font-bold text-black animate-pulse animate-bounce"
+                    style={{ backgroundColor: '#ff00ff' }}
+                  >
+                    3
+                  </div>
+                  <span className="text-sm text-cyber-green">+3 Length</span>
+                </div>
+              </div>
+            </div>
+            
+            <InfoPanel
+              snakes={snakes}
+              gameRunning={gameRunning}
+              gameOver={gameOver}
+              onStart={startGame}
+              onPause={pauseGame}
+              onReset={resetGame}
+            />
+          </div>
+          
           <div className="relative flex-1 flex flex-col overflow-hidden">
             {/* PC游戏信息面板 - 紧密水平排列 */}
             {gameRunning && (
@@ -83,20 +119,18 @@ export const SnakeGame: React.FC = () => {
               </div>
             )}
 
+            {/* Spectator Mode Indicator - 游戏区域正上方 */}
+            {isSpectator && gameRunning && (
+              <div className="bg-cyber-darker/95 border-b border-cyber-cyan/50 px-4 py-2">
+                <div className="flex items-center gap-2 justify-center">
+                  <div className="w-3 h-3 bg-cyber-cyan rounded-full animate-pulse"></div>
+                  <span className="text-cyber-cyan font-bold">Spectator Mode</span>
+                </div>
+              </div>
+            )}
+
             {/* 游戏区域容器 */}
             <div className="relative flex-1 overflow-hidden">
-              {/* Spectator Mode Indicator - 调整位置避免重叠 */}
-              {isSpectator && gameRunning && (
-                <div className="absolute top-16 left-1/2 transform -translate-x-1/2 z-40">
-                  <div className="bg-cyber-darker/90 border border-cyber-cyan/50 rounded-lg px-4 py-2">
-                    <div className="flex items-center gap-2 justify-center">
-                      <div className="w-3 h-3 bg-cyber-cyan rounded-full animate-pulse"></div>
-                      <span className="text-cyber-cyan font-bold">Spectator Mode</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               <GameArea
                 snakes={snakes}
                 foods={foods}
@@ -144,6 +178,40 @@ export const SnakeGame: React.FC = () => {
               >
                 LOBBY
               </button>
+            </div>
+          </div>
+
+          {/* Mobile Segment Legend - 简化文字 */}
+          <div className="bg-cyber-darker/95 backdrop-blur-sm border-b border-cyber-cyan/50 px-3 py-2">
+            <div className="text-xs text-cyber-cyan font-bold mb-1 text-center">POWER-UPS</div>
+            <div className="flex justify-between text-xs">
+              <div className="flex items-center gap-1">
+                <div 
+                  className="w-3 h-3 rounded flex items-center justify-center text-xs font-bold text-black animate-pulse"
+                  style={{ backgroundColor: '#00ffff', fontSize: '8px' }}
+                >
+                  1
+                </div>
+                <span className="text-cyber-green">+1</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div 
+                  className="w-3 h-3 rounded flex items-center justify-center text-xs font-bold text-black animate-pulse"
+                  style={{ backgroundColor: '#ffff00', fontSize: '8px' }}
+                >
+                  2
+                </div>
+                <span className="text-cyber-green">+2</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div 
+                  className="w-3 h-3 rounded flex items-center justify-center text-xs font-bold text-black animate-pulse animate-bounce"
+                  style={{ backgroundColor: '#ff00ff', fontSize: '8px' }}
+                >
+                  3
+                </div>
+                <span className="text-cyber-green">+3</span>
+              </div>
             </div>
           </div>
 

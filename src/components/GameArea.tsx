@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Snake, Food, Segment } from '../hooks/useSnakeGame';
 import { useIsMobile } from '../hooks/use-mobile';
@@ -121,82 +120,6 @@ export const GameArea: React.FC<GameAreaProps> = ({
           <div>Cell: {cellSize}px</div>
           <div>Board: {boardWidth}x{boardHeight}px</div>
           <div>Valid coords: 0 to {gridSize - 1}</div>
-        </div>
-      )}
-      
-      {/* PC Segment Legend - 在游戏区域外部上方 */}
-      {!isMobile && (
-        <div className="mb-2 w-full flex justify-center">
-          <div className="bg-cyber-darker/95 backdrop-blur-sm rounded-lg p-3 border border-cyber-cyan/50 neon-border">
-            <div className="text-sm text-cyber-cyan font-bold mb-2 text-center">POWER-UP SEGMENTS</div>
-            <div className="flex gap-4 justify-center">
-              <div className="flex items-center gap-2">
-                <div 
-                  className="w-4 h-4 rounded-sm flex items-center justify-center text-xs font-bold text-black animate-pulse"
-                  style={{ backgroundColor: '#00ffff' }}
-                >
-                  1
-                </div>
-                <span className="text-sm text-cyber-green">+1 Length</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div 
-                  className="w-5 h-5 rounded-sm flex items-center justify-center text-xs font-bold text-black animate-pulse"
-                  style={{ backgroundColor: '#ffff00' }}
-                >
-                  2
-                </div>
-                <span className="text-sm text-cyber-green">+2 Length</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div 
-                  className="w-5 h-5 rounded-sm flex items-center justify-center text-xs font-bold text-black animate-pulse animate-bounce"
-                  style={{ backgroundColor: '#ff00ff' }}
-                >
-                  3
-                </div>
-                <span className="text-sm text-cyber-green">+3 Length</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Mobile Segment Legend - 简化文字 */}
-      {isMobile && (
-        <div className="mb-1 w-full px-2">
-          <div className="bg-cyber-darker/95 backdrop-blur-sm rounded px-3 py-2 border border-cyber-cyan/50">
-            <div className="text-xs text-cyber-cyan font-bold mb-1 text-center">POWER-UPS</div>
-            <div className="flex justify-between text-xs">
-              <div className="flex items-center gap-1">
-                <div 
-                  className="w-3 h-3 rounded flex items-center justify-center text-xs font-bold text-black animate-pulse"
-                  style={{ backgroundColor: '#00ffff', fontSize: '8px' }}
-                >
-                  1
-                </div>
-                <span className="text-cyber-green">+1</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <div 
-                  className="w-3 h-3 rounded flex items-center justify-center text-xs font-bold text-black animate-pulse"
-                  style={{ backgroundColor: '#ffff00', fontSize: '8px' }}
-                >
-                  2
-                </div>
-                <span className="text-cyber-green">+2</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <div 
-                  className="w-3 h-3 rounded flex items-center justify-center text-xs font-bold text-black animate-pulse animate-bounce"
-                  style={{ backgroundColor: '#ff00ff', fontSize: '8px' }}
-                >
-                  3
-                </div>
-                <span className="text-cyber-green">+3</span>
-              </div>
-            </div>
-          </div>
         </div>
       )}
       
