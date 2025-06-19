@@ -18,16 +18,16 @@ import {
   AlertDialogTitle,
 } from '../components/ui/alert-dialog';
 
-const RoomPage = () => {
+export const RoomPage: React.FC = () => {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated } = useWeb3Auth();
-  const { currentRoom, joinRoom, leaveRoom, rooms, isConnected } = useRoomContext();
+  const { isAuthenticated, user } = useWeb3Auth();
+  const { currentRoom, joinRoom, leaveRoom, rooms, isConnected, isSpectator } = useRoomContext();
   const { joinSession, isConnecting, error: connectionError } = useMultisynq();
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
-  const [joinState, setJoinState] = useState<'waiting' | 'joining' | 'success' | 'error'>('waiting');
+  const [joinState, setJoinState] = useState<'idle' | 'connecting' | 'joining' | 'spectating' | 'success' | 'error'>('idle');
   const [joinError, setJoinError] = useState<string | null>(null);
   const [hasAttemptedJoin, setHasAttemptedJoin] = useState(false);
 
@@ -395,11 +395,39 @@ const RoomPage = () => {
           className="border-cyber-cyan/30 text-cyber-cyan hover:bg-cyber-cyan/10"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Lobby
+          {isSpectator ? 'Stop Watching' : 'Back to Lobby'}
         </Button>
         
         <Web3AuthButton />
       </div>
+
+      {/* 观察者模式提示 */}
+      {isSpectator && currentRoom && (
+        <div className="mx-4 mb-4 p-4 bg-cyber-purple/10 border border-cyber-purple/50 rounded-lg">
+          <div className="flex items-center gap-3">
+            <div className="w-6 h-6 bg-cyber-purple rounded-full flex items-center justify-center">
+              <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+            </div>
+            <div>
+              <h3 className="font-bold text-cyber-purple mb-1">Spectator Mode</h3>
+              <p className="text-sm text-cyber-purple/80">
+                {currentRoom.status === 'playing' ? 
+                  'Game is currently in progress. You are watching as a spectator.' :
+                  currentRoom.status === 'finished' ?
+                  'Game has ended. You joined as a spectator.' :
+                  'You joined while the game was starting. You will watch this round as a spectator.'
+                }
+              </p>
+              {currentRoom.status === 'waiting' && (
+                <p className="text-xs text-cyber-purple/60 mt-1">
+                  To participate in the next game, please refresh this page.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <GameLobbyComponent />
 
       <AlertDialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>

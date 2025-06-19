@@ -42,7 +42,7 @@ export interface Segment {
 
 export const useSnakeGame = () => {
   const { gameView, isConnected } = useMultisynq();
-  const { currentRoom } = useRoomContext();
+  const { currentRoom, isSpectator: isExternalSpectator } = useRoomContext();
   const { user } = useWeb3Auth();
   const { gridSize, cellSize } = useResponsiveGrid();
   const isMobile = useIsMobile();
@@ -60,21 +60,24 @@ export const useSnakeGame = () => {
   const [segmentCountdown, setSegmentCountdown] = useState(10);
   const [speedBoostCountdown, setSpeedBoostCountdown] = useState(20);
 
+  // 合并内部观察者状态（死亡玩家）和外部观察者状态（链接加入的观察者）
+  const effectiveIsSpectator = isSpectator || isExternalSpectator;
+
   // Define changeDirection first
   const changeDirection = useCallback((direction: 'up' | 'down' | 'left' | 'right') => {
-    if (!gameView || !gameSessionId || !user?.address || !gameRunning || isSpectator) {
+    if (!gameView || !gameSessionId || !user?.address || !gameRunning || effectiveIsSpectator) {
       console.log('useSnakeGame: Cannot change direction - spectator mode or game not running');
       return;
     }
 
     console.log('useSnakeGame: Changing direction:', direction);
     gameView.changeDirection(gameSessionId, user.address, direction);
-  }, [gameView, gameSessionId, user?.address, gameRunning, isSpectator]);
+  }, [gameView, gameSessionId, user?.address, gameRunning, effectiveIsSpectator]);
 
   // Now mobile controls can use changeDirection safely
   useMobileControls({
     onDirectionChange: changeDirection,
-    isEnabled: isMobile && gameRunning && !isSpectator
+    isEnabled: isMobile && gameRunning && !effectiveIsSpectator
   });
 
   // Updated game callback setup to work with new model structure
@@ -121,14 +124,10 @@ export const useSnakeGame = () => {
         }));
         
         // 重新分配颜色确保一致性 - 只对非NFT玩家分配预设颜色
-        const gameSnakes = assignPlayerColors(
+        const gameSnakes: Snake[] = assignPlayerColors(
           rawGameSnakes, 
           (snake) => snake.id
-        ).map(snake => ({
-          ...snake,
-          // NFT持有者保持彩虹色效果，普通玩家使用预设颜色
-          color: snake.hasNFT ? snake.color : snake.color
-        }));
+        );
         
         console.log('useSnakeGame: Detailed color assignment:', {
           totalPlayers: gameSnakes.length,
@@ -151,8 +150,10 @@ export const useSnakeGame = () => {
         
         setSnakes(gameSnakes);
         
+        // 检查当前玩家的状态
         const currentPlayerSnake = gameSnakes.find((snake: Snake) => snake.isPlayer);
         if (currentPlayerSnake) {
+          // 找到了玩家的蛇，使用蛇的观察者状态
           setIsSpectator(currentPlayerSnake.isSpectator || false);
           
           // Debug boundary information
@@ -165,6 +166,13 @@ export const useSnakeGame = () => {
               console.log('useSnakeGame: WARNING - Snake head is very close to boundary!');
             }
           }
+        } else if (isExternalSpectator) {
+          // 外部观察者：没有找到玩家蛇，但是是外部观察者模式
+          console.log('useSnakeGame: External spectator mode - no player snake found, but showing spectator view');
+          setIsSpectator(false); // 内部观察者状态为false，因为effectiveIsSpectator会处理
+        } else {
+          // 既不是游戏玩家也不是外部观察者
+          setIsSpectator(false);
         }
         
         // Map foods to expected format
@@ -252,7 +260,7 @@ export const useSnakeGame = () => {
   // Keyboard controls
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (!gameRunning || isSpectator) return;
+      if (!gameRunning || effectiveIsSpectator) return;
       
       switch (e.key.toLowerCase()) {
         case 'w':
@@ -280,9 +288,9 @@ export const useSnakeGame = () => {
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [gameRunning, changeDirection, isSpectator]);
+  }, [gameRunning, changeDirection, effectiveIsSpectator]);
 
-  console.log('useSnakeGame render - multiplayer mode, snakes:', snakes.length, 'gameRunning:', gameRunning, 'countdown:', countdown, 'segments:', segments.length, 'isSpectator:', isSpectator, 'speedMultiplier:', speedMultiplier, 'gridSize:', gridSize);
+  console.log('useSnakeGame render - multiplayer mode, snakes:', snakes.length, 'gameRunning:', gameRunning, 'countdown:', countdown, 'segments:', segments.length, 'isSpectator:', effectiveIsSpectator, 'speedMultiplier:', speedMultiplier, 'gridSize:', gridSize);
 
   return {
     snakes,
@@ -297,7 +305,7 @@ export const useSnakeGame = () => {
     cellSize,
     countdown,
     showCountdown,
-    isSpectator,
+    isSpectator: effectiveIsSpectator,
     enterSpectatorMode,
     speedMultiplier,
     segmentCountdown,

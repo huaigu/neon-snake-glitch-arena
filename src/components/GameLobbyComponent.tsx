@@ -13,10 +13,19 @@ export const GameLobbyComponent: React.FC = () => {
   console.log('=== GameLobbyComponent RENDER START ===');
   
   const navigate = useNavigate();
-  const { currentRoom, setPlayerReady } = useRoomContext();
+  const { 
+    currentRoom, 
+    setPlayerReady, 
+    loading, 
+    error, 
+    isConnected 
+  } = useRoomContext();
   const { user } = useWeb3Auth();
   const { toast } = useToast();
   const [shareUrlCopied, setShareUrlCopied] = React.useState(false);
+
+  // 从RoomContext获取观察者状态
+  const { isSpectator } = useRoomContext();
 
   console.log('GameLobbyComponent: Current state snapshot:', {
     hasCurrentRoom: !!currentRoom,
@@ -45,7 +54,7 @@ export const GameLobbyComponent: React.FC = () => {
       roomPlayers: currentRoom.players.map(p => ({ 
         name: p.name, 
         isReady: p.isReady, 
-        address: p.address 
+        address: p.address
       })),
       timestamp: new Date().toISOString()
     });
@@ -59,36 +68,23 @@ export const GameLobbyComponent: React.FC = () => {
     }));
   }, [currentRoom?.players, currentRoom?.status]); // 添加 status 作为依赖项
 
-  // Find current player - 强制重新计算当玩家数据变化时
+  // Find current player from room players 
   const currentPlayer = React.useMemo(() => {
-    console.log('=== COMPUTING CURRENT PLAYER ===');
+    if (!currentRoom || !user?.address) return null;
     
-    if (!currentRoom || !user?.address) {
-      console.log('GameLobbyComponent: Missing currentRoom or user address for currentPlayer calculation');
+    // 观察者不在玩家列表中
+    if (isSpectator) {
       return null;
     }
     
-    const player = currentRoom.players.find(p => p.address === user.address);
+    const roomPlayer = currentRoom.players.find(p => p.address === user.address);
+    if (!roomPlayer) return null;
     
-    console.log('GameLobbyComponent: currentPlayer calculation DETAILED:', {
-      userAddress: user.address,
-      totalPlayersInRoom: currentRoom.players.length,
-      allPlayersData: currentRoom.players.map(p => ({ 
-        address: p.address, 
-        name: p.name, 
-        isReady: p.isReady,
-        matchesCurrentUser: p.address === user.address
-      })),
-      foundPlayer: player ? {
-        address: player.address,
-        name: player.name,
-        isReady: player.isReady
-      } : null,
-      timestamp: new Date().toISOString()
-    });
-    
-    return player;
-  }, [currentRoom?.players, user?.address]); // 更精确的依赖项
+    return {
+      ...roomPlayer,
+      isSpectator: false
+    };
+  }, [currentRoom?.players, user?.address, isSpectator]);
 
   // 添加详细的 currentPlayer 变化日志
   useEffect(() => {
@@ -235,11 +231,12 @@ export const GameLobbyComponent: React.FC = () => {
     }
   }, [shareUrl, toast]);
 
-  // Early return if currentRoom or currentPlayer is not yet initialized
-  if (!currentRoom || !currentPlayer) {
+  // Early return if currentRoom is not yet initialized, or if not spectator and no currentPlayer
+  if (!currentRoom || (!isSpectator && !currentPlayer)) {
     console.log('GameLobbyComponent: Early return - missing room or player data:', {
       hasCurrentRoom: !!currentRoom,
       hasCurrentPlayer: !!currentPlayer,
+      isSpectator,
       userAddress: user?.address
     });
     return (
@@ -294,42 +291,73 @@ export const GameLobbyComponent: React.FC = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-cyber-cyan">
                   <Crown className="w-5 h-5" />
-                  Ready Status
+                  {isSpectator ? 'Spectator Mode' : 'Ready Status'}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-cyber-cyan">
-                    {readyCount}/{totalPlayers}
+                {isSpectator ? (
+                  // 观察者模式UI
+                  <div className="text-center">
+                    <div className="w-3 h-3 bg-cyber-purple rounded-full animate-pulse mx-auto mb-2"></div>
+                    <div className="text-cyber-purple font-bold mb-2">Spectating Game</div>
+                    <p className="text-xs text-cyber-cyan/70 mb-4">
+                      {currentRoom.status === 'playing' ? 
+                        'Game is in progress. You are watching as a spectator.' :
+                        currentRoom.status === 'finished' ?
+                        'Game has ended. You joined as a spectator.' :
+                        'Game will start soon. You joined as a spectator.'
+                      }
+                    </p>
+                    {currentRoom.status === 'waiting' && (
+                      <div className="text-xs text-cyber-cyan/50">
+                        To participate, please refresh this page.
+                      </div>
+                    )}
                   </div>
-                  <p className="text-sm text-cyber-cyan/70">
-                    Players Ready
-                  </p>
-                </div>
+                ) : currentPlayer ? (
+                  // 正常玩家模式UI
+                  <>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-cyber-cyan">
+                        {readyCount}/{totalPlayers}
+                      </div>
+                      <p className="text-sm text-cyber-cyan/70">
+                        Players Ready
+                      </p>
+                    </div>
 
-                <Button
-                  onClick={handleToggleReady}
-                  variant={currentPlayer.isReady ? "destructive" : "default"}
-                  className="w-full"
-                >
-                  {currentPlayer.isReady ? "Cancel Ready" : "Ready Up"}
-                </Button>
+                    <Button
+                      onClick={handleToggleReady}
+                      variant={currentPlayer.isReady ? "destructive" : "default"}
+                      className="w-full"
+                      disabled={currentRoom.status !== 'waiting'}
+                    >
+                      {currentPlayer.isReady ? "Cancel Ready" : "Ready Up"}
+                    </Button>
+
+                    {canStartGame && (
+                      <div className="text-center text-green-400 text-sm animate-pulse">
+                        All players ready! Starting game...
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  // 加载状态
+                  <div className="text-center">
+                    <div className="text-cyber-cyan/70">Loading player data...</div>
+                  </div>
+                )}
 
                 {/* 增强的调试信息 */}
                 <div hidden={true} className="text-xs text-cyan-400 bg-gray-800 p-2 rounded space-y-1">
                   <div>Debug Info:</div>
-                  <div>Player: {currentPlayer.name}</div>
-                  <div>Address: {currentPlayer.address}</div>
-                  <div>Status: {currentPlayer.isReady ? 'READY' : 'NOT READY'}</div>
+                  <div>Player: {currentPlayer?.name || 'N/A'}</div>
+                  <div>Address: {currentPlayer?.address || 'N/A'}</div>
+                  <div>Status: {currentPlayer?.isReady ? 'READY' : 'NOT READY'}</div>
+                  <div>Spectator: {isSpectator ? 'YES' : 'NO'}</div>
                   <div>Ready Count: {readyCount}/{totalPlayers}</div>
                   <div>Time: {new Date().toLocaleTimeString()}</div>
                 </div>
-
-                {canStartGame && (
-                  <div className="text-center text-green-400 text-sm animate-pulse">
-                    All players ready! Starting game...
-                  </div>
-                )}
               </CardContent>
             </Card>
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useSnakeGame } from '../hooks/useSnakeGame';
 import { useIsMobile } from '../hooks/use-mobile';
+import { useRoomContext } from '../contexts/RoomContext';
 import { InfoPanel } from './InfoPanel';
 import { GameArea } from './GameArea';
 import { Timer, Zap, TrendingUp, Activity } from 'lucide-react';
@@ -27,6 +28,7 @@ export const SnakeGame: React.FC = () => {
     speedBoostCountdown
   } = useSnakeGame();
 
+  const { isSpectator: isExternalSpectator } = useRoomContext();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const playerSnake = snakes.find(snake => snake.isPlayer);
@@ -116,6 +118,14 @@ export const SnakeGame: React.FC = () => {
                 <div className="flex items-center gap-2 justify-center">
                   <div className="w-3 h-3 bg-cyber-cyan rounded-full animate-pulse"></div>
                   <span className="text-cyber-cyan font-bold">Spectator Mode</span>
+                  {/* 区分外部观察者和死亡观察者 */}
+                  {isExternalSpectator ? (
+                    <span className="text-cyber-cyan/70 text-sm ml-2">- Joined During Game</span>
+                  ) : snakes.find(snake => snake.isPlayer && !snake.isAlive) ? (
+                    <span className="text-cyber-cyan/70 text-sm ml-2">- Died in Game</span>
+                  ) : (
+                    <span className="text-cyber-cyan/70 text-sm ml-2">- Watching</span>
+                  )}
                 </div>
               </div>
             )}

@@ -1,4 +1,3 @@
-
 import * as Multisynq from '@multisynq/client';
 
 export class PlayerModel extends Multisynq.Model {

@@ -1,4 +1,3 @@
-
 import type { Config } from "tailwindcss";
 
 export default {
@@ -66,9 +65,11 @@ export default {
 				cyber: {
 					pink: '#ff0080',
 					cyan: '#00ffff',
-					purple: '#8000ff',
+					purple: '#8800ff',
 					green: '#00ff41',
 					orange: '#ff8000',
+					yellow: '#ffff00',
+					red: '#ff0040',
 					dark: '#0a0a0f',
 					darker: '#050508'
 				}

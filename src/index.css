@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -49,6 +48,10 @@
     /* Custom cyber colors */
     --cyber-darker: 218 100% 2%;
     --cyber-cyan: 180 100% 50%;
+    --cyber-purple: 280 100% 50%;
+    --cyber-yellow: 60 100% 50%;
+    --cyber-green: 120 100% 50%;
+    --cyber-red: 0 100% 50%;
   }
 }
 

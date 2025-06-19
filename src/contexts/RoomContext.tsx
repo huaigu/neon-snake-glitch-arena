@@ -17,6 +17,10 @@ interface RoomContextType {
   error: string | null;
   isConnected: boolean;
   connectedPlayersCount: number;
+  // 观察者模式相关
+  isSpectator: boolean;
+  spectateRoom: (roomId: string) => boolean;
+  leaveSpectator: () => void;
 }
 
 const RoomContext = createContext<RoomContextType | undefined>(undefined);
@@ -44,6 +48,10 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [connectedPlayersCount, setConnectedPlayersCount] = useState(0);
+  
+  // 观察者模式状态
+  const [isSpectator, setIsSpectator] = useState(false);
+  const [spectatorRoomId, setSpectatorRoomId] = useState<string | null>(null);
 
   // 从用户地址生成显示名称
   useEffect(() => {
@@ -434,6 +442,64 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     }
   };
 
+  // 观察者模式方法
+  const spectateRoom = (roomId: string): boolean => {
+    if (!gameView) {
+      console.error('spectateRoom: No gameView available');
+      return false;
+    }
+
+    try {
+      console.log('RoomContext: Starting to spectate room:', roomId);
+      
+      // 设置观察者状态
+      setIsSpectator(true);
+      setSpectatorRoomId(roomId);
+      setLoading(true);
+      setError(null);
+      
+      // 不调用joinRoom，而是直接订阅房间事件来获取游戏状态
+      // 通过GameView订阅房间的状态更新
+      if (gameView.model?.lobby) {
+        const currentState = gameView.model.lobby.getLobbyState();
+        const room = currentState.rooms.find(r => r.id === roomId);
+        if (room) {
+          console.log('RoomContext: Found room for spectating:', room);
+          setCurrentRoom({ ...room });
+          setLoading(false);
+          return true;
+        } else {
+          console.error('RoomContext: Room not found for spectating:', roomId);
+          setError('Room not found');
+          setLoading(false);
+          setIsSpectator(false);
+          setSpectatorRoomId(null);
+          return false;
+        }
+      }
+      
+      setError('Unable to access room data');
+      setLoading(false);
+      setIsSpectator(false);
+      setSpectatorRoomId(null);
+      return false;
+    } catch (err) {
+      console.error('Error starting spectator mode:', err);
+      setError('Failed to start spectator mode');
+      setLoading(false);
+      setIsSpectator(false);
+      setSpectatorRoomId(null);
+      return false;
+    }
+  };
+
+  const leaveSpectator = (): void => {
+    console.log('RoomContext: Leaving spectator mode');
+    setIsSpectator(false);
+    setSpectatorRoomId(null);
+    setCurrentRoom(null);
+  };
+
   return (
     <RoomContext.Provider value={{
       rooms,
@@ -448,7 +514,11 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
       loading,
       error,
       isConnected,
-      connectedPlayersCount
+      connectedPlayersCount,
+      // 观察者模式
+      isSpectator,
+      spectateRoom,
+      leaveSpectator
     }}>
       {children}
     </RoomContext.Provider>
