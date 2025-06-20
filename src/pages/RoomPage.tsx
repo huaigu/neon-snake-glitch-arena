@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useWeb3Auth } from '../contexts/Web3AuthContext';
 import { useRoomContext } from '../contexts/RoomContext';
@@ -23,13 +23,27 @@ export const RoomPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated, user } = useWeb3Auth();
-  const { currentRoom, joinRoom, leaveRoom, spectateRoom, rooms, isConnected, isSpectator } = useRoomContext();
+  const { currentRoom, joinRoom, leaveRoom, spectateRoom, leaveSpectator, rooms, isConnected, isSpectator, spectatorRoom } = useRoomContext();
   const { joinSession, isConnecting, error: connectionError } = useMultisynq();
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
   const [joinState, setJoinState] = useState<'idle' | 'waiting' | 'joining' | 'spectating' | 'success' | 'error'>('waiting');
   const [joinError, setJoinError] = useState<string | null>(null);
   const [hasAttemptedJoin, setHasAttemptedJoin] = useState(false);
+  const previousRoomIdRef = useRef<string | undefined>(undefined);
+
+  // 组件挂载时的一次性清理检查
+  const hasInitialCleanup = useRef(false);
+  useEffect(() => {
+    if (!hasInitialCleanup.current && isSpectator && spectatorRoom && roomId && spectatorRoom.id !== roomId) {
+      console.log('RoomPage: Initial cleanup of mismatched spectator state', {
+        roomId,
+        spectatorRoomId: spectatorRoom.id
+      });
+      leaveSpectator();
+      hasInitialCleanup.current = true;
+    }
+  }, [isSpectator, spectatorRoom, roomId, leaveSpectator]);
 
   // 重定向到登录页面，如果用户未认证
   useEffect(() => {
@@ -67,35 +81,51 @@ export const RoomPage: React.FC = () => {
     });
   }, [roomId, isAuthenticated, isConnected, isConnecting, connectionError, rooms.length, currentRoom?.id, joinState, hasAttemptedJoin]);
 
-  // 核心房间加入逻辑 - 等待连接建立和房间数据可用
+  // 简化的房间状态检查逻辑
   useEffect(() => {
     if (!isAuthenticated || !roomId) {
       return;
     }
 
-    console.log('RoomPage: Room join effect triggered', {
+    console.log('RoomPage: Room state check triggered', {
       isAuthenticated,
       isConnected, 
       roomId,
-      hasAttemptedJoin,
-      roomsCount: rooms.length,
       currentRoomId: currentRoom?.id,
+      isSpectator,
+      spectatorRoomId: spectatorRoom?.id,
       joinState
     });
 
-    // 如果已经在目标房间中，标记为成功
+    // 清理陈旧的观察者状态 - 如果当前roomId与观察者房间不匹配
+    if (isSpectator && spectatorRoom && spectatorRoom.id !== roomId) {
+      console.log('RoomPage: Clearing stale spectator state', {
+        currentRoomId: roomId,
+        spectatorRoomId: spectatorRoom.id
+      });
+      leaveSpectator();
+    }
+
+    // 如果已经在目标房间中，直接标记为成功
     if (currentRoom && currentRoom.id === roomId) {
-      console.log('RoomPage: Already in target room', roomId);
+      console.log('RoomPage: Already in target room, setting success state', {
+        roomId: currentRoom.id,
+        roomName: currentRoom.name,
+        roomStatus: currentRoom.status,
+        playersCount: currentRoom.players?.length || 0,
+        userAddress: user?.address,
+        userInPlayers: currentRoom.players?.some(p => p.address === user?.address) || false
+      });
       setJoinState('success');
-      setHasAttemptedJoin(true);
       return;
     }
 
-    // 如果在其他房间中，需要先离开
-    if (currentRoom && currentRoom.id !== roomId) {
-      console.log('RoomPage: In different room, need to leave first', {
+    // 如果在其他房间中，显示房间不匹配（不考虑观察者状态）
+    if (!isSpectator && currentRoom && currentRoom.id !== roomId) {
+      console.log('RoomPage: In different room', {
         currentRoomId: currentRoom.id,
-        targetRoomId: roomId
+        targetRoomId: roomId,
+        isSpectator
       });
       return; // UI会显示房间不匹配的提示
     }
@@ -123,100 +153,84 @@ export const RoomPage: React.FC = () => {
       });
       setJoinState('error');
       setJoinError(`Room "${roomId}" does not exist or has expired.`);
-      setHasAttemptedJoin(true);
       return;
     }
 
     // 如果已经尝试过加入，不要重复尝试
     if (hasAttemptedJoin) {
+      console.log('RoomPage: Already attempted join, waiting for state update...');
       return;
     }
 
-    // 检查房间状态决定加入还是观看
-    console.log('RoomPage: All conditions met, checking room status', {
+    console.log('RoomPage: Attempting to join/spectate room', {
       roomId,
-      targetRoom: {
-        id: targetRoom.id,
-        name: targetRoom.name,
-        playersCount: targetRoom.players.length,
-        maxPlayers: targetRoom.maxPlayers,
-        status: targetRoom.status
-      }
+      roomStatus: targetRoom.status
     });
 
-    setJoinError(null);
     setHasAttemptedJoin(true);
+    setJoinError(null);
 
     // 如果房间正在进行游戏或倒计时，进入观察者模式
     if (targetRoom.status === 'playing' || targetRoom.status === 'countdown' || targetRoom.status === 'finished') {
-      console.log('RoomPage: Room is in progress, entering spectator mode', {
-        roomStatus: targetRoom.status
-      });
-      
+      console.log('RoomPage: Room is in progress, entering spectator mode');
       setJoinState('spectating');
-      try {
-        const success = spectateRoom(roomId);
-        if (success) {
-          console.log('RoomPage: Successfully entered spectator mode');
-          setJoinState('success');
-        } else {
-          console.error('RoomPage: Failed to enter spectator mode');
-          setJoinState('error');
-          setJoinError('Failed to spectate room. The room may not be available.');
-        }
-      } catch (error) {
-        console.error('RoomPage: Exception during spectate room:', error);
+      const success = spectateRoom(roomId);
+      if (success) {
+        console.log('RoomPage: Successfully entered spectator mode');
+        setJoinState('success');
+      } else {
+        console.error('RoomPage: Failed to enter spectator mode');
         setJoinState('error');
-        setJoinError('An error occurred while entering spectator mode.');
+        setJoinError('Failed to spectate room. The room may not be available.');
       }
     } else {
       // 房间在等待状态，尝试作为玩家加入
       console.log('RoomPage: Room is waiting, attempting to join as player');
-      
       setJoinState('joining');
-      try {
-        const success = joinRoom(roomId);
-        if (success) {
-          console.log('RoomPage: Join room call succeeded');
-          // 不要立即设置成功状态，等待currentRoom更新
-        } else {
-          console.error('RoomPage: Join room call failed');
-          setJoinState('error');
-          setJoinError('Failed to join room. The room may be full or unavailable.');
-        }
-      } catch (error) {
-        console.error('RoomPage: Exception during join room:', error);
+      const success = joinRoom(roomId);
+      if (!success) {
+        console.error('RoomPage: Join room call failed');
         setJoinState('error');
-        setJoinError('An error occurred while joining the room.');
+        setJoinError('Failed to join room. The room may be full or unavailable.');
       }
+      // 如果成功，等待currentRoom更新后会自动设置为success
     }
-  }, [isAuthenticated, isConnected, roomId, currentRoom, rooms, joinRoom, spectateRoom, hasAttemptedJoin, joinState]);
+  }, [isAuthenticated, isConnected, roomId, currentRoom, rooms, joinRoom, spectateRoom, leaveSpectator, hasAttemptedJoin, user?.address, isSpectator, spectatorRoom?.id]);
 
-  // 监听 currentRoom 变化来确定加入是否成功
+  // 重置状态当roomId真正变化时（避免初始化时的重置）
   useEffect(() => {
-    if (currentRoom && currentRoom.id === roomId) {
-      if (joinState === 'joining') {
-        console.log('RoomPage: Successfully joined room as player - currentRoom updated', {
-          roomId: currentRoom.id,
-          roomName: currentRoom.name
-        });
-        setJoinState('success');
-      } else if (joinState === 'spectating' && isSpectator) {
-        console.log('RoomPage: Successfully entered spectator mode - currentRoom updated', {
-          roomId: currentRoom.id,
-          roomName: currentRoom.name
-        });
-        setJoinState('success');
-      }
+    const previousRoomId = previousRoomIdRef.current;
+    
+    console.log('RoomPage: RoomId effect triggered:', {
+      previousRoomId,
+      newRoomId: roomId,
+      currentRoomId: currentRoom?.id,
+      currentJoinState: joinState
+    });
+    
+    // 更新ref
+    previousRoomIdRef.current = roomId;
+    
+    // 如果这是第一次设置roomId（从undefined到实际值），并且用户已经在房间中，不要重置
+    if (previousRoomId === undefined && currentRoom && currentRoom.id === roomId) {
+      console.log('RoomPage: Initial roomId set and user already in room, skipping reset');
+      return;
     }
-  }, [currentRoom, roomId, joinState, isSpectator]);
-
-  // 重置状态当roomId变化时
-  useEffect(() => {
-    setHasAttemptedJoin(false);
-    setJoinState('waiting');
-    setJoinError(null);
-  }, [roomId]);
+    
+    // 如果roomId没有实际变化，不要重置
+    if (previousRoomId === roomId) {
+      console.log('RoomPage: RoomId unchanged, skipping reset');
+      return;
+    }
+    
+    // 只有当roomId真正变化时才重置状态
+    if (previousRoomId !== undefined) {
+      console.log('RoomPage: RoomId changed from', previousRoomId, 'to', roomId, '- resetting state');
+      setHasAttemptedJoin(false);
+      setJoinState('waiting');
+      setJoinError(null);
+    }
+  }, [roomId, currentRoom?.id, joinState]);
 
   // 监听路由变化，当用户尝试离开房间页面时显示确认对话框
   useEffect(() => {
@@ -264,7 +278,11 @@ export const RoomPage: React.FC = () => {
   };
 
   const confirmLeaveRoom = () => {
-    leaveRoom();
+    if (isSpectator) {
+      leaveSpectator();
+    } else {
+      leaveRoom();
+    }
     setShowLeaveDialog(false);
     if (pendingNavigation) {
       navigate(pendingNavigation);
@@ -377,8 +395,8 @@ export const RoomPage: React.FC = () => {
     );
   }
 
-  // 房间不匹配状态（在其他房间中）
-  if (currentRoom && currentRoom.id !== roomId) {
+  // 房间不匹配状态（在其他房间中）- 只有在非观察者模式下才检查
+  if (!isSpectator && currentRoom && currentRoom.id !== roomId) {
     return (
       <div className="min-h-screen bg-cyber-darker flex items-center justify-center p-4">
         <div className="text-center max-w-md">
@@ -408,13 +426,25 @@ export const RoomPage: React.FC = () => {
     );
   }
 
-  // 成功状态但currentRoom还未更新
-  if (joinState === 'success' && !currentRoom) {
+  // 成功状态但房间数据还未更新
+  if (joinState === 'success' && !currentRoom && !isSpectator) {
     return (
       <div className="min-h-screen bg-cyber-darker flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin text-cyber-cyan mx-auto mb-4" />
           <div className="text-cyber-cyan">Loading room data...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // 观察者模式等待房间数据
+  if (isSpectator && !spectatorRoom) {
+    return (
+      <div className="min-h-screen bg-cyber-darker flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-cyber-cyan mx-auto mb-4" />
+          <div className="text-cyber-cyan">Loading spectator view...</div>
         </div>
       </div>
     );
@@ -437,7 +467,7 @@ export const RoomPage: React.FC = () => {
       </div>
 
       {/* 观察者模式提示 */}
-      {isSpectator && currentRoom && (
+      {isSpectator && spectatorRoom && (
         <div className="mx-4 mb-4 p-4 bg-cyber-purple/10 border border-cyber-purple/50 rounded-lg">
           <div className="flex items-center gap-3">
             <div className="w-6 h-6 bg-cyber-purple rounded-full flex items-center justify-center">
@@ -446,14 +476,14 @@ export const RoomPage: React.FC = () => {
             <div>
               <h3 className="font-bold text-cyber-purple mb-1">Spectator Mode</h3>
               <p className="text-sm text-cyber-purple/80">
-                {currentRoom.status === 'playing' ? 
+                {spectatorRoom.status === 'playing' ? 
                   'Game is currently in progress. You are watching as a spectator.' :
-                  currentRoom.status === 'finished' ?
+                  spectatorRoom.status === 'finished' ?
                   'Game has ended. You joined as a spectator.' :
                   'You joined while the game was starting. You will watch this round as a spectator.'
                 }
               </p>
-              {currentRoom.status === 'waiting' && (
+              {spectatorRoom.status === 'waiting' && (
                 <p className="text-xs text-cyber-purple/60 mt-1">
                   To participate in the next game, please refresh this page.
                 </p>

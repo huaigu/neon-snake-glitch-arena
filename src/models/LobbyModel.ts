@@ -1,4 +1,3 @@
-
 import * as Multisynq from '@multisynq/client';
 import { GameRoomModel } from './GameRoomModel';
 import { PlayerModel } from './PlayerModel';
@@ -32,43 +31,66 @@ export class LobbyModel extends Multisynq.Model {
     console.log('LobbyModel: Initialization complete');
   }
 
-  handlePlayerJoin(viewInfo: { viewId: string; viewData?: { name?: string; address?: string } }) {
-    console.log('LobbyModel: Player joining:', viewInfo);
-    
-    const viewId = viewInfo.viewId;
-    const playerData = viewInfo.viewData || {};
+  handlePlayerJoin(viewId: string) {
+    console.log('LobbyModel: Player joining with viewId:', viewId);
     
     // Guard against undefined viewId
     if (!viewId) {
       console.error('LobbyModel: handlePlayerJoin called with undefined viewId, skipping');
       return;
     }
-    
-    // Check if this is a spectator connection (don't create player model for spectators)
-    if (viewId.includes('spectator_') || (playerData.address && playerData.address.includes('spectator_'))) {
-      console.log('LobbyModel: Spectator connection detected, skipping player creation');
+
+    // Guard against non-string viewId
+    if (typeof viewId !== 'string') {
+      console.error('LobbyModel: handlePlayerJoin called with non-string viewId:', typeof viewId, viewId);
+      return;
+    }
+
+    // Guard against empty string viewId
+    if (viewId.trim() === '') {
+      console.error('LobbyModel: handlePlayerJoin called with empty viewId, skipping');
       return;
     }
     
-    // Create player model
-    const player = PlayerModel.create({
-      viewId: viewId,
-      name: playerData.name || `Player_${viewId.slice(0, 6)}`,
-      address: playerData.address || viewId
-    });
+    // Check if this is a spectator connection (don't create player model for spectators)
+    if (viewId.includes('spectator_')) {
+      console.log('LobbyModel: Spectator connection detected, skipping player creation');
+      return;
+    }
+
+    // Check if player already exists
+    if (this.players.has(viewId)) {
+      console.log('LobbyModel: Player already exists, ignoring duplicate join:', viewId);
+      return;
+    }
     
-    this.players.set(viewId, player);
-    
-    // Publish lobby update
-    this.publishLobbyState();
-    
-    console.log('LobbyModel: Player joined, total players:', this.players.size);
+    try {
+      // Create player model with viewId as both viewId and address
+      const player = PlayerModel.create({
+        viewId: viewId,
+        name: `Player_${viewId.slice(0, 6)}`,
+        address: viewId // Use viewId as address for now, will be updated when they create/join rooms
+      });
+      
+      this.players.set(viewId, player);
+      
+      // Publish lobby update
+      this.publishLobbyState();
+      
+      console.log('LobbyModel: Player joined successfully, total players:', this.players.size);
+    } catch (error) {
+      console.error('LobbyModel: Error creating player:', error);
+    }
   }
 
-  handlePlayerLeave(viewInfo: { viewId: string }) {
-    console.log('LobbyModel: Player leaving:', viewInfo);
+  handlePlayerLeave(viewId: string) {
+    console.log('LobbyModel: Player leaving with viewId:', viewId);
     
-    const viewId = viewInfo.viewId;
+    if (!viewId || typeof viewId !== 'string') {
+      console.error('LobbyModel: handlePlayerLeave called with invalid viewId:', viewId);
+      return;
+    }
+    
     const player = this.players.get(viewId);
     
     if (player) {
@@ -83,35 +105,77 @@ export class LobbyModel extends Multisynq.Model {
       // Remove player from lobby
       player.destroy();
       this.players.delete(viewId);
+      
+      this.publishLobbyState();
+      console.log('LobbyModel: Player left, remaining players:', this.players.size);
+    } else {
+      console.log('LobbyModel: Player not found for leaving:', viewId);
     }
-    
-    this.publishLobbyState();
-    console.log('LobbyModel: Player left, remaining players:', this.players.size);
   }
-
-
 
   handleCreateRoom(payload: { roomName: string; playerName: string; hostAddress: string }) {
     console.log('LobbyModel: Creating room:', payload);
     
+    // 服务端安全检查：确保玩家不会创建多个房间（作为客户端检查的后备）
+    const existingHostedRoom = Array.from(this.gameRooms.values()).find(room => 
+      room.hostAddress === payload.hostAddress
+    );
+    
+    if (existingHostedRoom) {
+      console.log('LobbyModel: Server-side check: Player already hosts a room:', {
+        hostAddress: payload.hostAddress,
+        existingRoomId: existingHostedRoom.id,
+        existingRoomName: existingHostedRoom.name
+      });
+      
+      // 这种情况理论上不应该发生，因为客户端已经检查过了
+      // 但为了安全起见，服务端仍然拒绝请求
+      console.warn('LobbyModel: This should not happen - client should have prevented this request');
+      return;
+    }
+    
     const roomId = `room_${this.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
-    // Find or create the host player
-    let hostPlayer = Array.from(this.players.values()).find(p => p.address === payload.hostAddress);
+    // Find the host player - check both by address and viewId
+    let hostPlayer = Array.from(this.players.values()).find(p => 
+      p.address === payload.hostAddress || p.viewId === payload.hostAddress
+    );
     
     if (!hostPlayer) {
-      console.log('LobbyModel: Host player not found, creating new player');
-      // Create a new player if not found (this handles the case where player joins and immediately creates room)
+      console.log('LobbyModel: Host player not found by address, checking all players:', {
+        hostAddress: payload.hostAddress,
+        allPlayers: Array.from(this.players.values()).map(p => ({
+          viewId: p.viewId,
+          address: p.address,
+          name: p.name
+        }))
+      });
+      
+      // 如果还是找不到，创建新玩家，但使用hostAddress作为address，并保持现有的viewId映射
       hostPlayer = PlayerModel.create({
-        viewId: payload.hostAddress, // Use address as viewId temporarily
+        viewId: payload.hostAddress, // 临时使用address作为viewId
         name: payload.playerName,
         address: payload.hostAddress
       });
       this.players.set(payload.hostAddress, hostPlayer);
+      console.log('LobbyModel: Created new host player with address as viewId');
     } else {
+      console.log('LobbyModel: Found existing host player:', {
+        viewId: hostPlayer.viewId,
+        address: hostPlayer.address,
+        name: hostPlayer.name
+      });
+      
+      // 更新玩家的address为提供的hostAddress（如果不同的话）
+      if (hostPlayer.address !== payload.hostAddress) {
+        console.log('LobbyModel: Updating player address from', hostPlayer.address, 'to', payload.hostAddress);
+        hostPlayer.address = payload.hostAddress;
+      }
+      
       // Update player name if provided
       if (payload.playerName && payload.playerName !== hostPlayer.name) {
         hostPlayer.name = payload.playerName;
+        console.log('LobbyModel: Updated player name to:', payload.playerName);
       }
       
       // 检查玩家是否已经在其他房间中，如果是则先退出
@@ -150,7 +214,11 @@ export class LobbyModel extends Multisynq.Model {
     this.gameRooms.set(roomId, room);
     
     // Add host to room
-    console.log('LobbyModel: Adding host player to room:', hostPlayer.viewId);
+    console.log('LobbyModel: Adding host player to room:', {
+      viewId: hostPlayer.viewId,
+      address: hostPlayer.address,
+      roomId: roomId
+    });
     room.addPlayer(hostPlayer);
     
     this.publishLobbyState();

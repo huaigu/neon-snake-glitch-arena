@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRoomContext } from '../contexts/RoomContext';
+import { useWeb3Auth } from '../contexts/Web3AuthContext';
+import { useMultisynq } from '../contexts/MultisynqContext';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
@@ -20,6 +22,8 @@ export const RoomList: React.FC = () => {
     error,
     isConnected
   } = useRoomContext();
+  const { user } = useWeb3Auth();
+  const { gameView } = useMultisynq();
   const [newRoomName, setNewRoomName] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -67,11 +71,29 @@ export const RoomList: React.FC = () => {
     }
   };
 
-  // Check if current player already hosts a room
-  const currentPlayerHostsRoom = rooms.some(room => 
-    room.hostAddress && currentPlayerName && 
-    (room.hostAddress === currentPlayerName || room.host === currentPlayerName)
-  );
+  // Check if current player already hosts a room - 直接从model读取最新状态
+  const currentPlayerHostsRoom = React.useMemo(() => {
+    if (!user?.address || !gameView?.model?.lobby) {
+      return false;
+    }
+    
+    const currentState = gameView.model.lobby.getLobbyState();
+    const existingHostedRoom = currentState.rooms.find(room => 
+      room.hostAddress === user.address
+    );
+    
+    const hostsRoom = !!existingHostedRoom;
+    
+    // 添加调试信息
+    console.log('RoomList: Host room check (from model):', {
+      userAddress: user.address,
+      roomsWithHosts: currentState.rooms.map(r => ({ id: r.id, name: r.name, hostAddress: r.hostAddress })),
+      existingHostedRoom: existingHostedRoom ? { id: existingHostedRoom.id, name: existingHostedRoom.name } : null,
+      currentPlayerHostsRoom: hostsRoom
+    });
+    
+    return hostsRoom;
+  }, [user?.address, gameView?.model?.lobby, rooms.length]); // 依赖rooms.length来触发重新计算
 
   return (
     <div className="w-full max-w-6xl mx-auto p-4">

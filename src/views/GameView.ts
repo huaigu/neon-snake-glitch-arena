@@ -9,6 +9,7 @@ export class GameView extends Multisynq.View {
   private roomJoinedCallback: ((data: any) => void) | null = null;
   private roomCreatedCallback: ((data: any) => void) | null = null;
   private roomJoinFailedCallback: ((data: any) => void) | null = null;
+  private roomCreationFailedCallback: ((data: any) => void) | null = null;
   private leaderboardCallback: ((data: any) => void) | null = null;
 
   constructor(model: GameModel) {
@@ -29,6 +30,7 @@ export class GameView extends Multisynq.View {
     // Subscribe to player notifications
     this.subscribe("player", "joined-room", this.handlePlayerJoinedRoom);
     this.subscribe("player", "join-room-failed", this.handlePlayerJoinRoomFailed);
+    this.subscribe("player", "room-creation-failed", this.handleRoomCreationFailed);
     
     // Subscribe to player errors
     this.subscribe("player", "create-room-error", this.handleCreateRoomError);
@@ -69,6 +71,11 @@ export class GameView extends Multisynq.View {
   setRoomCreatedCallback(callback: (data: any) => void) {
     console.log('GameView: Setting room created callback');
     this.roomCreatedCallback = callback;
+  }
+
+  setRoomCreationFailedCallback(callback: (data: any) => void) {
+    console.log('GameView: Setting room creation failed callback');
+    this.roomCreationFailedCallback = callback;
   }
 
   setLeaderboardCallback(callback: (data: any) => void) {
@@ -196,6 +203,13 @@ export class GameView extends Multisynq.View {
   private handleCreateRoomError = (data: any) => {
     console.log('GameView: Create room error:', data);
     // This will be handled by the RoomContext subscription
+  };
+
+  private handleRoomCreationFailed = (data: any) => {
+    console.log('GameView: Room creation failed:', data);
+    if (this.roomCreationFailedCallback) {
+      this.roomCreationFailedCallback(data);
+    }
   };
 
   private handleLeaderboardUpdate = (data: any) => {
