@@ -572,8 +572,15 @@ export class GameRoomModel extends Multisynq.Model {
       isAlive: snake.isAlive,
       score: snake.score,
       name: snake.name,
-      isSpectator: snake.isSpectator || false
+      isSpectator: snake.isSpectator || false,
+      hasNFT: snake.hasNFT
     }));
+
+    console.log('GameRoomModel: Building game state with NFT data:', {
+      roomId: this.roomId,
+      snakesCount: snakesArray.length,
+      snakesNFT: snakesArray.map(s => ({ name: s.name, hasNFT: s.hasNFT }))
+    });
 
     return {
       id: this.roomId,

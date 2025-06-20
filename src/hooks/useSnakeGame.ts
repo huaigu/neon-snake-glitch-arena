@@ -89,6 +89,7 @@ export const useSnakeGame = () => {
 
     console.log('useSnakeGame: Setting up game callback with new model architecture, fixed gridSize:', gridSize);
     
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const gameCallback = (gameSession: any, foods: any[], segments: any[]) => {
       console.log('=== useSnakeGame: Game callback triggered (NEW MODEL) ===');
       console.log('gameSession:', gameSession);
@@ -107,6 +108,7 @@ export const useSnakeGame = () => {
         setSegmentCountdown(gameSession.segmentCountdown || 10);
         
         // Map players to snakes format
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const rawGameSnakes = gameSession.players.map((player: any) => ({
           id: player.id,
           segments: player.segments || [player.position],
@@ -120,6 +122,16 @@ export const useSnakeGame = () => {
           // 使用来自Snake模型的实际NFT状态
           hasNFT: player.hasNFT || false
         }));
+
+        console.log('useSnakeGame: Raw snake NFT data from gameSession:', {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          playersWithNFT: gameSession.players.map((p: any) => ({ 
+            id: p.id.slice(-6), 
+            name: p.name, 
+            hasNFT: p.hasNFT,
+            isCurrentPlayer: p.id === user?.address
+          }))
+        });
         
         // 重新分配颜色确保一致性 - 只对非NFT玩家分配预设颜色
         const gameSnakes: Snake[] = assignPlayerColors(
