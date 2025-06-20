@@ -26,7 +26,8 @@ import {
   Gift,
   Sparkles,
   Medal,
-  Award
+  Award,
+  Twitter
 } from 'lucide-react';
 
 // Leaderboard interfaces
@@ -334,6 +335,104 @@ const Landing = () => {
         </div>
       </div>
 
+      {/* Game Screenshots Section */}
+      <div className="p-4 py-16 bg-gradient-to-b from-cyber-darker to-cyber-dark">
+        <div className="max-w-6xl mx-auto">
+          {/* Section Header */}
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold text-cyber-cyan neon-text mb-4">
+              GAME IN ACTION
+            </h2>
+            <p className="text-lg text-cyber-cyan/70 max-w-2xl mx-auto">
+              Experience the thrill of real-time multiplayer battles and join as a spectator to watch epic showdowns
+            </p>
+          </div>
+
+          {/* Screenshots Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Game Lobby Screenshot */}
+            <Card className="cyber-panel border-cyber-purple/50 hover:border-cyber-purple transition-all duration-300 group">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3 text-cyber-purple">
+                  <Users className="w-6 h-6" />
+                  Game Lobby
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="aspect-video bg-gradient-to-br from-cyber-dark to-cyber-darker rounded-lg border border-cyber-purple/30 flex items-center justify-center relative overflow-hidden group-hover:border-cyber-purple/60 transition-all duration-300">
+                  <img 
+                    src="/lobby.jpg" 
+                    alt="Game Lobby Screenshot" 
+                    className="w-full h-full object-contain rounded-lg opacity-90 group-hover:opacity-100 transition-opacity duration-300"
+                  />
+                  <div className="absolute inset-0 bg-cyber-purple/5 group-hover:bg-cyber-purple/0 transition-all duration-300"></div>
+                  <div className="absolute top-3 right-3 bg-cyber-purple/90 text-white px-3 py-1 rounded text-xs font-bold backdrop-blur-sm">
+                    LOBBY
+                  </div>
+                </div>
+                <p className="text-cyber-cyan/70 text-sm mt-3">
+                  Browse active rooms, create your own battles, or join friends for multiplayer showdowns
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Battle Mode Screenshot */}
+            <Card className="cyber-panel border-cyber-cyan/50 hover:border-cyber-cyan transition-all duration-300 group">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3 text-cyber-cyan">
+                  <Gamepad2 className="w-6 h-6" />
+                  8-Player Battle Arena
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="aspect-video bg-gradient-to-br from-cyber-dark to-cyber-darker rounded-lg border border-cyber-cyan/30 flex items-center justify-center relative overflow-hidden group-hover:border-cyber-cyan/60 transition-all duration-300">
+                  <img 
+                    src="/room.jpg" 
+                    alt="8-Player Battle Mode Screenshot" 
+                    className="w-full h-full object-contain rounded-lg opacity-90 group-hover:opacity-100 transition-opacity duration-300"
+                  />
+                  <div className="absolute inset-0 bg-cyber-cyan/5 group-hover:bg-cyber-cyan/0 transition-all duration-300"></div>
+                  <div className="absolute top-3 right-3 bg-cyber-cyan/90 text-cyber-darker px-3 py-1 rounded text-xs font-bold backdrop-blur-sm">
+                    LIVE BATTLE
+                  </div>
+                </div>
+                <p className="text-cyber-cyan/70 text-sm mt-3">
+                  Intense real-time multiplayer action with up to 8 players competing for arena dominance
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Spectator Mode - Full Width */}
+          <div className="mt-8">
+            <Card className="cyber-panel border-cyber-green/50 hover:border-cyber-green transition-all duration-300 group">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3 text-cyber-green text-center justify-center">
+                  <Eye className="w-6 h-6" />
+                  Spectator Mode - Watch Epic Battles
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="aspect-video bg-gradient-to-br from-cyber-dark to-cyber-darker rounded-lg border border-cyber-green/30 flex items-center justify-center relative overflow-hidden group-hover:border-cyber-green/60 transition-all duration-300">
+                  <img 
+                    src="/spectator.jpg" 
+                    alt="Spectator Mode Screenshot" 
+                    className="w-full h-full object-contain rounded-lg opacity-90 group-hover:opacity-100 transition-opacity duration-300"
+                  />
+                  <div className="absolute inset-0 bg-cyber-green/5 group-hover:bg-cyber-green/0 transition-all duration-300"></div>
+                  <div className="absolute top-3 right-3 bg-cyber-green/90 text-cyber-darker px-3 py-1 rounded text-xs font-bold backdrop-blur-sm">
+                    SPECTATING
+                  </div>
+                </div>
+                <p className="text-cyber-cyan/70 text-sm mt-3 text-center">
+                  Join as a spectator to watch intense battles unfold in real-time. Learn strategies from the best players and enjoy the action without pressure
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+
       {/* Features Section */}
       <div id="features" className="min-h-screen p-4 py-20">
         <div className="max-w-6xl mx-auto">
@@ -576,15 +675,15 @@ const Landing = () => {
                   <ul className="space-y-2 text-cyber-cyan/70">
                     <li className="flex items-center gap-2">
                       <div className="w-2 h-2 bg-cyber-cyan rounded-full"></div>
-                      Priority room creation
+                      Crown emoji as snake head
                     </li>
                     <li className="flex items-center gap-2">
                       <div className="w-2 h-2 bg-cyber-green rounded-full"></div>
-                      Special leaderboard section
+                      Rainbow gradient snake effects
                     </li>
                     <li className="flex items-center gap-2">
                       <div className="w-2 h-2 bg-cyber-purple rounded-full"></div>
-                      Exclusive tournament access
+                      Enhanced visual recognition
                     </li>
                   </ul>
                 </CardContent>
@@ -594,22 +693,22 @@ const Landing = () => {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-3 text-yellow-400">
                     <Gift className="w-6 h-6" />
-                    Holder Rewards
+                    Collection Benefits
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ul className="space-y-2 text-cyber-cyan/70">
                     <li className="flex items-center gap-2">
                       <div className="w-2 h-2 bg-cyber-cyan rounded-full"></div>
-                      Monthly reward airdrops
+                      Limited edition collectible
                     </li>
                     <li className="flex items-center gap-2">
                       <div className="w-2 h-2 bg-cyber-green rounded-full"></div>
-                      Community governance rights
+                      Unique digital identity
                     </li>
                     <li className="flex items-center gap-2">
                       <div className="w-2 h-2 bg-cyber-purple rounded-full"></div>
-                      Early access to new features
+                      Community status symbol
                     </li>
                   </ul>
                 </CardContent>
@@ -657,7 +756,7 @@ const Landing = () => {
             Join thousands of players in the most advanced snake arena ever created
           </p>
           
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+          <div className="flex justify-center">
             <Button
               onClick={handleEnterLobby}
               size="lg"
@@ -666,20 +765,30 @@ const Landing = () => {
               <Gamepad2 className="w-6 h-6 mr-3" />
               Enter the Arena
             </Button>
-            
-                         <Button
-               onClick={handleMintNFT}
-               variant="outline"
-               size="lg"
-               className="border-cyber-purple/50 text-cyber-purple hover:bg-cyber-purple/10 hover:border-cyber-purple text-xl px-16 py-6"
-               disabled={isMinting}
-             >
-               <Sparkles className="w-6 h-6 mr-3" />
-               {isMinting ? 'Minting...' : 'Get NFT Snake'}
-             </Button>
           </div>
         </div>
       </div>
+
+      {/* Footer */}
+      <footer className="p-4 py-8 bg-cyber-darker border-t border-cyber-cyan/20">
+        <div className="max-w-6xl mx-auto text-center">
+          <div className="flex justify-center items-center gap-4 mb-4">
+            <span className="text-cyber-cyan/70">Follow me:</span>
+            <a
+              href="https://x.com/coder_chao"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 text-cyber-cyan hover:text-cyber-green transition-colors duration-300 group"
+            >
+              <Twitter className="w-5 h-5 group-hover:animate-pulse" />
+              <span className="text-sm font-medium">@coder_chao</span>
+            </a>
+          </div>
+          <p className="text-cyber-cyan/50 text-sm">
+            © 2025 Neon Snake Glitch Arena. Built on Monad blockchain.
+          </p>
+        </div>
+      </footer>
     </div>
   );
 };
