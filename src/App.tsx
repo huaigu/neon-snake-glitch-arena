@@ -13,7 +13,7 @@ import GameLobbyPage from "./pages/GameLobbyPage";
 import RoomPage from "./pages/RoomPage";
 import GameLobby from "./pages/GameLobby";
 import Web3AuthPage from "./pages/Web3AuthPage";
-import Index from "./pages/Index";
+
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,7 +34,7 @@ const App = () => (
                   <Route path="/lobby" element={<GameLobbyPage />} />
                   <Route path="/room/:roomId" element={<RoomPage />} />
                   <Route path="/old-lobby" element={<GameLobby />} />
-                  <Route path="/game" element={<Index />} />
+
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>

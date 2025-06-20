@@ -1,10 +1,26 @@
 import React from 'react';
 import { useSnakeGame } from '../hooks/useSnakeGame';
 import { useIsMobile } from '../hooks/use-mobile';
+import { useWeb3Auth } from '../contexts/Web3AuthContext';
 import { InfoPanel } from './InfoPanel';
 import { GameArea } from './GameArea';
-import { Timer, Zap, TrendingUp, Activity } from 'lucide-react';
+import { Timer, Zap, TrendingUp, Activity, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from './ui/tooltip';
 
 export const SnakeGame: React.FC = () => {
   const {
@@ -29,7 +45,23 @@ export const SnakeGame: React.FC = () => {
 
   const isMobile = useIsMobile();
   const navigate = useNavigate();
+  const { user } = useWeb3Auth();
   const playerSnake = snakes.find(snake => snake.isPlayer);
+
+  // Guest用户积分提醒状态
+  const [showGuestScoreAlert, setShowGuestScoreAlert] = React.useState(false);
+
+  // 检查游戏结束时是否需要显示Guest积分提醒
+  React.useEffect(() => {
+    if (gameOver && user?.isGuest && playerSnake && playerSnake.score > 0) {
+      // 延迟显示，让用户先看到游戏结束画面
+      const timer = setTimeout(() => {
+        setShowGuestScoreAlert(true);
+      }, 2000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [gameOver, user?.isGuest, playerSnake?.score]);
 
   return (
     <div className="h-screen bg-cyber-darker flex flex-col overflow-hidden">
@@ -157,8 +189,22 @@ export const SnakeGame: React.FC = () => {
             <div className="text-cyber-cyan font-bold text-sm">CYBER SNAKE</div>
             <div className="flex items-center gap-3">
               {snakes.find(s => s.isPlayer) && (
-                <div className="text-cyber-green font-bold text-sm">
-                  {snakes.find(s => s.isPlayer)?.score || 0}
+                <div className="flex items-center gap-1">
+                  <div className="text-cyber-green font-bold text-sm">
+                    {snakes.find(s => s.isPlayer)?.score || 0}
+                  </div>
+                  {user?.isGuest && (snakes.find(s => s.isPlayer)?.score || 0) > 0 && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <AlertTriangle className="w-3 h-3 text-cyber-orange" />
+                        </TooltipTrigger>
+                        <TooltipContent className="bg-cyber-darker border-cyber-orange/50">
+                          <p className="text-cyber-orange text-xs">Guest scores not saved</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
                 </div>
               )}
               <button 
@@ -441,6 +487,40 @@ export const SnakeGame: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Guest用户积分提醒弹框 */}
+      <AlertDialog open={showGuestScoreAlert} onOpenChange={setShowGuestScoreAlert}>
+        <AlertDialogContent className="bg-cyber-darker border-cyber-orange/50">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-cyber-orange flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5" />
+              Guest User Notice
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-cyber-cyan/70">
+              As a Guest user, your score of <span className="text-cyber-green font-bold">{playerSnake?.score || 0}</span> points will not be saved to your account.
+              <br /><br />
+              To earn persistent score rewards and leaderboard records, please connect your wallet for full features.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex flex-col sm:flex-row gap-2">
+            <AlertDialogAction 
+              onClick={() => setShowGuestScoreAlert(false)}
+              className="bg-cyber-orange hover:bg-cyber-orange/80 text-cyber-darker"
+            >
+              Got it
+            </AlertDialogAction>
+            <AlertDialogAction 
+              onClick={() => {
+                setShowGuestScoreAlert(false);
+                navigate('/auth');
+              }}
+              className="bg-cyber-cyan hover:bg-cyber-cyan/80 text-cyber-darker"
+            >
+              Connect Wallet
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
     </div>
   );

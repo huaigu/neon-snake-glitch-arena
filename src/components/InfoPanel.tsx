@@ -4,6 +4,14 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Snake } from '../hooks/useSnakeGame';
 import { useNavigate } from 'react-router-dom';
+import { useWeb3Auth } from '../contexts/Web3AuthContext';
+import { AlertTriangle } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from './ui/tooltip';
 
 interface InfoPanelProps {
   snakes: Snake[];
@@ -23,6 +31,7 @@ export const InfoPanel: React.FC<InfoPanelProps> = ({
   onReset
 }) => {
   const navigate = useNavigate();
+  const { user } = useWeb3Auth();
   
   // Sort by score first, then by segments length
   const sortedSnakes = [...snakes].sort((a, b) => {
@@ -69,7 +78,21 @@ export const InfoPanel: React.FC<InfoPanelProps> = ({
             </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-300 text-sm">Score:</span>
-              <span className="text-cyber-green font-bold text-lg">{playerSnake.score}</span>
+              <div className="flex items-center gap-1">
+                <span className="text-cyber-green font-bold text-lg">{playerSnake.score}</span>
+                {user?.isGuest && playerSnake.score > 0 && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <AlertTriangle className="w-4 h-4 text-cyber-orange" />
+                      </TooltipTrigger>
+                      <TooltipContent className="bg-cyber-darker border-cyber-orange/50">
+                        <p className="text-cyber-orange text-xs">Guest scores not saved</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-300 text-sm">Length:</span>
@@ -169,9 +192,29 @@ export const InfoPanel: React.FC<InfoPanelProps> = ({
         <Card className="cyber-panel p-3 border-cyber-pink">
           <div className="text-center">
             <h3 className="text-lg font-bold text-cyber-pink neon-text mb-1">GAME OVER</h3>
-            <p className="text-gray-300 text-sm">
-              Final Score: <span className="text-cyber-green font-bold">{playerSnake?.score || 0}</span>
-            </p>
+            <div className="text-gray-300 text-sm">
+              <div className="flex items-center justify-center gap-1">
+                <span>Final Score:</span>
+                <span className="text-cyber-green font-bold">{playerSnake?.score || 0}</span>
+                {user?.isGuest && (playerSnake?.score || 0) > 0 && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <AlertTriangle className="w-4 h-4 text-cyber-orange" />
+                      </TooltipTrigger>
+                      <TooltipContent className="bg-cyber-darker border-cyber-orange/50">
+                        <p className="text-cyber-orange text-xs">Guest scores not saved</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
+              {user?.isGuest && (playerSnake?.score || 0) > 0 && (
+                <div className="text-cyber-orange text-xs mt-1 text-center">
+                  Score not saved - Connect wallet for full features
+                </div>
+              )}
+            </div>
           </div>
         </Card>
       )}

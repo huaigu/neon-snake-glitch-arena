@@ -1,9 +1,9 @@
 
 import React, { useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useRoomContext } from '../contexts/RoomContext';
 import { useWeb3Auth } from '../contexts/Web3AuthContext';
 import { PlayerList } from './PlayerList';
+import { SnakeGame } from './SnakeGame';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Users, Crown } from 'lucide-react';
@@ -23,7 +23,6 @@ const PLAYER_COLORS = [
 export const GameLobbyComponent: React.FC = () => {
   console.log('=== GameLobbyComponent RENDER START ===');
   
-  const navigate = useNavigate();
   const { currentRoom, setPlayerReady } = useRoomContext();
   const { user } = useWeb3Auth();
 
@@ -184,12 +183,6 @@ export const GameLobbyComponent: React.FC = () => {
   const totalPlayers = currentRoom?.players.length || 0;
   const canStartGame = totalPlayers >= 2 && readyCount === totalPlayers;
 
-  const handleAutoStart = useCallback(() => {
-    if (canStartGame) {
-      navigate('/game');
-    }
-  }, [canStartGame, navigate]);
-
   // 专门监控房间状态变化，特别是游戏结束后的状态重置
   useEffect(() => {
     console.log('=== ROOM STATUS CHANGE MONITOR ===');
@@ -201,17 +194,6 @@ export const GameLobbyComponent: React.FC = () => {
       timestamp: new Date().toISOString()
     });
   }, [currentRoom?.status, currentRoom?.players]);
-
-  // Auto-start game when all players are ready
-  useEffect(() => {
-    if (canStartGame) {
-      const timer = setTimeout(() => {
-        handleAutoStart();
-      }, 500);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [canStartGame, handleAutoStart]);
 
   // Early return if currentRoom or currentPlayer is not yet initialized
   if (!currentRoom || !currentPlayer) {
@@ -233,8 +215,14 @@ export const GameLobbyComponent: React.FC = () => {
     totalPlayers: totalPlayers,
     canStartGame: canStartGame,
     buttonText: currentPlayer.isReady ? "Cancel Ready" : "Ready Up",
+    roomStatus: currentRoom.status,
     timestamp: new Date().toISOString()
   });
+
+  // 如果房间状态是playing或countdown，显示游戏界面
+  if (currentRoom.status === 'playing' || currentRoom.status === 'finished') {
+    return <SnakeGame />;
+  }
 
   return (
     <div className="min-h-screen bg-cyber-darker flex items-center justify-center p-4">

@@ -43,12 +43,12 @@ export const useResponsiveGrid = (containerRef?: React.RefObject<HTMLElement>) =
       const cellFromHeight = Math.floor(usableHeight / LOGICAL_GRID_SIZE);
       
       // 选择较小的值确保游戏板能完全显示
-      let newCellSize = Math.min(cellFromWidth, cellFromHeight);
+      const newCellSize = Math.min(cellFromWidth, cellFromHeight);
       
       // 根据设备类型设置不同的单元格大小限制
-      const minCellSize = isMobile ? 6 : 8;
-      const maxCellSize = isMobile ? 15 : 25;
-      newCellSize = Math.max(minCellSize, Math.min(newCellSize, maxCellSize));
+      // const minCellSize = isMobile ? 6 : 8;
+      // const maxCellSize = isMobile ? 15 : 25;
+      // newCellSize = Math.max(minCellSize, Math.min(newCellSize, maxCellSize));
       
       console.log('响应式尺寸计算:', {
         device: isMobile ? 'Mobile' : 'PC',

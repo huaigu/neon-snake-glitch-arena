@@ -128,13 +128,13 @@ export class GameModel extends Multisynq.Model {
     return this.gameConfig?.test_mode ?? true;
   }
 
-  onViewJoin(viewInfo: any) {
+  onViewJoin(viewInfo: { viewId: string; [key: string]: unknown }) {
     console.log(`GameModel: Player joined session (${this.instanceId}):`, viewInfo);
     this.connectedPlayers.add(viewInfo.viewId);
     this.publish("system", "refresh");
   }
 
-  onViewExit(viewInfo: any) {
+  onViewExit(viewInfo: { viewId: string; [key: string]: unknown }) {
     console.log(`GameModel: Player left session (${this.instanceId}):`, viewInfo);
     const playerAddress = viewInfo.viewId;
     this.connectedPlayers.delete(playerAddress);
@@ -171,7 +171,7 @@ export class GameModel extends Multisynq.Model {
       return;
     }
 
-    const roomId = `room_${Date.now()}_${this.random().toString().substr(2, 9)}`;
+    const roomId = `room_$${this.random().toString().substr(2, 9)}`;
     const newRoom: Room = {
       id: roomId,
       name: data.roomName,
@@ -573,7 +573,7 @@ export class GameModel extends Multisynq.Model {
       const eatenFood = this.foods.find(food => food.position.x === head.x && food.position.y === head.y);
       const eatenSegment = this.segments.find(segment => segment.position.x === head.x && segment.position.y === head.y);
       
-      let newSegments = [head, ...player.segments];
+      const newSegments = [head, ...player.segments];
       let newScore = player.score;
 
       if (eatenFood) {
@@ -976,6 +976,39 @@ export class GameModel extends Multisynq.Model {
   }
 }
 
-GameModel.register("GameModel");
+// 防止热重载时重复注册模型
+declare global {
+  interface Window {
+    __GAMEMODEL_REGISTERED__?: boolean;
+  }
+}
+
+// 检查是否已经在Multisynq中注册过
+let isRegistered = false;
+try {
+  // 尝试通过静态属性检查是否已注册
+  isRegistered = typeof window !== 'undefined' && window.__GAMEMODEL_REGISTERED__ === true;
+} catch (e) {
+  isRegistered = false;
+}
+
+if (!isRegistered) {
+  try {
+    GameModel.register("GameModel");
+    if (typeof window !== 'undefined') {
+      window.__GAMEMODEL_REGISTERED__ = true;
+    }
+    console.log('GameModel registered successfully');
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message?.includes('already used')) {
+      console.log('GameModel already registered, skipping duplicate registration');
+      if (typeof window !== 'undefined') {
+        window.__GAMEMODEL_REGISTERED__ = true;
+      }
+    } else {
+      console.error('GameModel registration failed:', error);
+    }
+  }
+}
 
 export default GameModel;
