@@ -33,6 +33,7 @@ export interface Room {
   host?: string; // Added for UI compatibility
   isPrivate?: boolean; // Added for UI compatibility  
   createdAt?: string; // Added for UI compatibility
+  isSpectatorView?: boolean; // Added for spectator mode
 }
 
 export interface Player {

@@ -12,7 +12,7 @@ import { useToast } from './ui/use-toast';
 import { PLAYER_COLORS } from '../utils/gameConfig';
 
 export const GameLobbyComponent: React.FC = () => {
-  console.log('=== GameLobbyComponent RENDER START ===');
+  // console.log('=== GameLobbyComponent RENDER START ===');
   
   const navigate = useNavigate();
   const { 
@@ -248,14 +248,16 @@ export const GameLobbyComponent: React.FC = () => {
     );
   }
 
-  console.log('GameLobbyComponent: FINAL RENDER DATA:', {
-    currentPlayerIsReady: currentPlayer.isReady,
-    readyCount: readyCount,
-    totalPlayers: totalPlayers,
-    canStartGame: canStartGame,
-    buttonText: currentPlayer.isReady ? "Cancel Ready" : "Ready Up",
-    timestamp: new Date().toISOString()
-  });
+  // 只在调试时输出详细渲染信息
+  // console.log('GameLobbyComponent: FINAL RENDER DATA:', {
+  //   currentPlayerIsReady: currentPlayer?.isReady ?? false,
+  //   readyCount: readyCount,
+  //   totalPlayers: totalPlayers,
+  //   canStartGame: canStartGame,
+  //   buttonText: currentPlayer?.isReady ? "Cancel Ready" : "Ready Up",
+  //   timestamp: new Date().toISOString(),
+  //   isSpectator
+  // });
 
   return (
     <div className="min-h-screen bg-cyber-darker flex items-center justify-center p-4">

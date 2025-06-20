@@ -292,7 +292,8 @@ export const useSnakeGame = () => {
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [gameRunning, changeDirection, effectiveIsSpectator]);
 
-  console.log('useSnakeGame render - multiplayer mode, snakes:', snakes.length, 'gameRunning:', gameRunning, 'countdown:', countdown, 'segments:', segments.length, 'isSpectator:', effectiveIsSpectator, 'speedMultiplier:', speedMultiplier, 'gridSize:', gridSize);
+  // 只在debug模式下输出渲染日志
+  // console.log('useSnakeGame render - multiplayer mode, snakes:', snakes.length, 'gameRunning:', gameRunning, 'countdown:', countdown, 'segments:', segments.length, 'isSpectator:', effectiveIsSpectator, 'speedMultiplier:', speedMultiplier, 'gridSize:', gridSize);
 
   return {
     snakes,

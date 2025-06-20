@@ -50,18 +50,19 @@ export const useResponsiveGrid = (containerRef?: React.RefObject<HTMLElement>) =
       const maxCellSize = isMobile ? 15 : 25;
       newCellSize = Math.max(minCellSize, Math.min(newCellSize, maxCellSize));
       
-      console.log('响应式尺寸计算:', {
-        device: isMobile ? 'Mobile' : 'PC',
-        logicalGrid: LOGICAL_GRID_SIZE,
-        available: `${availableWidth}x${availableHeight}`,
-        usable: `${usableWidth}x${usableHeight}`,
-        cellFromWidth,
-        cellFromHeight,
-        finalCellSize: newCellSize,
-        finalBoard: `${LOGICAL_GRID_SIZE * newCellSize}x${LOGICAL_GRID_SIZE * newCellSize}`,
-        utilization: `${((LOGICAL_GRID_SIZE * newCellSize / availableWidth) * 100).toFixed(1)}% x ${((LOGICAL_GRID_SIZE * newCellSize / availableHeight) * 100).toFixed(1)}%`,
-        limitedBy: cellFromWidth < cellFromHeight ? 'width' : 'height'
-      });
+      // 只在调试模式下输出响应式尺寸计算日志，避免频繁日志输出
+      // console.log('响应式尺寸计算:', {
+      //   device: isMobile ? 'Mobile' : 'PC',
+      //   logicalGrid: LOGICAL_GRID_SIZE,
+      //   available: `${availableWidth}x${availableHeight}`,
+      //   usable: `${usableWidth}x${usableHeight}`,
+      //   cellFromWidth,
+      //   cellFromHeight,
+      //   finalCellSize: newCellSize,
+      //   finalBoard: `${LOGICAL_GRID_SIZE * newCellSize}x${LOGICAL_GRID_SIZE * newCellSize}`,
+      //   utilization: `${((LOGICAL_GRID_SIZE * newCellSize / availableWidth) * 100).toFixed(1)}% x ${((LOGICAL_GRID_SIZE * newCellSize / availableHeight) * 100).toFixed(1)}%`,
+      //   limitedBy: cellFromWidth < cellFromHeight ? 'width' : 'height'
+      // });
 
       // 只在值发生变化时更新
       if (newCellSize !== cellSize) {
@@ -78,7 +79,7 @@ export const useResponsiveGrid = (containerRef?: React.RefObject<HTMLElement>) =
       clearTimeout(timeout);
       window.removeEventListener('resize', updateCellSize);
     };
-  }, [isMobile, containerRef, cellSize]);
+  }, [isMobile, containerRef]);
 
   return { 
     gridSize: LOGICAL_GRID_SIZE, // 返回固定的逻辑网格大小

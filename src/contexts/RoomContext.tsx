@@ -284,7 +284,7 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
 
   // 更新当前房间
   useEffect(() => {
-    console.log('=== CURRENT ROOM UPDATE EFFECT ===');
+    // console.log('=== CURRENT ROOM UPDATE EFFECT ===');
     
     setCurrentRoom(prevCurrentRoom => {
       if (!prevCurrentRoom) {
@@ -307,22 +307,23 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
       const hostChanged = prevCurrentRoom.hostAddress !== updatedRoom.hostAddress;
       const anyChange = roomStatusChanged || playersDataChanged || hostChanged;
       
-      console.log('RoomContext: Current room update analysis:', {
-        roomId: prevCurrentRoom.id,
-        roomStatusChanged,
-        playersDataChanged,
-        hostChanged,
-        anyChange,
-        oldStatus: prevCurrentRoom.status,
-        newStatus: updatedRoom.status,
-        oldHost: prevCurrentRoom.hostAddress,
-        newHost: updatedRoom.hostAddress,
-        oldPlayersCount: prevCurrentRoom.players.length,
-        newPlayersCount: updatedRoom.players.length,
-        oldPlayersReady: prevCurrentRoom.players.map(p => ({ name: p.name, isReady: p.isReady })),
-        newPlayersReady: updatedRoom.players.map(p => ({ name: p.name, isReady: p.isReady })),
-        timestamp: new Date().toISOString()
-      });
+      // 只在调试模式下输出详细的房间更新分析
+      // console.log('RoomContext: Current room update analysis:', {
+      //   roomId: prevCurrentRoom.id,
+      //   roomStatusChanged,
+      //   playersDataChanged,
+      //   hostChanged,
+      //   anyChange,
+      //   oldStatus: prevCurrentRoom.status,
+      //   newStatus: updatedRoom.status,
+      //   oldHost: prevCurrentRoom.hostAddress,
+      //   newHost: updatedRoom.hostAddress,
+      //   oldPlayersCount: prevCurrentRoom.players.length,
+      //   newPlayersCount: updatedRoom.players.length,
+      //   oldPlayersReady: prevCurrentRoom.players.map(p => ({ name: p.name, isReady: p.isReady })),
+      //   newPlayersReady: updatedRoom.players.map(p => ({ name: p.name, isReady: p.isReady })),
+      //   timestamp: new Date().toISOString()
+      // });
       
       if (anyChange) {
         console.log('RoomContext: Room data changed, creating new room object reference');
@@ -442,7 +443,7 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     }
   };
 
-  // 观察者模式方法
+  // 观察者模式方法 - 纯观察，不修改任何model状态
   const spectateRoom = (roomId: string): boolean => {
     if (!gameView) {
       console.error('spectateRoom: No gameView available');
@@ -450,7 +451,7 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     }
 
     try {
-      console.log('RoomContext: Starting to spectate room:', roomId);
+      console.log('RoomContext: Starting pure spectator mode for room:', roomId);
       
       // 设置观察者状态
       setIsSpectator(true);
@@ -458,19 +459,52 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
       setLoading(true);
       setError(null);
       
-      // 不调用joinRoom，而是直接订阅房间事件来获取游戏状态
-      // 通过GameView订阅房间的状态更新
+      // 纯观察模式：直接从lobby状态获取房间数据，不触发任何model变更
       if (gameView.model?.lobby) {
         const currentState = gameView.model.lobby.getLobbyState();
         const room = currentState.rooms.find(r => r.id === roomId);
         if (room) {
-          console.log('RoomContext: Found room for spectating:', room);
-          setCurrentRoom({ ...room });
+          console.log('RoomContext: Found room for pure spectating:', room);
+          
+          // 设置房间数据但标记为观察者模式，确保UI知道这不是真实的房间成员关系
+          setCurrentRoom({ 
+            ...room,
+            isSpectatorView: true // 标记这是观察者视图
+          });
+          
           setLoading(false);
+          
+          console.log('RoomContext: Pure spectator mode activated - watching room without joining model');
+          
+          // 设置定时器定期更新房间状态（用于观察者实时更新）
+          const spectatorUpdateInterval = setInterval(() => {
+            if (gameView.model?.lobby) {
+              const updatedState = gameView.model.lobby.getLobbyState();
+              const updatedRoom = updatedState.rooms.find(r => r.id === roomId);
+              if (updatedRoom) {
+                // 只在房间状态实际改变时更新，避免不必要的重新渲染
+                setCurrentRoom(prevRoom => {
+                  if (!prevRoom || 
+                      prevRoom.status !== updatedRoom.status || 
+                      JSON.stringify(prevRoom.players) !== JSON.stringify(updatedRoom.players)) {
+                    return {
+                      ...updatedRoom,
+                      isSpectatorView: true
+                    };
+                  }
+                  return prevRoom;
+                });
+              }
+            }
+          }, 2000); // 降低更新频率到每2秒一次
+          
+          // 保存interval ID以便清理
+          (window as any).spectatorUpdateInterval = spectatorUpdateInterval;
+          
           return true;
         } else {
           console.error('RoomContext: Room not found for spectating:', roomId);
-          setError('Room not found');
+          setError('Room not found or no longer exists');
           setLoading(false);
           setIsSpectator(false);
           setSpectatorRoomId(null);
@@ -478,13 +512,13 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
         }
       }
       
-      setError('Unable to access room data');
+      setError('Unable to access room data - connection issue');
       setLoading(false);
       setIsSpectator(false);
       setSpectatorRoomId(null);
       return false;
     } catch (err) {
-      console.error('Error starting spectator mode:', err);
+      console.error('Error starting pure spectator mode:', err);
       setError('Failed to start spectator mode');
       setLoading(false);
       setIsSpectator(false);
@@ -495,6 +529,14 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
 
   const leaveSpectator = (): void => {
     console.log('RoomContext: Leaving spectator mode');
+    
+    // 清理观察者更新定时器
+    if ((window as any).spectatorUpdateInterval) {
+      clearInterval((window as any).spectatorUpdateInterval);
+      delete (window as any).spectatorUpdateInterval;
+      console.log('RoomContext: Cleared spectator update interval');
+    }
+    
     setIsSpectator(false);
     setSpectatorRoomId(null);
     setCurrentRoom(null);

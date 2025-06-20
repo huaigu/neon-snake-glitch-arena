@@ -12,3 +12,87 @@ alwaysApply: true
 
 
 遵循规约：所有模型内的定时逻辑必须使用this.future() ，所有模型与视图间的通信必须通过publish/subscribe 。
+
+## Writing a Multisynq View
+
+Multisynq makes no assumptions about how you implement the view. It operates like a normal JS application. You can directly access the DOM and instantiate whatever sub-objects or data types that you need, use any libraries etc.
+
+The contents of the view are not replicated across machines. Because of this, you generally use the view only for handling input and output. If the user taps a button or clicks somewhere on screen, the view turns this action into an event that it publishes for the model to receive. And whenever the model changes, the view updates the visual representation that it displays on the screen. But in general, all of the actual calculation of the application should be done inside the model.
+
+In order to update output quickly, the view has a reference to the model and can read from it directly. However …
+
+The view must NEVER write directly to the model!#
+This is the most important rule of creating a stable Multisynq application. The view is given direct access to the model for efficiency, but in order for the local copy of the model to stay in synch with the remote copies of other users, all changes to the model that originate in the view must be done through events. That way they will be mirrored by the synchronizer to every user in the session.
+
+Other good practices for writing views:
+Create sub-views inside your main view. You can derive other classes from the View base class and instantiate them during execution. Sub-views have access to all the same services as your main view, so they can schedule their own tick operations and publish and subscribe to events.
+
+Access the model through your main view. Your main view receives a permanent reference to the main model when it is created. This reference can be stored and used to read directly from the model.
+
+Use the future() operator to create ticks. If you want something to happen regularly in the view, use the future operator to schedule a looping tick. This is just for readability, you're free to use setTimeout or setInterval etc. in view code.
+
+Don't reply to the model. Avoid having the model send an event to the view that requires the view to send a "reply" event back. This will result in large cascades of events that will choke off normal execution.
+
+Anticipate the model for immediate feedback. Latency in Multisynq is low, but it's not zero. If you want your application to feel extremely responsive (for example, if the player is controlling a first-person avatar) drive the output directly from the input, then correct the output when you get the official simulation state from the updated model.
+
+
+## Writing a Multisynq Model
+
+Unlike the view, there are limits to what the model can do if it is going to stay synched across all the machines in the session:
+
+Model classes must be registered when defined. Call MyModel.register("MyModel") every time you define a new Model subclass.
+
+Use create and destroy to instantiate or dispose of models. Do not use new to create sub-models. These models should be created/destroyed using the syntax mySubModel.create() and mySubModel.destroy(). Your init is called as part of the create() process.
+
+Use init to initialize models. Do not implement a constructor. Model classes only call init when they are instantiated for the first time. Put all initialization code in this method. If you put initialization code in the constructor, it would also run when the model is reloaded from a snapshot.
+
+No global variables. All variables in the model must be defined in the main model itself, or in sub-models instantiated by the main model. This way Multisynq can find them and save them to the snapshot. Instead, use Multisynq.Constants. The Constants object is recursively frozen once a session has started to avoid accidental modification. Here we assign the variable Q to Multisynq.Constants as a shorthand.
+
+CODE
+Copied!
+const Q = Multisynq.Constants;
+Q.BALL_NUM = 25;              // how many balls do we want?
+Q.STEP_MS = 1000 / 30;       // bouncing ball speed in virtual pixels / step
+Q.SPEED = 10;                // max speed on a dimension, in units/s
+This lets you use write this.future(Q.STEP_MS).step(); where the STEP_MS value is registered and replicated. Just using a global STEP_MS could work in some cases, but there is no guarantee that the value will be replicated, so it could cause an accidental desyncing of the system.
+
+No regular classes. All objects in the model must be derived from the Model base class. (Mostly. See below for more information.)
+
+No outside references. The model must not use system services such as Date.now(), or reference JS globals such as window.
+
+No asynchronous functions. Do not use Promises or declare a function call with the async keyword inside the model.
+
+Do not store function references or transmit them in events. Functions cannot be serialized as part of the model state. (It's fine to use function references that exist temporarily, such as in a forEach call. You just shouldn't store them.)
+
+Don't query the view. Don't publish events that trigger the view to respond to the model with another event. This can create a cascade of events that clogs the system.
+
+Advanced Topic: Non-Model Objects in the Model
+In general, every object in the model should be a subclass of Model. However, sometimes it's useful to be able to use the occasional non-model utility class inside your model code. This is allowed, as long as you provide Multisynq with information about how to save and restore the non-model class.
+
+Model classes that use non-model objects must include a special static method named types() that declares all of the non-model classes:
+
+CODE
+Copied!
+class MyModel extends Multisynq.Model {
+    static types() {
+        return {
+            "MyFile.MyClass": MyClass,
+        }
+    }
+}
+This would use the default serializer to serialize the internals of that class. If you need to customize the serialization, add write() and read() methods that convert to and from the classes the serializer can handle (which is JSON plus built-in types like Map, Set, Uint8Array etc.):
+
+CODE
+Copied!
+class MyModel extends Multisynq.Model {
+    static types() {
+        return {
+            "MyFile.MyClass": {
+                cls: MyClass,
+                write: c => ({x: c.x}),
+                read: ({x}) => new MyClass(x)
+            }
+        }
+    }
+}
+This example shows a type definition for a non-model class that stores a single piece of data, the variable x. It includes methods to extract the class data into a standard data format, and then restore a new version of the class from the stored data.

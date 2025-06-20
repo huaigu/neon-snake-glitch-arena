@@ -23,11 +23,11 @@ export const RoomPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated, user } = useWeb3Auth();
-  const { currentRoom, joinRoom, leaveRoom, rooms, isConnected, isSpectator } = useRoomContext();
+  const { currentRoom, joinRoom, leaveRoom, spectateRoom, rooms, isConnected, isSpectator } = useRoomContext();
   const { joinSession, isConnecting, error: connectionError } = useMultisynq();
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
-  const [joinState, setJoinState] = useState<'idle' | 'connecting' | 'joining' | 'spectating' | 'success' | 'error'>('idle');
+  const [joinState, setJoinState] = useState<'idle' | 'waiting' | 'joining' | 'spectating' | 'success' | 'error'>('waiting');
   const [joinError, setJoinError] = useState<string | null>(null);
   const [hasAttemptedJoin, setHasAttemptedJoin] = useState(false);
 
@@ -132,8 +132,8 @@ export const RoomPage: React.FC = () => {
       return;
     }
 
-    // 开始加入房间
-    console.log('RoomPage: All conditions met, attempting to join room', {
+    // 检查房间状态决定加入还是观看
+    console.log('RoomPage: All conditions met, checking room status', {
       roomId,
       targetRoom: {
         id: targetRoom.id,
@@ -144,37 +144,72 @@ export const RoomPage: React.FC = () => {
       }
     });
 
-    setJoinState('joining');
     setJoinError(null);
     setHasAttemptedJoin(true);
 
-    try {
-      const success = joinRoom(roomId);
-      if (success) {
-        console.log('RoomPage: Join room call succeeded');
-        // 不要立即设置成功状态，等待currentRoom更新
-      } else {
-        console.error('RoomPage: Join room call failed');
+    // 如果房间正在进行游戏或倒计时，进入观察者模式
+    if (targetRoom.status === 'playing' || targetRoom.status === 'countdown' || targetRoom.status === 'finished') {
+      console.log('RoomPage: Room is in progress, entering spectator mode', {
+        roomStatus: targetRoom.status
+      });
+      
+      setJoinState('spectating');
+      try {
+        const success = spectateRoom(roomId);
+        if (success) {
+          console.log('RoomPage: Successfully entered spectator mode');
+          setJoinState('success');
+        } else {
+          console.error('RoomPage: Failed to enter spectator mode');
+          setJoinState('error');
+          setJoinError('Failed to spectate room. The room may not be available.');
+        }
+      } catch (error) {
+        console.error('RoomPage: Exception during spectate room:', error);
         setJoinState('error');
-        setJoinError('Failed to join room. The room may be full or unavailable.');
+        setJoinError('An error occurred while entering spectator mode.');
       }
-    } catch (error) {
-      console.error('RoomPage: Exception during join room:', error);
-      setJoinState('error');
-      setJoinError('An error occurred while joining the room.');
+    } else {
+      // 房间在等待状态，尝试作为玩家加入
+      console.log('RoomPage: Room is waiting, attempting to join as player');
+      
+      setJoinState('joining');
+      try {
+        const success = joinRoom(roomId);
+        if (success) {
+          console.log('RoomPage: Join room call succeeded');
+          // 不要立即设置成功状态，等待currentRoom更新
+        } else {
+          console.error('RoomPage: Join room call failed');
+          setJoinState('error');
+          setJoinError('Failed to join room. The room may be full or unavailable.');
+        }
+      } catch (error) {
+        console.error('RoomPage: Exception during join room:', error);
+        setJoinState('error');
+        setJoinError('An error occurred while joining the room.');
+      }
     }
-  }, [isAuthenticated, isConnected, roomId, currentRoom, rooms, joinRoom, hasAttemptedJoin, joinState]);
+  }, [isAuthenticated, isConnected, roomId, currentRoom, rooms, joinRoom, spectateRoom, hasAttemptedJoin, joinState]);
 
   // 监听 currentRoom 变化来确定加入是否成功
   useEffect(() => {
-    if (currentRoom && currentRoom.id === roomId && joinState === 'joining') {
-      console.log('RoomPage: Successfully joined room - currentRoom updated', {
-        roomId: currentRoom.id,
-        roomName: currentRoom.name
-      });
-      setJoinState('success');
+    if (currentRoom && currentRoom.id === roomId) {
+      if (joinState === 'joining') {
+        console.log('RoomPage: Successfully joined room as player - currentRoom updated', {
+          roomId: currentRoom.id,
+          roomName: currentRoom.name
+        });
+        setJoinState('success');
+      } else if (joinState === 'spectating' && isSpectator) {
+        console.log('RoomPage: Successfully entered spectator mode - currentRoom updated', {
+          roomId: currentRoom.id,
+          roomName: currentRoom.name
+        });
+        setJoinState('success');
+      }
     }
-  }, [currentRoom, roomId, joinState]);
+  }, [currentRoom, roomId, joinState, isSpectator]);
 
   // 重置状态当roomId变化时
   useEffect(() => {
@@ -202,7 +237,7 @@ export const RoomPage: React.FC = () => {
 
   // 处理路由变化的守护逻辑
   useEffect(() => {
-    let isNavigating = false;
+    const isNavigating = false;
 
     const handlePopState = (e: PopStateEvent) => {
       if (currentRoom && !isNavigating) {

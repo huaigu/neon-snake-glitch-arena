@@ -38,6 +38,18 @@ export class LobbyModel extends Multisynq.Model {
     const viewId = viewInfo.viewId;
     const playerData = viewInfo.viewData || {};
     
+    // Guard against undefined viewId
+    if (!viewId) {
+      console.error('LobbyModel: handlePlayerJoin called with undefined viewId, skipping');
+      return;
+    }
+    
+    // Check if this is a spectator connection (don't create player model for spectators)
+    if (viewId.includes('spectator_') || (playerData.address && playerData.address.includes('spectator_'))) {
+      console.log('LobbyModel: Spectator connection detected, skipping player creation');
+      return;
+    }
+    
     // Create player model
     const player = PlayerModel.create({
       viewId: viewId,

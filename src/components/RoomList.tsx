@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRoomContext } from '../contexts/RoomContext';
@@ -8,7 +7,7 @@ import { Input } from './ui/input';
 import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Alert, AlertDescription } from './ui/alert';
-import { Users, Plus, Crown, Lock, Clock, Play, Loader2, AlertCircle, Wifi, WifiOff } from 'lucide-react';
+import { Users, Plus, Crown, Lock, Clock, Play, Loader2, AlertCircle, Wifi, WifiOff, Eye } from 'lucide-react';
 
 export const RoomList: React.FC = () => {
   const navigate = useNavigate();
@@ -44,6 +43,10 @@ export const RoomList: React.FC = () => {
     if (success) {
       navigate(`/room/${roomId}`);
     }
+  };
+
+  const handleWatchRoom = (roomId: string) => {
+    navigate(`/room/${roomId}`);
   };
 
   const getStatusColor = (status: string) => {
@@ -263,25 +266,50 @@ export const RoomList: React.FC = () => {
                   </div>
 
                   <Button
-                    onClick={() => handleJoinRoom(room.id)}
+                    onClick={() => {
+                      if (room.status === 'playing' || room.status === 'countdown' || room.status === 'finished') {
+                        handleWatchRoom(room.id);
+                      } else {
+                        handleJoinRoom(room.id);
+                      }
+                    }}
                     disabled={
-                      room.status === 'playing' || 
-                      room.status === 'finished' || 
-                      room.players.length >= room.maxPlayers ||
+                      (room.status === 'waiting' && room.players.length >= room.maxPlayers) ||
                       loading ||
                       !isConnected
                     }
                     className="w-full"
-                    variant={room.status === 'waiting' ? 'default' : 'outline'}
+                    variant={
+                      room.status === 'playing' || room.status === 'countdown' || room.status === 'finished' 
+                        ? 'outline' 
+                        : 'default'
+                    }
                   >
                     {loading ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Joining...
+                        Loading...
                       </>
-                    ) : room.status === 'playing' ? 'Game in Progress' :
-                       room.status === 'finished' ? 'Game Finished' :
-                       room.players.length >= room.maxPlayers ? 'Room Full' : 'Join Room'}
+                    ) : room.status === 'playing' ? (
+                      <>
+                        <Eye className="w-4 h-4 mr-2" />
+                        Watch Game
+                      </>
+                    ) : room.status === 'countdown' ? (
+                      <>
+                        <Eye className="w-4 h-4 mr-2" />
+                        Watch Game
+                      </>
+                    ) : room.status === 'finished' ? (
+                      <>
+                        <Eye className="w-4 h-4 mr-2" />
+                        View Results
+                      </>
+                    ) : room.players.length >= room.maxPlayers ? (
+                      'Room Full'
+                    ) : (
+                      'Join Room'
+                    )}
                   </Button>
                 </div>
               </CardContent>

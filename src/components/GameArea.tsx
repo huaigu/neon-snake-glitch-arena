@@ -52,12 +52,13 @@ export const GameArea: React.FC<GameAreaProps> = ({
   const boardWidth = gridSize * cellSize;
   const boardHeight = gridSize * cellSize;
 
-  console.log('GameArea 最终尺寸 :', {
-    gridSize,
-    cellSize,
-    boardSize: `${boardWidth}x${boardHeight}`,
-    isMobile
-  });
+  // 只在debug模式下输出尺寸信息，避免频繁渲染日志
+  // console.log('GameArea 最终尺寸 :', {
+  //   gridSize,
+  //   cellSize,
+  //   boardSize: `${boardWidth}x${boardHeight}`,
+  //   isMobile
+  // });
 
   const currentPlayerSnake = snakes.find(snake => snake.isPlayer);
   

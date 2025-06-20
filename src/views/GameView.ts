@@ -8,6 +8,7 @@ export class GameView extends Multisynq.View {
   private gameCallback: ((gameSession: any, foods: any[], segments: any[]) => void) | null = null;
   private roomJoinedCallback: ((data: any) => void) | null = null;
   private roomCreatedCallback: ((data: any) => void) | null = null;
+  private roomJoinFailedCallback: ((data: any) => void) | null = null;
   private leaderboardCallback: ((data: any) => void) | null = null;
 
   constructor(model: GameModel) {
@@ -27,6 +28,7 @@ export class GameView extends Multisynq.View {
     
     // Subscribe to player notifications
     this.subscribe("player", "joined-room", this.handlePlayerJoinedRoom);
+    this.subscribe("player", "join-room-failed", this.handlePlayerJoinRoomFailed);
     
     // Subscribe to player errors
     this.subscribe("player", "create-room-error", this.handleCreateRoomError);
@@ -57,6 +59,11 @@ export class GameView extends Multisynq.View {
   setRoomJoinedCallback(callback: (data: any) => void) {
     console.log('GameView: Setting room joined callback');
     this.roomJoinedCallback = callback;
+  }
+
+  setRoomJoinFailedCallback(callback: (data: any) => void) {
+    console.log('GameView: Setting room join failed callback');
+    this.roomJoinFailedCallback = callback;
   }
 
   setRoomCreatedCallback(callback: (data: any) => void) {
@@ -167,6 +174,14 @@ export class GameView extends Multisynq.View {
     // 调用房间加入成功的回调函数
     if (this.roomJoinedCallback) {
       this.roomJoinedCallback(data);
+    }
+  };
+
+  private handlePlayerJoinRoomFailed = (data: any) => {
+    console.log('GameView: Player join room failed notification:', data);
+    // 调用房间加入失败的回调函数
+    if (this.roomJoinFailedCallback) {
+      this.roomJoinFailedCallback(data);
     }
   };
 
