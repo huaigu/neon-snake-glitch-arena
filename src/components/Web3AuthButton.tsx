@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useWeb3Auth } from '../contexts/Web3AuthContext';
 import { Button } from './ui/button';
 import { Wallet, LogOut, User } from 'lucide-react';
@@ -42,14 +43,80 @@ export const Web3AuthButton: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-3 w-full">
-      <Button
-        onClick={signInWithEthereum}
-        disabled={isConnecting}
-        className="bg-cyber-cyan hover:bg-cyber-cyan/80 text-cyber-darker w-full"
-      >
-        <Wallet className="w-4 h-4 mr-2" />
-        {isConnecting ? 'Connecting...' : 'Connect Wallet'}
-      </Button>
+      <ConnectButton.Custom>
+        {({
+          account,
+          chain,
+          openAccountModal,
+          openChainModal,
+          openConnectModal,
+          authenticationStatus,
+          mounted,
+        }) => {
+          // Note: If your app doesn't use authentication, you
+          // can remove all 'authenticationStatus' checks
+          const ready = mounted && authenticationStatus !== 'loading';
+          const connected =
+            ready &&
+            account &&
+            chain &&
+            (!authenticationStatus ||
+              authenticationStatus === 'authenticated');
+
+          return (
+            <div
+              {...(!ready && {
+                'aria-hidden': true,
+                style: {
+                  opacity: 0,
+                  pointerEvents: 'none',
+                  userSelect: 'none',
+                },
+              })}
+            >
+              {(() => {
+                if (!connected) {
+                  return (
+                    <Button
+                      onClick={openConnectModal}
+                      disabled={isConnecting}
+                      className="bg-cyber-cyan hover:bg-cyber-cyan/80 text-cyber-darker w-full"
+                    >
+                      <Wallet className="w-4 h-4 mr-2" />
+                      {isConnecting ? 'Connecting...' : 'Connect Wallet'}
+                    </Button>
+                  );
+                }
+
+                if (chain.unsupported) {
+                  return (
+                    <Button
+                      onClick={openChainModal}
+                      variant="destructive"
+                      className="w-full"
+                    >
+                      Wrong Network
+                    </Button>
+                  );
+                }
+
+                return (
+                  <div className="flex items-center gap-2 w-full">
+                    <Button
+                      onClick={() => signInWithEthereum()}
+                      disabled={isConnecting}
+                      className="bg-cyber-cyan hover:bg-cyber-cyan/80 text-cyber-darker flex-1"
+                    >
+                      <Wallet className="w-4 h-4 mr-2" />
+                      {isConnecting ? 'Signing...' : 'Sign & Authenticate'}
+                    </Button>
+                  </div>
+                );
+              })()}
+            </div>
+          );
+        }}
+      </ConnectButton.Custom>
       
       <div className="relative">
         <div className="absolute inset-0 flex items-center">

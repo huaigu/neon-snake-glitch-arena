@@ -43,7 +43,7 @@ export const RoomList: React.FC = () => {
   };
 
   const handleJoinRoom = async (roomId: string) => {
-    const success = joinRoom(roomId);
+    const success = await joinRoom(roomId);
     if (success) {
       navigate(`/room/${roomId}`);
     }
@@ -69,6 +69,15 @@ export const RoomList: React.FC = () => {
       case 'finished': return 'Finished';
       default: return 'Unknown';
     }
+  };
+
+  const truncateName = (name: string, maxLength: 12) => {
+    if (name.length <= maxLength) {
+      return name;
+    }
+    const frontChars = 6;
+    const backChars = 6;
+    return `${name.slice(0, frontChars)}...${name.slice(-backChars)}`;
   };
 
   // Check if current player already hosts a room - 直接从model读取最新状态
@@ -268,7 +277,7 @@ export const RoomList: React.FC = () => {
                     </CardTitle>
                     <div className="flex items-center gap-2 text-sm text-cyber-cyan/70">
                       <Crown className="w-4 h-4" />
-                      <span>{room.host}</span>
+                      <span>{truncateName(room.host || '', 12)}</span>
                       {room.isPrivate && <Lock className="w-4 h-4" />}
                     </div>
                   </div>

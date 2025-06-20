@@ -113,7 +113,7 @@ export class LobbyModel extends Multisynq.Model {
     }
   }
 
-  handleCreateRoom(payload: { roomName: string; playerName: string; hostAddress: string }) {
+  handleCreateRoom(payload: { roomName: string; playerName: string; hostAddress: string; hasNFT?: boolean }) {
     console.log('LobbyModel: Creating room:', payload);
     
     // 服务端安全检查：确保玩家不会创建多个房间（作为客户端检查的后备）
@@ -155,7 +155,8 @@ export class LobbyModel extends Multisynq.Model {
       hostPlayer = PlayerModel.create({
         viewId: payload.hostAddress, // 临时使用address作为viewId
         name: payload.playerName,
-        address: payload.hostAddress
+        address: payload.hostAddress,
+        hasNFT: payload.hasNFT || false
       });
       this.players.set(payload.hostAddress, hostPlayer);
       console.log('LobbyModel: Created new host player with address as viewId');
@@ -176,6 +177,12 @@ export class LobbyModel extends Multisynq.Model {
       if (payload.playerName && payload.playerName !== hostPlayer.name) {
         hostPlayer.name = payload.playerName;
         console.log('LobbyModel: Updated player name to:', payload.playerName);
+      }
+      
+      // Update NFT status if provided
+      if (payload.hasNFT !== undefined) {
+        hostPlayer.setNFTStatus(payload.hasNFT);
+        console.log('LobbyModel: Updated player NFT status to:', payload.hasNFT);
       }
       
       // 检查玩家是否已经在其他房间中，如果是则先退出
@@ -240,7 +247,7 @@ export class LobbyModel extends Multisynq.Model {
     console.log('LobbyModel: Room created and host added:', roomId);
   }
 
-  handleJoinRoom(payload: { roomId: string; address: string; playerName: string }) {
+  handleJoinRoom(payload: { roomId: string; address: string; playerName: string; hasNFT?: boolean }) {
     console.log('LobbyModel: Player joining room:', payload);
     
     const room = this.gameRooms.get(payload.roomId);
@@ -251,9 +258,16 @@ export class LobbyModel extends Multisynq.Model {
       player = PlayerModel.create({
         viewId: payload.address, // Use address as viewId temporarily
         name: payload.playerName,
-        address: payload.address
+        address: payload.address,
+        hasNFT: payload.hasNFT || false
       });
       this.players.set(payload.address, player);
+    } else {
+      // 更新现有玩家的NFT状态
+      if (payload.hasNFT !== undefined) {
+        player.setNFTStatus(payload.hasNFT);
+        console.log('LobbyModel: Updated existing player NFT status to:', payload.hasNFT);
+      }
     }
     
     if (room && player) {

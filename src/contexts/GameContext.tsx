@@ -6,6 +6,8 @@ export interface Player {
   color: string;
   isReady: boolean;
   isBot: boolean;
+  hasNFT?: boolean;
+  isSpectator?: boolean;
 }
 
 interface GameContextType {

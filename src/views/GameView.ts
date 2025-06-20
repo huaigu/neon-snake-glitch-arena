@@ -93,21 +93,23 @@ export class GameView extends Multisynq.View {
   }
 
   // Room management methods
-  createRoom(roomName: string, playerName: string, hostAddress: string) {
-    console.log('GameView: Creating room:', { roomName, playerName, hostAddress });
+  createRoom(roomName: string, playerName: string, hostAddress: string, hasNFT?: boolean) {
+    console.log('GameView: Creating room:', { roomName, playerName, hostAddress, hasNFT });
     this.publish("lobby", "create-room", {
       roomName,
       playerName,
-      hostAddress
+      hostAddress,
+      hasNFT
     });
   }
 
-  joinRoom(roomId: string, address: string, playerName: string) {
-    console.log('GameView: Joining room:', { roomId, address, playerName });
+  joinRoom(roomId: string, address: string, playerName: string, hasNFT?: boolean) {
+    console.log('GameView: Joining room:', { roomId, address, playerName, hasNFT });
     this.publish("lobby", "join-room", {
       roomId,
       address,
-      playerName
+      playerName,
+      hasNFT
     });
   }
 

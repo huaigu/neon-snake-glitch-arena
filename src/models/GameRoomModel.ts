@@ -169,11 +169,12 @@ export class GameRoomModel extends Multisynq.Model {
       name: player.name,
       startPosition: { x: startX, y: startY },
       color: colors[colorIndex],
-      boardSize: this.CONFIG.BOARD_SIZE
+      boardSize: this.CONFIG.BOARD_SIZE,
+      hasNFT: player.hasNFT
     });
     
     this.snakes.set(player.viewId, snake);
-    console.log('GameRoomModel: Created snake for player:', player.viewId, 'at', startX, startY);
+    console.log('GameRoomModel: Created snake for player:', player.viewId, 'at', startX, startY, 'NFT:', player.hasNFT);
   }
 
   checkStartGame() {
@@ -538,13 +539,14 @@ export class GameRoomModel extends Multisynq.Model {
       id: player.viewId,
       name: player.name,
       address: player.address,
-      isReady: player.isReady
+      isReady: player.isReady,
+      hasNFT: player.hasNFT
     }));
 
     console.log('GameRoomModel: Building room state:', {
       roomId: this.roomId,
       playersCount: playersArray.length,
-      players: playersArray,
+      players: playersArray.map(p => ({ name: p.name, hasNFT: p.hasNFT })),
       hostAddress: this.hostAddress
     });
 

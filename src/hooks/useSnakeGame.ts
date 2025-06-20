@@ -117,11 +117,8 @@ export const useSnakeGame = () => {
           isPlayer: player.id === user?.address,
           name: player.name,
           isSpectator: player.isSpectator || false,
-          // TODO: 实际的NFT检查逻辑将在后续实现
-          // 目前临时设置：当玩家名称包含"NFT"或"VIP"时模拟NFT持有者
-          hasNFT: player.name.toLowerCase().includes('nft') || 
-                  player.name.toLowerCase().includes('vip') ||
-                  player.name.toLowerCase().includes('rainbow')
+          // 使用来自Snake模型的实际NFT状态
+          hasNFT: player.hasNFT || false
         }));
         
         // 重新分配颜色确保一致性 - 只对非NFT玩家分配预设颜色

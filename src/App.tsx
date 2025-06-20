@@ -3,7 +3,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { WagmiProvider } from 'wagmi';
+import { RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit';
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { config } from "./lib/rainbowkit-config";
 import { GameProvider } from "./contexts/GameContext";
 import { RoomProvider } from "./contexts/RoomContext";
 import { Web3AuthProvider } from "./contexts/Web3AuthContext";
@@ -19,32 +22,42 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Web3AuthProvider>
-        <MultisynqProvider>
-          <RoomProvider>
-            <GameProvider>
-              <Toaster />
-              <Sonner />
-              <BrowserRouter>
-                <Routes>
-                  <Route path="/" element={<Landing />} />
-                  <Route path="/auth" element={<Web3AuthPage />} />
-                  <Route path="/lobby" element={<GameLobbyPage />} />
-                  <Route path="/room/:roomId" element={<RoomPage />} />
-                  <Route path="/old-lobby" element={<GameLobby />} />
-                  <Route path="/game" element={<Index />} />
-                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </BrowserRouter>
-            </GameProvider>
-          </RoomProvider>
-        </MultisynqProvider>
-      </Web3AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <WagmiProvider config={config}>
+    <QueryClientProvider client={queryClient}>
+      <RainbowKitProvider 
+        theme={darkTheme({
+          accentColor: '#00ffff',
+          accentColorForeground: 'black',
+          borderRadius: 'medium',
+        })}
+      >
+        <TooltipProvider>
+          <Web3AuthProvider>
+            <MultisynqProvider>
+              <RoomProvider>
+                <GameProvider>
+                  <Toaster />
+                  <Sonner />
+                  <BrowserRouter>
+                    <Routes>
+                      <Route path="/" element={<Landing />} />
+                      <Route path="/auth" element={<Web3AuthPage />} />
+                      <Route path="/lobby" element={<GameLobbyPage />} />
+                      <Route path="/room/:roomId" element={<RoomPage />} />
+                      <Route path="/old-lobby" element={<GameLobby />} />
+                      <Route path="/game" element={<Index />} />
+                      {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </BrowserRouter>
+                </GameProvider>
+              </RoomProvider>
+            </MultisynqProvider>
+          </Web3AuthProvider>
+        </TooltipProvider>
+      </RainbowKitProvider>
+    </QueryClientProvider>
+  </WagmiProvider>
 );
 
 export default App;

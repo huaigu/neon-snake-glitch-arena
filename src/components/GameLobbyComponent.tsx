@@ -70,7 +70,8 @@ export const GameLobbyComponent: React.FC = () => {
       name: roomPlayer.name,
       color: PLAYER_COLORS[index % PLAYER_COLORS.length],
       isReady: roomPlayer.isReady,
-      isBot: false
+      isBot: false,
+      hasNFT: roomPlayer.hasNFT || false
     }));
   }, [activeRoom?.players, activeRoom?.status, isSpectator]); // 添加 status 作为依赖项
 

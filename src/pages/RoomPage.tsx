@@ -187,13 +187,23 @@ export const RoomPage: React.FC = () => {
       // 房间在等待状态，尝试作为玩家加入
       console.log('RoomPage: Room is waiting, attempting to join as player');
       setJoinState('joining');
-      const success = joinRoom(roomId);
-      if (!success) {
-        console.error('RoomPage: Join room call failed');
-        setJoinState('error');
-        setJoinError('Failed to join room. The room may be full or unavailable.');
-      }
-      // 如果成功，等待currentRoom更新后会自动设置为success
+      
+      // 使用立即执行的异步函数来处理joinRoom的异步调用
+      (async () => {
+        try {
+          const success = await joinRoom(roomId);
+          if (!success) {
+            console.error('RoomPage: Join room call failed');
+            setJoinState('error');
+            setJoinError('Failed to join room. The room may be full or unavailable.');
+          }
+          // 如果成功，等待currentRoom更新后会自动设置为success
+        } catch (error) {
+          console.error('RoomPage: Join room call threw error:', error);
+          setJoinState('error');
+          setJoinError('Failed to join room. Please try again.');
+        }
+      })();
     }
   }, [isAuthenticated, isConnected, roomId, currentRoom, rooms, joinRoom, spectateRoom, leaveSpectator, hasAttemptedJoin, user?.address, isSpectator, spectatorRoom?.id]);
 

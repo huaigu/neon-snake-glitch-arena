@@ -18,6 +18,7 @@ export class SnakeModel extends Multisynq.Model {
   isSpectator!: boolean;
   boardSize!: number;
   initialPosition!: Position;
+  hasNFT!: boolean;
 
   init(payload: {
     viewId: string;
@@ -25,6 +26,7 @@ export class SnakeModel extends Multisynq.Model {
     startPosition: Position;
     color: string;
     boardSize: number;
+    hasNFT?: boolean;
   }) {
     console.log('SnakeModel: Initializing snake:', payload);
     
@@ -34,6 +36,7 @@ export class SnakeModel extends Multisynq.Model {
     this.boardSize = payload.boardSize;
     this.initialPosition = payload.startPosition;
     this.isSpectator = false;
+    this.hasNFT = payload.hasNFT || false;
     
     this.reset();
   }
@@ -129,8 +132,15 @@ export class SnakeModel extends Multisynq.Model {
       isAlive: this.isAlive,
       score: this.score,
       color: this.color,
-      isSpectator: this.isSpectator
+      isSpectator: this.isSpectator,
+      hasNFT: this.hasNFT
     };
+  }
+
+  // 设置NFT状态的方法
+  setNFTStatus(hasNFT: boolean) {
+    console.log('SnakeModel: Setting NFT status for', this.viewId, ':', hasNFT);
+    this.hasNFT = hasNFT;
   }
 }
 

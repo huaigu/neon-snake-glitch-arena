@@ -42,4 +42,5 @@ export interface Player {
   address: string;
   isReady: boolean;
   isSpectator?: boolean;
+  hasNFT?: boolean;
 }
