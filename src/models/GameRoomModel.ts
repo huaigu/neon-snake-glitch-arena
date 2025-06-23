@@ -1,6 +1,7 @@
 import * as Multisynq from '@multisynq/client';
 import { SnakeModel } from './SnakeModel';
 import { PlayerModel } from './PlayerModel';
+import { GAME_CONFIG } from '../utils/gameConstants';
 
 interface Food {
   x: number;
@@ -10,11 +11,8 @@ interface Food {
   value: number;     // 根据等级计算的分数值
 }
 
-interface GameConfig {
-  BOARD_SIZE: number;
-  GAME_TICK_RATE: number;
-  COUNTDOWN_DURATION: number;
-}
+// 使用全局游戏配置
+// GameConfig interface moved to gameConstants.ts
 
 export class GameRoomModel extends Multisynq.Model {
   roomId!: string;
@@ -32,12 +30,8 @@ export class GameRoomModel extends Multisynq.Model {
   createdAt!: string;
   tickCounter!: number;  // 用于计算每10个tick的存活分数
   
-  // Game configuration
-  private readonly CONFIG: GameConfig = {
-    BOARD_SIZE: 60,
-    GAME_TICK_RATE: 5500,
-    COUNTDOWN_DURATION: 3
-  };
+  // 使用全局游戏配置
+  private readonly CONFIG = GAME_CONFIG;
 
   init(payload: { id: string; name: string; hostAddress: string }) {
     console.log('GameRoomModel: Initializing room:', payload);
@@ -60,6 +54,7 @@ export class GameRoomModel extends Multisynq.Model {
     // Subscribe to room events
     this.subscribe("room", "change-direction", this.handleChangeDirection);
     this.subscribe("room", "start-game", this.handleStartGame);
+    this.subscribe("room", "force-start-game", this.handleForceStartGame);
     this.subscribe("room", "enter-spectator", this.handleEnterSpectator);
 
     console.log('GameRoomModel: Room initialized with config:', this.CONFIG);
@@ -161,15 +156,15 @@ export class GameRoomModel extends Multisynq.Model {
     const colorIndex = this.snakes.size % colors.length;
     
     // Generate safe starting position
-    const startX = Math.floor(this.CONFIG.BOARD_SIZE * 0.2 + this.random() * this.CONFIG.BOARD_SIZE * 0.6);
-    const startY = Math.floor(this.CONFIG.BOARD_SIZE * 0.2 + this.random() * this.CONFIG.BOARD_SIZE * 0.6);
+    const startX = Math.floor(this.CONFIG.BOARD.SIZE * 0.2 + this.random() * this.CONFIG.BOARD.SIZE * 0.6);
+    const startY = Math.floor(this.CONFIG.BOARD.SIZE * 0.2 + this.random() * this.CONFIG.BOARD.SIZE * 0.6);
     
     const snake = SnakeModel.create({
       viewId: player.viewId,
       name: player.name,
       startPosition: { x: startX, y: startY },
       color: colors[colorIndex],
-      boardSize: this.CONFIG.BOARD_SIZE,
+      boardSize: this.CONFIG.BOARD.SIZE,
       hasNFT: player.hasNFT
     });
     
@@ -191,7 +186,7 @@ export class GameRoomModel extends Multisynq.Model {
 
   startCountdown() {
     this.status = 'countdown';
-    this.countdown = this.CONFIG.COUNTDOWN_DURATION;
+    this.countdown = this.CONFIG.TIMING.COUNTDOWN_DURATION;
     this.publishRoomState();
     
     this.countdownTick();
@@ -213,6 +208,31 @@ export class GameRoomModel extends Multisynq.Model {
   handleStartGame() {
     console.log('GameRoomModel: Start game requested');
     this.checkStartGame();
+  }
+
+  handleForceStartGame(payload: { hostAddress: string }) {
+    console.log('GameRoomModel: Force start game requested by:', payload.hostAddress);
+    
+    // 验证是否为房主
+    if (payload.hostAddress !== this.hostAddress) {
+      console.log('GameRoomModel: Force start denied - not host');
+      return;
+    }
+    
+    // 只有在等待状态才能强制开始
+    if (this.status !== 'waiting') {
+      console.log('GameRoomModel: Force start denied - not in waiting state:', this.status);
+      return;
+    }
+    
+    // 至少需要1个玩家
+    if (this.players.size < 1) {
+      console.log('GameRoomModel: Force start denied - no players');
+      return;
+    }
+    
+    console.log('GameRoomModel: Force starting game with', this.players.size, 'players');
+    this.startCountdown();
   }
 
   startGame() {
@@ -277,7 +297,7 @@ export class GameRoomModel extends Multisynq.Model {
     this.publishRoomState();
 
     // Schedule next tick with current speed
-    const tickRate = Math.floor(this.CONFIG.GAME_TICK_RATE / this.speedMultiplier);
+    const tickRate = Math.floor(this.CONFIG.TIMING.GAME_TICK_RATE / this.speedMultiplier);
     this.future(tickRate).gameTick();
   }
 
@@ -329,8 +349,8 @@ export class GameRoomModel extends Multisynq.Model {
       const head = snake.body[0];
       
       // Check wall collision
-      if (head.x < 0 || head.x >= this.CONFIG.BOARD_SIZE || 
-          head.y < 0 || head.y >= this.CONFIG.BOARD_SIZE) {
+      if (head.x < 0 || head.x >= this.CONFIG.BOARD.SIZE || 
+          head.y < 0 || head.y >= this.CONFIG.BOARD.SIZE) {
         snake.die();
         console.log('GameRoomModel: Snake died from wall collision:', snake.viewId);
         continue;
@@ -449,12 +469,15 @@ export class GameRoomModel extends Multisynq.Model {
   }
 
   spawnFood() {
+    // Limit food on board
+    if (this.foods.length >= 8) return;
+    
     let attempts = 0;
-    const maxAttempts = 100;
+    const maxAttempts = 50;
     
     while (attempts < maxAttempts) {
-      const x = Math.floor(this.random() * this.CONFIG.BOARD_SIZE);
-      const y = Math.floor(this.random() * this.CONFIG.BOARD_SIZE);
+      const x = Math.floor(this.random() * this.CONFIG.BOARD.SIZE);
+      const y = Math.floor(this.random() * this.CONFIG.BOARD.SIZE);
       
       // Check if position is occupied by any snake
       let occupied = false;

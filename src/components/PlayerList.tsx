@@ -1,6 +1,7 @@
 import React from 'react';
 import { Player } from '../contexts/GameContext';
 import { Crown, Bot, User, Check, Clock, Eye, Zap } from 'lucide-react';
+import { PLAYER_SLOTS_DISPLAY } from '../utils/gameConstants';
 
 interface PlayerListProps {
   players: Player[];
@@ -172,7 +173,7 @@ export const PlayerList: React.FC<PlayerListProps> = ({ players, currentPlayerId
       ))}
 
       {/* Empty slots */}
-      {Array.from({ length: Math.max(0, 8 - players.length) }).map((_, index) => (
+      {Array.from({ length: Math.max(0, PLAYER_SLOTS_DISPLAY - players.length) }).map((_, index) => (
         <div
           key={`empty-${index}`}
           className="flex items-center justify-center p-4 rounded-lg border border-dashed border-cyber-cyan/20 bg-cyber-cyan/5 min-h-[72px]"

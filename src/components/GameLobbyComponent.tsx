@@ -7,9 +7,10 @@ import { Leaderboard } from './Leaderboard';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Users, Crown, Share2, Copy, Check, Trophy } from 'lucide-react';
+import { Users, Crown, Share2, Copy, Check, Trophy, Play, Clock } from 'lucide-react';
 import { useToast } from './ui/use-toast';
 import { PLAYER_COLORS } from '../utils/gameConfig';
+import { MIN_FORCE_START, TOAST_DURATION, FORCE_START_DELAY } from '../utils/gameConstants';
 
 export const GameLobbyComponent: React.FC = () => {
   // console.log('=== GameLobbyComponent RENDER START ===');
@@ -19,6 +20,7 @@ export const GameLobbyComponent: React.FC = () => {
     currentRoom, 
     spectatorRoom,
     setPlayerReady, 
+    forceStartGame,
     loading, 
     error, 
     isConnected,
@@ -27,6 +29,9 @@ export const GameLobbyComponent: React.FC = () => {
   const { user } = useWeb3Auth();
   const { toast } = useToast();
   const [shareUrlCopied, setShareUrlCopied] = React.useState(false);
+  
+  // 新增状态：强制开始倒计时
+  const [forceStartCountdown, setForceStartCountdown] = React.useState(0);
 
   // 使用正确的房间状态 - 观察者模式使用spectatorRoom，否则使用currentRoom
   const activeRoom = isSpectator ? spectatorRoom : currentRoom;
@@ -92,6 +97,39 @@ export const GameLobbyComponent: React.FC = () => {
       isSpectator: false
     };
   }, [activeRoom?.players, user?.address, isSpectator]);
+
+  // 检测是否是房主
+  const isHost = React.useMemo(() => {
+    return activeRoom && user?.address && activeRoom.host === user.address;
+  }, [activeRoom?.host, user?.address]);
+
+  // 监听玩家列表变化，检测新玩家加入
+  const prevPlayersCount = React.useRef(0);
+  useEffect(() => {
+    if (!activeRoom || !isHost) return;
+    
+    const currentPlayersCount = activeRoom.players.length;
+    
+    // 如果玩家数量增加（新玩家加入），启动3秒倒计时
+    if (currentPlayersCount > prevPlayersCount.current && prevPlayersCount.current > 0) {
+      console.log('GameLobbyComponent: New player joined, starting force start countdown');
+      setForceStartCountdown(FORCE_START_DELAY);
+      
+      const countdownInterval = setInterval(() => {
+        setForceStartCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(countdownInterval);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      
+      return () => clearInterval(countdownInterval);
+    }
+    
+    prevPlayersCount.current = currentPlayersCount;
+  }, [activeRoom?.players.length, isHost]);
 
   // 添加详细的 currentPlayer 变化日志
   useEffect(() => {
@@ -160,6 +198,43 @@ export const GameLobbyComponent: React.FC = () => {
     }
   }, [activeRoom, user?.address, currentPlayer, setPlayerReady]);
 
+  // 处理房主强制开始游戏
+  const handleForceStart = useCallback(() => {
+    if (!activeRoom || !isHost) {
+      console.error('handleForceStart: Not host or no active room');
+      return;
+    }
+
+    if (forceStartCountdown > 0) {
+      console.warn('handleForceStart: Still in countdown period');
+      return;
+    }
+
+    if (activeRoom.status !== 'waiting') {
+      console.warn('handleForceStart: Room not in waiting state');
+      return;
+    }
+
+    if (activeRoom.players.length < MIN_FORCE_START) {
+      toast({
+        title: "Cannot Start Game",
+        description: `At least ${MIN_FORCE_START} player is required to start the game`,
+        variant: "destructive",
+        duration: TOAST_DURATION,
+      });
+      return;
+    }
+
+    console.log('GameLobbyComponent: Host force starting game');
+    forceStartGame(activeRoom.id);
+    
+    toast({
+      title: "Force Starting Game",
+      description: `Starting game with ${activeRoom.players.length} players`,
+      duration: 3000,
+    });
+  }, [activeRoom, isHost, forceStartCountdown, forceStartGame, toast]);
+
   // Calculate ready status directly from activeRoom data
   const readyCount = React.useMemo(() => {
     if (!activeRoom) return 0;
@@ -195,7 +270,19 @@ export const GameLobbyComponent: React.FC = () => {
       isSpectator,
       timestamp: new Date().toISOString()
     });
-  }, [activeRoom?.status, activeRoom?.players, isSpectator]);
+
+    // 当房间状态变为 countdown 或 playing 且用户是玩家时，跳转到游戏页面
+    if (activeRoom?.status === 'countdown' || activeRoom?.status === 'playing') {
+      if (!isSpectator && currentPlayer) {
+        console.log('GameLobbyComponent: Game starting/started, user is a player, navigating to game page');
+        navigate('/game');
+      } else if (isSpectator) {
+        console.log('GameLobbyComponent: Game starting/started, user is spectator, staying on lobby');
+      } else {
+        console.log('GameLobbyComponent: Game starting/started, but user is not a player, staying on lobby');
+      }
+    }
+  }, [activeRoom?.status, activeRoom?.players, isSpectator, currentPlayer, navigate]);
 
   // Auto-start game when all players are ready
   useEffect(() => {
@@ -277,6 +364,7 @@ export const GameLobbyComponent: React.FC = () => {
           </h1>
           <p className="text-cyber-cyan/70">
             Room Status: {activeRoom.status} • Host: {activeRoom.host}
+            {isHost && <span className="text-yellow-400 ml-2">(You are the host)</span>}
           </p>
         </div>
 
@@ -347,6 +435,41 @@ export const GameLobbyComponent: React.FC = () => {
                       {currentPlayer.isReady ? "Cancel Ready" : "Ready Up"}
                     </Button>
 
+                    {/* 房主强制开始按钮 */}
+                    {isHost && activeRoom.status === 'waiting' && (
+                      <div className="border-t border-cyber-cyan/20 pt-4">
+                        <div className="text-sm text-cyber-cyan/70 mb-2 flex items-center gap-2">
+                          <Crown className="w-4 h-4" />
+                          Host Controls
+                        </div>
+                        
+                        {forceStartCountdown > 0 ? (
+                          <Button
+                            variant="outline"
+                            className="w-full"
+                            disabled={true}
+                          >
+                            <Clock className="w-4 h-4 mr-2" />
+                            Force Start Available in {forceStartCountdown}s
+                          </Button>
+                        ) : (
+                          <Button
+                            onClick={handleForceStart}
+                            variant="outline"
+                            className="w-full border-yellow-400 text-yellow-400 hover:bg-yellow-400/10"
+                            disabled={totalPlayers < 1}
+                          >
+                            <Play className="w-4 h-4 mr-2" />
+                            Force Start Game
+                          </Button>
+                        )}
+                        
+                        <p className="text-xs text-cyber-cyan/50 mt-2 text-center">
+                          💡 Force start is available 3 seconds after new players join
+                        </p>
+                      </div>
+                    )}
+
                     {canStartGame && (
                       <div className="text-center text-green-400 text-sm animate-pulse">
                         All players ready! Starting game...
@@ -367,6 +490,8 @@ export const GameLobbyComponent: React.FC = () => {
                   <div>Address: {currentPlayer?.address || 'N/A'}</div>
                   <div>Status: {currentPlayer?.isReady ? 'READY' : 'NOT READY'}</div>
                   <div>Spectator: {isSpectator ? 'YES' : 'NO'}</div>
+                  <div>Is Host: {isHost ? 'YES' : 'NO'}</div>
+                  <div>Force Countdown: {forceStartCountdown}</div>
                   <div>Ready Count: {readyCount}/{totalPlayers}</div>
                   <div>Time: {new Date().toLocaleTimeString()}</div>
                 </div>

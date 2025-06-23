@@ -11,10 +11,18 @@ interface PendingRoomCreation {
   userAddress: string;
 }
 
+interface JoinAttempt {
+  timeoutId: NodeJS.Timeout;
+  roomId: string;
+  userAddress: string;
+  startTime: number;
+}
+
 declare global {
   interface Window {
     pendingRoomCreation?: PendingRoomCreation;
     spectatorUpdateInterval?: NodeJS.Timeout;
+    currentJoinAttempt?: JoinAttempt;
   }
 }
 
@@ -28,6 +36,7 @@ interface RoomContextType {
   joinRoom: (roomId: string) => Promise<boolean>;
   leaveRoom: () => void;
   setPlayerReady: (roomId: string, playerAddress: string, isReady: boolean) => void;
+  forceStartGame: (roomId: string) => void;
   loading: boolean;
   error: string | null;
   isConnected: boolean;
@@ -191,19 +200,37 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
 
     // 设置房间加入成功的回调，用于处理普通房间加入（保持兼容性）
     const roomJoinedCallback = (data: { viewId: string; roomId: string }) => {
-      console.log('RoomContext: Room joined successfully:', data);
+      console.log('📨 RoomContext: Room joined callback received:', data);
       if (stableUserAddress && (data.viewId === stableUserAddress)) {
-        console.log('RoomContext: Current user successfully joined room');
+        console.log('📨 RoomContext: Current user successfully joined room via callback');
+        
+        // 清除当前加入尝试的超时
+        const joinAttempt = window.currentJoinAttempt;
+        if (joinAttempt && joinAttempt.userAddress === stableUserAddress) {
+          const callbackTime = Date.now() - joinAttempt.startTime;
+          console.log(`📨 RoomContext: Callback received after ${callbackTime}ms`);
+          clearTimeout(joinAttempt.timeoutId);
+          delete window.currentJoinAttempt;
+        }
         
         // 只处理普通的房间加入，创建房间已由上面的roomCreatedCallback处理
         const pendingCreation = window.pendingRoomCreation;
         if (!pendingCreation) {
+          // 检查是否已经通过状态检测设置了房间
+          if (currentRoom && currentRoom.id === data.roomId) {
+            console.log('📨 RoomContext: Room already set via state detection, skipping callback processing');
+            // 即使已经设置，也要确保loading状态被重置
+            setLoading(false);
+            setError(null);
+            return;
+          }
+          
           // 普通的房间加入（非创建）
           if (gameView.model?.lobby) {
             const currentState = gameView.model.lobby.getLobbyState();
             const room = currentState.rooms.find(r => r.id === data.roomId);
             if (room) {
-              console.log('RoomContext: Found joined room data, setting currentRoom:', {
+              console.log('📨 RoomContext: Found joined room data via callback, setting currentRoom:', {
                 roomId: room.id,
                 roomName: room.name,
                 playersCount: room.players.length
@@ -212,12 +239,12 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
               setLoading(false);
               setError(null);
             } else {
-              console.error('RoomContext: Room not found after successful join:', data.roomId);
+              console.error('📨 RoomContext: Room not found after successful join:', data.roomId);
               setError('Room joined but data not found');
               setLoading(false);
             }
           } else {
-            console.error('RoomContext: No lobby model available after room join');
+            console.error('📨 RoomContext: No lobby model available after room join');
             setError('Unable to load room data');
             setLoading(false);
           }
@@ -241,8 +268,26 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
       }
     };
 
+    // 房间加入失败回调
+    const roomJoinFailedCallback = (data: { viewId: string; reason: string }) => {
+      if (stableUserAddress && (data.viewId === stableUserAddress)) {
+        console.log('RoomContext: Room join failed:', data.reason);
+        
+        // 清除当前加入尝试的超时
+        const joinAttempt = window.currentJoinAttempt;
+        if (joinAttempt && joinAttempt.userAddress === stableUserAddress) {
+          clearTimeout(joinAttempt.timeoutId);
+          delete window.currentJoinAttempt;
+        }
+        
+        setError(data.reason || 'Failed to join room');
+        setLoading(false);
+      }
+    };
+
     gameView.setRoomCreatedCallback(roomCreatedCallback);
     gameView.setRoomJoinedCallback(roomJoinedCallback);
+    gameView.setRoomJoinFailedCallback(roomJoinFailedCallback);
     gameView.setRoomCreationFailedCallback(roomCreationFailedCallback);
 
     // Subscribe to room creation errors
@@ -263,8 +308,68 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
 
     return () => {
       console.log('RoomContext: Cleaning up GameView callbacks');
+      
+      // 清理未完成的加入尝试超时
+      const joinAttempt = window.currentJoinAttempt;
+      if (joinAttempt) {
+        clearTimeout(joinAttempt.timeoutId);
+        delete window.currentJoinAttempt;
+      }
     };
   }, [gameView, isConnected, stableUserAddress]); // 使用稳定的地址引用
+
+  // 检测房间加入成功 - 通过监控房间列表变化
+  useEffect(() => {
+    const joinAttempt = window.currentJoinAttempt;
+    if (!joinAttempt || !stableUserAddress || !loading) {
+      return;
+    }
+
+    // 检查用户是否已经成功加入目标房间
+    const targetRoom = rooms.find(r => r.id === joinAttempt.roomId);
+    if (targetRoom) {
+      const userInRoom = targetRoom.players.some(player => player.address === stableUserAddress);
+      if (userInRoom) {
+        const joinTime = Date.now() - joinAttempt.startTime;
+        console.log(`🎉 RoomContext: Quick join detection - User successfully joined room in ${joinTime}ms`, {
+          roomId: joinAttempt.roomId,
+          roomName: targetRoom.name,
+          playersCount: targetRoom.players.length,
+          playersList: targetRoom.players.map(p => p.address)
+        });
+        
+        // 清除超时和加入尝试
+        clearTimeout(joinAttempt.timeoutId);
+        delete window.currentJoinAttempt;
+        
+        // 设置当前房间并重置loading状态
+        setCurrentRoom({ ...targetRoom });
+        setLoading(false);
+        setError(null);
+      } else {
+        // 调试信息：房间存在但用户不在其中
+        const timeSinceStart = Date.now() - joinAttempt.startTime;
+        if (timeSinceStart > 500) { // 只在超过500ms后才记录，避免日志污染
+          console.log(`⏳ RoomContext: Still waiting for join (${timeSinceStart}ms) - Room found but user not in players list`, {
+            roomId: joinAttempt.roomId,
+            roomPlayersCount: targetRoom.players.length,
+            roomPlayersList: targetRoom.players.map(p => p.address),
+            waitingForUser: stableUserAddress
+          });
+        }
+      }
+    } else {
+      // 调试信息：房间不存在
+      const timeSinceStart = Date.now() - joinAttempt.startTime;
+      if (timeSinceStart > 500) {
+        console.log(`⏳ RoomContext: Still waiting for join (${timeSinceStart}ms) - Target room not found`, {
+          targetRoomId: joinAttempt.roomId,
+          availableRooms: rooms.map(r => r.id),
+          totalRooms: rooms.length
+        });
+      }
+    }
+  }, [rooms, stableUserAddress, loading]);
 
   // 更新当前房间
   useEffect(() => {
@@ -389,21 +494,37 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
       return false;
     }
 
+    // 防止重复调用
+    if (loading) {
+      console.log('RoomContext: joinRoom called while already loading, ignoring');
+      return false;
+    }
+
     try {
+      console.log(`🚀 RoomContext: Starting join room process`, {
+        roomId,
+        userAddress: stableUserAddress,
+        currentlyLoading: loading,
+        timestamp: new Date().toISOString()
+      });
+      
       setLoading(true);
       setError(null);
 
-      // 重新检查NFT状态（除非是游客用户）
+      // 重新检查NFT状态（除非是游客用户），但避免频繁检查
       let currentNFTStatus = stableUserHasNFT || false;
-      if (!user?.isGuest && stableUserAddress) {
+      if (!user?.isGuest && stableUserAddress && typeof stableUserHasNFT === 'undefined') {
         console.log('RoomContext: Re-checking NFT status before joining room...');
         try {
           currentNFTStatus = await checkUserHasNFT(stableUserAddress);
           console.log('RoomContext: Fresh NFT check result:', currentNFTStatus);
         } catch (error) {
           console.warn('RoomContext: Failed to check NFT status, using cached value:', error);
-          currentNFTStatus = stableUserHasNFT || false;
+          currentNFTStatus = false;
         }
+      } else if (stableUserHasNFT !== undefined) {
+        currentNFTStatus = stableUserHasNFT;
+        console.log('RoomContext: Using cached NFT status:', currentNFTStatus);
       }
 
       console.log('RoomContext: Joining room via GameView', {
@@ -420,6 +541,21 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
       
       // 不要立即设置房间，等待房间加入成功的回调
       console.log('RoomContext: joinRoom call sent, waiting for callback...');
+      
+      // 添加超时保护，防止loading状态卡住
+      // 使用 setTimeout 而不是依赖 loading 状态检查，以避免竞态条件
+      const timeoutId = setTimeout(() => {
+        console.warn('RoomContext: Join room timeout after 2 seconds, forcing reset');
+        setError('Join room timeout. Please check your connection and try again.');
+        setLoading(false);
+        
+        // 清除加入尝试记录
+        delete window.currentJoinAttempt;
+      }, 2000);
+
+      // 存储 timeout ID 以便在成功/失败回调中清除
+      const currentJoinAttempt = { timeoutId, roomId, userAddress: stableUserAddress, startTime: Date.now() };
+      window.currentJoinAttempt = currentJoinAttempt;
       
       return true;
     } catch (err) {
@@ -470,6 +606,12 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
   const spectateRoom = (roomId: string): boolean => {
     if (!gameView) {
       console.error('spectateRoom: No gameView available');
+      return false;
+    }
+
+    // 防止重复调用
+    if (loading || isSpectator) {
+      console.log('RoomContext: spectateRoom called while already loading or in spectator mode, ignoring');
       return false;
     }
 
@@ -565,6 +707,31 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     setSpectatorRoom(null);  // 清理观察者房间状态，不影响currentRoom
   };
 
+  const forceStartGame = (roomId: string): void => {
+    console.log('RoomContext: Force starting game for room:', roomId);
+    
+    if (!gameView?.publish) {
+      console.error('RoomContext: Cannot force start game - no gameView available');
+      return;
+    }
+
+    if (!stableUserAddress) {
+      console.error('RoomContext: Cannot force start game - no user address');
+      return;
+    }
+
+    try {
+      gameView.publish("lobby", "force-start-game", {
+        hostAddress: stableUserAddress,
+        roomId: roomId
+      });
+      console.log('RoomContext: Force start game event published successfully');
+    } catch (error) {
+      console.error('RoomContext: Error force starting game:', error);
+      setError('Failed to force start game');
+    }
+  };
+
   return (
     <RoomContext.Provider value={{
       rooms,
@@ -576,6 +743,7 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
       joinRoom,
       leaveRoom,
       setPlayerReady,
+      forceStartGame,
       loading,
       error,
       isConnected,

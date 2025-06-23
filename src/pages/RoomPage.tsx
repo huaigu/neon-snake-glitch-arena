@@ -17,6 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../components/ui/alert-dialog';
+import { ROOM_JOIN_TIMEOUT } from '../utils/gameConstants';
 
 export const RoomPage: React.FC = () => {
   const { roomId } = useParams<{ roomId: string }>();
@@ -31,6 +32,7 @@ export const RoomPage: React.FC = () => {
   const [joinError, setJoinError] = useState<string | null>(null);
   const [hasAttemptedJoin, setHasAttemptedJoin] = useState(false);
   const previousRoomIdRef = useRef<string | undefined>(undefined);
+  const pageLoadTimeRef = useRef<number>(Date.now());
 
   // 组件挂载时的一次性清理检查
   const hasInitialCleanup = useRef(false);
@@ -116,7 +118,22 @@ export const RoomPage: React.FC = () => {
         userAddress: user?.address,
         userInPlayers: currentRoom.players?.some(p => p.address === user?.address) || false
       });
-      setJoinState('success');
+      if (joinState !== 'success') {
+        setJoinState('success');
+      }
+      return;
+    }
+
+    // 如果在观察者模式中且正在观看目标房间，也标记为成功
+    if (isSpectator && spectatorRoom && spectatorRoom.id === roomId) {
+      console.log('RoomPage: Already spectating target room, setting success state', {
+        roomId: spectatorRoom.id,
+        roomName: spectatorRoom.name,
+        roomStatus: spectatorRoom.status
+      });
+      if (joinState !== 'success') {
+        setJoinState('success');
+      }
       return;
     }
 
@@ -144,21 +161,31 @@ export const RoomPage: React.FC = () => {
       return;
     }
 
-    // 检查目标房间是否存在
+    // 检查目标房间是否存在 - 但不立即显示错误，让5秒超时机制处理
     const targetRoom = rooms.find(room => room.id === roomId);
     if (!targetRoom) {
-      console.log('RoomPage: Target room not found in loaded rooms', {
+      console.log('RoomPage: Target room not found yet, waiting for timeout or room list update...', {
         roomId,
-        availableRooms: rooms.map(r => ({ id: r.id, name: r.name }))
+        roomsCount: rooms.length,
+        hasAttemptedJoin,
+        joinState
       });
-      setJoinState('error');
-      setJoinError(`Room "${roomId}" does not exist or has expired.`);
+      // 不立即设置错误状态，让5秒超时机制处理所有错误情况
+      if (joinState !== 'waiting') {
+        setJoinState('waiting');
+      }
       return;
     }
 
     // 如果已经尝试过加入，不要重复尝试
     if (hasAttemptedJoin) {
       console.log('RoomPage: Already attempted join, waiting for state update...');
+      return;
+    }
+
+    // 如果正在加入过程中，不要重复尝试
+    if (joinState === 'joining' || joinState === 'spectating') {
+      console.log('RoomPage: Join in progress, waiting for completion...');
       return;
     }
 
@@ -170,18 +197,40 @@ export const RoomPage: React.FC = () => {
     setHasAttemptedJoin(true);
     setJoinError(null);
 
-    // 如果房间正在进行游戏或倒计时，进入观察者模式
+    // 检查用户是否是房间中的玩家
+    const isPlayerInRoom = targetRoom.players.some(player => player.address === user?.address);
+    
+    // 如果房间正在进行游戏或倒计时，但用户是玩家，则直接加入；否则进入观察者模式
     if (targetRoom.status === 'playing' || targetRoom.status === 'countdown' || targetRoom.status === 'finished') {
-      console.log('RoomPage: Room is in progress, entering spectator mode');
-      setJoinState('spectating');
-      const success = spectateRoom(roomId);
-      if (success) {
-        console.log('RoomPage: Successfully entered spectator mode');
-        setJoinState('success');
+      if (isPlayerInRoom) {
+        console.log('RoomPage: User is a player in the ongoing/finished game, joining as player');
+        setJoinState('joining');
+        
+        // 使用立即执行的异步函数来处理joinRoom的异步调用
+        (async () => {
+          try {
+            const success = await joinRoom(roomId);
+            if (!success) {
+              console.error('RoomPage: Join room call returned false for player in ongoing game');
+              // 不立即设置错误，让5秒超时机制处理
+            }
+            // 如果成功，等待currentRoom更新后会自动设置为success
+          } catch (error) {
+            console.error('RoomPage: Join room call threw error for player in ongoing game:', error);
+            // 不立即设置错误，让5秒超时机制处理
+          }
+        })();
       } else {
-        console.error('RoomPage: Failed to enter spectator mode');
-        setJoinState('error');
-        setJoinError('Failed to spectate room. The room may not be available.');
+        console.log('RoomPage: Room is in progress and user is not a player, entering spectator mode');
+        setJoinState('spectating');
+        const success = spectateRoom(roomId);
+        if (success) {
+          console.log('RoomPage: Successfully entered spectator mode');
+          setJoinState('success');
+        } else {
+          console.error('RoomPage: Failed to enter spectator mode');
+          // 不立即设置错误，让5秒超时机制处理
+        }
       }
     } else {
       // 房间在等待状态，尝试作为玩家加入
@@ -193,19 +242,58 @@ export const RoomPage: React.FC = () => {
         try {
           const success = await joinRoom(roomId);
           if (!success) {
-            console.error('RoomPage: Join room call failed');
-            setJoinState('error');
-            setJoinError('Failed to join room. The room may be full or unavailable.');
+            console.error('RoomPage: Join room call returned false');
+            // 不立即设置错误，让5秒超时机制处理
           }
           // 如果成功，等待currentRoom更新后会自动设置为success
         } catch (error) {
           console.error('RoomPage: Join room call threw error:', error);
-          setJoinState('error');
-          setJoinError('Failed to join room. Please try again.');
+          // 不立即设置错误，让5秒超时机制处理
         }
       })();
     }
-  }, [isAuthenticated, isConnected, roomId, currentRoom, rooms, joinRoom, spectateRoom, leaveSpectator, hasAttemptedJoin, user?.address, isSpectator, spectatorRoom?.id]);
+  }, [isAuthenticated, isConnected, roomId, currentRoom?.id, rooms.length, hasAttemptedJoin, user?.address, isSpectator, spectatorRoom?.id, joinState]);
+
+  // 全局5秒超时检查 - 无论什么原因，如果5秒后仍未成功进入房间则显示错误
+  useEffect(() => {
+    if (!isConnected || !roomId || joinState === 'error' || joinState === 'success') {
+      return;
+    }
+
+    // 如果用户已经在房间中，不需要超时处理
+    if ((currentRoom && currentRoom.id === roomId) || (isSpectator && spectatorRoom && spectatorRoom.id === roomId)) {
+      return;
+    }
+
+    console.log(`RoomPage: Setting ${ROOM_JOIN_TIMEOUT}-second global timeout for room entry`);
+    const timeoutId = setTimeout(() => {
+      // 最终检查：用户是否已经成功进入房间
+      const userInRoom = (currentRoom && currentRoom.id === roomId) || 
+                        (isSpectator && spectatorRoom && spectatorRoom.id === roomId);
+      
+      if (!userInRoom) {
+        console.log(`RoomPage: ${ROOM_JOIN_TIMEOUT}-second timeout reached - user not in room`, {
+          roomId,
+          currentRoomId: currentRoom?.id,
+          spectatorRoomId: spectatorRoom?.id,
+          isSpectator,
+          joinState: joinState,
+          roomsCount: rooms.length,
+          targetRoomExists: rooms.some(r => r.id === roomId)
+        });
+        
+        setJoinState('error');
+        const targetRoomExists = rooms.some(r => r.id === roomId);
+        if (targetRoomExists) {
+          setJoinError('Unable to join the room. Please try again.');
+        } else {
+          setJoinError(`Room "${roomId}" does not exist or has expired.`);
+        }
+      }
+    }, ROOM_JOIN_TIMEOUT * 1000);
+
+    return () => clearTimeout(timeoutId);
+  }, [isConnected, roomId, joinState, currentRoom?.id, isSpectator, spectatorRoom?.id, rooms]);
 
   // 重置状态当roomId真正变化时（避免初始化时的重置）
   useEffect(() => {
@@ -324,7 +412,7 @@ export const RoomPage: React.FC = () => {
   }
 
   // 等待连接或加入中状态
-  if (joinState === 'waiting' || joinState === 'joining') {
+  if (joinState === 'waiting' || joinState === 'joining' || joinState === 'spectating') {
     let statusText = 'Connecting to game server...';
     let subText = '';
     
@@ -340,12 +428,15 @@ export const RoomPage: React.FC = () => {
     } else if (joinState === 'joining') {
       statusText = 'Joining room...';
       subText = 'Adding you to the room...';
+    } else if (joinState === 'spectating') {
+      statusText = 'Entering spectator mode...';
+      subText = 'Preparing to watch the game...';
     } else if (isConnected && rooms.length === 0) {
       statusText = 'Loading rooms...';
       subText = 'Fetching room data...';
     } else if (isConnected) {
-      statusText = 'Preparing to join room...';
-      subText = 'Validating room access...';
+      statusText = 'Finding room...';
+      subText = 'Locating the room you want to join...';
     }
 
     return (
@@ -353,14 +444,6 @@ export const RoomPage: React.FC = () => {
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin text-cyber-cyan mx-auto mb-4" />
           <div className="text-cyber-cyan mb-2">{statusText}</div>
-          {subText && (
-            <div className="text-cyber-cyan/70 text-sm mb-4">{subText}</div>
-          )}
-          {roomId && (
-            <div className="text-cyber-cyan/50 text-xs">
-              Target Room: {roomId.slice(-8)}...
-            </div>
-          )}
           {connectionError && (
             <Button 
               onClick={() => window.location.reload()} 
@@ -406,7 +489,9 @@ export const RoomPage: React.FC = () => {
   }
 
   // 房间不匹配状态（在其他房间中）- 只有在非观察者模式下才检查
-  if (!isSpectator && currentRoom && currentRoom.id !== roomId) {
+  // 而且要确保不是初始加载阶段，避免闪现（页面加载后3秒内不显示）
+  const timeSincePageLoad = Date.now() - pageLoadTimeRef.current;
+  if (!isSpectator && currentRoom && currentRoom.id !== roomId && timeSincePageLoad > 3000) {
     return (
       <div className="min-h-screen bg-cyber-darker flex items-center justify-center p-4">
         <div className="text-center max-w-md">

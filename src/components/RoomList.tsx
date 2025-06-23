@@ -56,6 +56,7 @@ export const RoomList: React.FC = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'waiting': return 'bg-green-500';
+      case 'countdown': return 'bg-yellow-500';
       case 'playing': return 'bg-red-500';
       case 'finished': return 'bg-gray-500';
       default: return 'bg-gray-500';
@@ -65,6 +66,7 @@ export const RoomList: React.FC = () => {
   const getStatusText = (status: string) => {
     switch (status) {
       case 'waiting': return 'Waiting';
+      case 'countdown': return 'Starting';
       case 'playing': return 'Playing';
       case 'finished': return 'Finished';
       default: return 'Unknown';
@@ -242,7 +244,7 @@ export const RoomList: React.FC = () => {
                   <div className="text-2xl font-bold text-green-400">
                     {rooms.filter(r => r.status === 'waiting').length}
                   </div>
-                  <div className="text-sm text-cyber-cyan/70">Waiting Rooms</div>
+                  <div className="text-sm text-cyber-cyan/70">Waiting</div>
                 </div>
               </div>
             </CardContent>
@@ -254,9 +256,9 @@ export const RoomList: React.FC = () => {
                 <Play className="w-5 h-5 text-red-400" />
                 <div>
                   <div className="text-2xl font-bold text-red-400">
-                    {rooms.filter(r => r.status === 'playing').length}
+                    {rooms.filter(r => r.status === 'playing' || r.status === 'countdown').length}
                   </div>
-                  <div className="text-sm text-cyber-cyan/70">Playing Rooms</div>
+                  <div className="text-sm text-cyber-cyan/70">Active Games</div>
                 </div>
               </div>
             </CardContent>

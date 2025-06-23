@@ -27,6 +27,7 @@ export class LobbyModel extends Multisynq.Model {
     this.subscribe("lobby", "join-room", this.handleJoinRoom);
     this.subscribe("lobby", "leave-room", this.handleLeaveRoom);
     this.subscribe("lobby", "set-player-ready", this.handleSetPlayerReady);
+    this.subscribe("lobby", "force-start-game", this.handleForceStartGame);
 
     console.log('LobbyModel: Initialization complete');
   }
@@ -360,6 +361,39 @@ export class LobbyModel extends Multisynq.Model {
       room.setPlayerReady(payload.playerAddress, payload.isReady);
       this.publishLobbyState();
     }
+  }
+
+  handleForceStartGame(payload: { hostAddress: string; roomId?: string }) {
+    console.log('LobbyModel: Force start game requested by:', payload.hostAddress);
+    
+    // 找到房主所在的房间
+    let targetRoom = null;
+    if (payload.roomId) {
+      targetRoom = this.gameRooms.get(payload.roomId);
+    } else {
+      // 如果没有指定roomId，查找房主所在的房间
+      for (const room of this.gameRooms.values()) {
+        if (room.hostAddress === payload.hostAddress) {
+          targetRoom = room;
+          break;
+        }
+      }
+    }
+    
+    if (!targetRoom) {
+      console.log('LobbyModel: Force start denied - room not found');
+      return;
+    }
+    
+    // 验证是否为房主
+    if (targetRoom.hostAddress !== payload.hostAddress) {
+      console.log('LobbyModel: Force start denied - not host');
+      return;
+    }
+    
+    // 调用房间的强制开始方法
+    targetRoom.handleForceStartGame({ hostAddress: payload.hostAddress });
+    this.publishLobbyState();
   }
 
   getLobbyState() {
