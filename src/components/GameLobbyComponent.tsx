@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Users, Crown, Share2, Copy, Check, Trophy, Play, Clock } from 'lucide-react';
 import { useToast } from './ui/use-toast';
 import { PLAYER_COLORS } from '../utils/gameConfig';
-import { MIN_FORCE_START, TOAST_DURATION, FORCE_START_DELAY } from '../utils/gameConstants';
+import { MIN_FORCE_START, MIN_PLAYERS, TOAST_DURATION, FORCE_START_DELAY } from '../utils/gameConstants';
 
 export const GameLobbyComponent: React.FC = () => {
   // console.log('=== GameLobbyComponent RENDER START ===');
@@ -215,10 +215,10 @@ export const GameLobbyComponent: React.FC = () => {
       return;
     }
 
-    if (activeRoom.players.length < MIN_FORCE_START) {
+    if (activeRoom.players.length < MIN_PLAYERS) {
       toast({
         title: "Cannot Start Game",
-        description: `At least ${MIN_FORCE_START} player is required to start the game`,
+        description: `At least ${MIN_PLAYERS} players are required to start the game`,
         variant: "destructive",
         duration: TOAST_DURATION,
       });
@@ -251,7 +251,7 @@ export const GameLobbyComponent: React.FC = () => {
   }, [activeRoom?.players]);
 
   const totalPlayers = activeRoom?.players.length || 0;
-  const canStartGame = totalPlayers >= 2 && readyCount === totalPlayers;
+  const canStartGame = totalPlayers >= MIN_PLAYERS && readyCount === totalPlayers;
 
   const handleAutoStart = useCallback(() => {
     if (canStartGame) {
@@ -355,25 +355,245 @@ export const GameLobbyComponent: React.FC = () => {
   // });
 
   return (
-    <div className="min-h-screen bg-cyber-darker flex items-center justify-center p-4">
-      <div className="w-full max-w-4xl">
+    <div className="bg-cyber-darker flex items-center justify-center p-2 lg:p-4 overflow-hidden">
+      <div className="w-full max-w-5xl max-h-full overflow-y-auto">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-cyber-cyan neon-text mb-2">
+        <div className="text-center mb-6">
+          <h1 className="text-3xl lg:text-4xl font-bold text-cyber-cyan neon-text mb-2">
             {activeRoom.name}
           </h1>
-          <p className="text-cyber-cyan/70">
+          <p className="text-cyber-cyan/70 text-sm">
             Room Status: {activeRoom.status} • Host: {activeRoom.host}
             {isHost && <span className="text-yellow-400 ml-2">(You are the host)</span>}
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Players List */}
-          <div className="lg:col-span-2">
+        {/* PC端布局 */}
+        <div className="hidden lg:block">
+          <div className="grid grid-cols-3 gap-4 mb-4">
+            {/* Players List */}
+            <div className="col-span-2">
+              <Card className="cyber-panel h-full">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-cyber-cyan text-lg">
+                    <Users className="w-5 h-5" />
+                    Player List ({totalPlayers}/{activeRoom.maxPlayers})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <PlayerList players={players} currentPlayerId={user?.address || ''} />
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Ready Status - 与Player List同高 */}
+            <div>
+              <Card className="cyber-panel h-full flex flex-col">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-cyber-cyan text-base">
+                    <Crown className="w-4 h-4" />
+                    {isSpectator ? 'Spectator Mode' : 'Ready Status'}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 flex-1 flex flex-col justify-center pt-0">
+                  {isSpectator ? (
+                    // 观察者模式UI
+                    <div className="text-center">
+                      <div className="w-3 h-3 bg-cyber-purple rounded-full animate-pulse mx-auto mb-2"></div>
+                      <div className="text-cyber-purple font-bold mb-2">Spectating Game</div>
+                      <p className="text-xs text-cyber-cyan/70 mb-4">
+                        {activeRoom.status === 'playing' ? 
+                          'Game is in progress. You are watching as a spectator.' :
+                          activeRoom.status === 'finished' ?
+                          'Game has ended. You joined as a spectator.' :
+                          'Game will start soon. You joined as a spectator.'
+                        }
+                      </p>
+                      {activeRoom.status === 'waiting' && (
+                        <div className="text-xs text-cyber-cyan/50">
+                          To participate, please refresh this page.
+                        </div>
+                      )}
+                    </div>
+                  ) : currentPlayer ? (
+                    // 正常玩家模式UI
+                    <>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-cyber-cyan">
+                          {readyCount}/{totalPlayers}
+                        </div>
+                        <p className="text-sm text-cyber-cyan/70">
+                          Players Ready
+                        </p>
+                      </div>
+
+                      <Button
+                        onClick={handleToggleReady}
+                        variant={currentPlayer.isReady ? "destructive" : "default"}
+                        className="w-full"
+                        disabled={activeRoom.status !== 'waiting' || totalPlayers < MIN_PLAYERS}
+                        title={totalPlayers < MIN_PLAYERS ? `At least ${MIN_PLAYERS} players are required` : ''}
+                      >
+                        {currentPlayer.isReady ? "Cancel Ready" : "Ready Up"}
+                      </Button>
+
+                      {/* 房主强制开始按钮 */}
+                      {isHost && activeRoom.status === 'waiting' && (
+                        <div className="border-t border-cyber-cyan/20 pt-3">
+                          <div className="text-xs text-cyber-cyan/70 mb-2 flex items-center gap-2">
+                            <Crown className="w-3 h-3" />
+                            Host Controls
+                          </div>
+                          
+                          {forceStartCountdown > 0 ? (
+                            <Button
+                              variant="outline"
+                              className="w-full"
+                              disabled={true}
+                            >
+                              <Clock className="w-4 h-4 mr-2" />
+                              Force Start Available in {forceStartCountdown}s
+                            </Button>
+                          ) : (
+                            <Button
+                              onClick={handleForceStart}
+                              variant="outline"
+                              className="w-full border-yellow-400 text-yellow-400 hover:bg-yellow-400/10"
+                              disabled={totalPlayers < MIN_PLAYERS}
+                              title={totalPlayers < MIN_PLAYERS ? `At least ${MIN_PLAYERS} players are required` : ''}
+                            >
+                              <Play className="w-4 h-4 mr-2" />
+                              Force Start Game
+                            </Button>
+                          )}
+                          
+                          <p className="text-xs text-cyber-cyan/50 mt-2 text-center">
+                            💡 Force start requires at least {MIN_PLAYERS} players and is available 3 seconds after new players join
+                          </p>
+                        </div>
+                      )}
+
+                      {/* 玩家数量不足提示 */}
+                      {totalPlayers < MIN_PLAYERS && (
+                        <div className="text-center text-yellow-400 text-xs bg-yellow-400/10 py-2 px-3 rounded border border-yellow-400/20">
+                          <div className="font-medium mb-0.5">Waiting for More Players</div>
+                          <div className="text-xs opacity-80">
+                            {totalPlayers}/{MIN_PLAYERS} players joined. Need {MIN_PLAYERS - totalPlayers} more to start.
+                          </div>
+                        </div>
+                      )}
+
+                      {canStartGame && (
+                        <div className="text-center text-green-400 text-sm animate-pulse">
+                          All players ready! Starting game...
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    // 加载状态
+                    <div className="text-center">
+                      <div className="text-cyber-cyan/70">Loading player data...</div>
+                    </div>
+                  )}
+
+                  {/* 增强的调试信息 */}
+                  <div hidden={true} className="text-xs text-cyan-400 bg-gray-800 p-2 rounded space-y-1">
+                    <div>Debug Info:</div>
+                    <div>Player: {currentPlayer?.name || 'N/A'}</div>
+                    <div>Address: {currentPlayer?.address || 'N/A'}</div>
+                    <div>Status: {currentPlayer?.isReady ? 'READY' : 'NOT READY'}</div>
+                    <div>Spectator: {isSpectator ? 'YES' : 'NO'}</div>
+                    <div>Is Host: {isHost ? 'YES' : 'NO'}</div>
+                    <div>Force Countdown: {forceStartCountdown}</div>
+                    <div>Ready Count: {readyCount}/{totalPlayers}</div>
+                    <div>Time: {new Date().toLocaleTimeString()}</div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Room Info - 单独占用底部一行 */}
+          <div className="w-full">
+            <Card className="cyber-panel">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-cyber-cyan text-base">
+                  <Users className="w-4 h-4" />
+                  Room Info
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Room Details */}
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <span className="text-cyber-cyan/70 text-sm">Room ID:</span>
+                      <span className="text-cyber-cyan font-mono text-sm">
+                        {activeRoom.id.slice(-8)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-cyber-cyan/70 text-sm">Status:</span>
+                      <span className="text-cyber-cyan capitalize text-sm">{activeRoom.status}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-cyber-cyan/70 text-sm">Created:</span>
+                      <span className="text-cyber-cyan text-sm">
+                        {new Date(activeRoom.createdAt).toLocaleTimeString([], { 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        })}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Share Room Section */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Share2 className="w-4 h-4 text-cyber-cyan" />
+                      <span className="text-sm font-medium text-cyber-cyan">Share Room</span>
+                    </div>
+                    
+                    <div className="space-y-1.5">
+                      <div className="flex gap-2">
+                        <div className="flex-1 bg-cyber-darker border border-cyber-cyan/20 rounded px-3 py-2">
+                          <div className="text-sm text-cyber-cyan/70 font-mono truncate">
+                            {shareUrl}
+                          </div>
+                        </div>
+                        
+                        <Button
+                          onClick={handleCopyShareUrl}
+                          size="sm"
+                          variant="outline"
+                          className="border-cyber-cyan/30 text-cyber-cyan hover:bg-cyber-cyan/10"
+                        >
+                          {shareUrlCopied ? (
+                            <Check className="w-4 h-4" />
+                          ) : (
+                            <Copy className="w-4 h-4" />
+                          )}
+                        </Button>
+                      </div>
+                      
+                      <div className="text-xs text-cyber-cyan/50">
+                        💡 Share link to invite friends
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* 移动端布局 */}
+        <div className="lg:hidden">
+          <div className="space-y-3">
+            {/* Players List */}
             <Card className="cyber-panel">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-cyber-cyan">
+                <CardTitle className="flex items-center gap-1 text-cyber-cyan">
                   <Users className="w-5 h-5" />
                   Player List ({totalPlayers}/{activeRoom.maxPlayers})
                 </CardTitle>
@@ -382,19 +602,16 @@ export const GameLobbyComponent: React.FC = () => {
                 <PlayerList players={players} currentPlayerId={user?.address || ''} />
               </CardContent>
             </Card>
-          </div>
 
-          {/* Lobby Controls */}
-          <div className="space-y-6">
             {/* Ready Status */}
             <Card className="cyber-panel">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-cyber-cyan">
-                  <Crown className="w-5 h-5" />
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-cyber-cyan text-base">
+                  <Crown className="w-4 h-4" />
                   {isSpectator ? 'Spectator Mode' : 'Ready Status'}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-3">
                 {isSpectator ? (
                   // 观察者模式UI
                   <div className="text-center">
@@ -430,16 +647,17 @@ export const GameLobbyComponent: React.FC = () => {
                       onClick={handleToggleReady}
                       variant={currentPlayer.isReady ? "destructive" : "default"}
                       className="w-full"
-                      disabled={activeRoom.status !== 'waiting'}
+                      disabled={activeRoom.status !== 'waiting' || totalPlayers < MIN_PLAYERS}
+                      title={totalPlayers < MIN_PLAYERS ? `At least ${MIN_PLAYERS} players are required` : ''}
                     >
                       {currentPlayer.isReady ? "Cancel Ready" : "Ready Up"}
                     </Button>
 
                     {/* 房主强制开始按钮 */}
                     {isHost && activeRoom.status === 'waiting' && (
-                      <div className="border-t border-cyber-cyan/20 pt-4">
-                        <div className="text-sm text-cyber-cyan/70 mb-2 flex items-center gap-2">
-                          <Crown className="w-4 h-4" />
+                      <div className="border-t border-cyber-cyan/20 pt-3">
+                        <div className="text-xs text-cyber-cyan/70 mb-2 flex items-center gap-2">
+                          <Crown className="w-3 h-3" />
                           Host Controls
                         </div>
                         
@@ -457,7 +675,8 @@ export const GameLobbyComponent: React.FC = () => {
                             onClick={handleForceStart}
                             variant="outline"
                             className="w-full border-yellow-400 text-yellow-400 hover:bg-yellow-400/10"
-                            disabled={totalPlayers < 1}
+                            disabled={totalPlayers < MIN_PLAYERS}
+                            title={totalPlayers < MIN_PLAYERS ? `At least ${MIN_PLAYERS} players are required` : ''}
                           >
                             <Play className="w-4 h-4 mr-2" />
                             Force Start Game
@@ -465,8 +684,18 @@ export const GameLobbyComponent: React.FC = () => {
                         )}
                         
                         <p className="text-xs text-cyber-cyan/50 mt-2 text-center">
-                          💡 Force start is available 3 seconds after new players join
+                          💡 Force start requires at least {MIN_PLAYERS} players and is available 3 seconds after new players join
                         </p>
+                      </div>
+                    )}
+
+                    {/* 玩家数量不足提示 */}
+                    {totalPlayers < MIN_PLAYERS && (
+                      <div className="text-center text-yellow-400 text-xs bg-yellow-400/10 py-2 px-3 rounded border border-yellow-400/20">
+                        <div className="font-medium mb-0.5">Waiting for More Players</div>
+                        <div className="text-xs opacity-80">
+                          {totalPlayers}/{MIN_PLAYERS} players joined. Need {MIN_PLAYERS - totalPlayers} more to start.
+                        </div>
                       </div>
                     )}
 
@@ -500,47 +729,47 @@ export const GameLobbyComponent: React.FC = () => {
 
             {/* Room Info */}
             <Card className="cyber-panel">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-cyber-cyan">
-                  <Users className="w-5 h-5" />
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-cyber-cyan text-sm">
+                  <Users className="w-4 h-4" />
                   Room Info
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-cyber-cyan/70">Room ID:</span>
-                    <span className="text-cyber-cyan text-sm font-mono">
+              <CardContent className="space-y-3">
+                {/* Room Details - Compact Grid */}
+                <div className="grid grid-cols-1 gap-1.5 text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="text-cyber-cyan/70">ID:</span>
+                    <span className="text-cyber-cyan font-mono">
                       {activeRoom.id.slice(-8)}
                     </span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center">
                     <span className="text-cyber-cyan/70">Status:</span>
                     <span className="text-cyber-cyan capitalize">{activeRoom.status}</span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center">
                     <span className="text-cyber-cyan/70">Created:</span>
-                    <span className="text-cyber-cyan text-sm">
-                      {new Date(activeRoom.createdAt).toLocaleTimeString()}
+                    <span className="text-cyber-cyan">
+                      {new Date(activeRoom.createdAt).toLocaleTimeString([], { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                      })}
                     </span>
                   </div>
                 </div>
 
-                {/* Share Room Section */}
-                <div className="border-t border-cyber-cyan/20 pt-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Share2 className="w-4 h-4 text-cyber-cyan" />
-                    <span className="text-sm font-medium text-cyber-cyan">Share Room</span>
+                {/* Share Room Section - Compact */}
+                <div className="border-t border-cyber-cyan/20 pt-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Share2 className="w-3 h-3 text-cyber-cyan" />
+                    <span className="text-xs font-medium text-cyber-cyan">Share Room</span>
                   </div>
                   
                   <div className="space-y-2">
-                    <div className="text-xs text-cyber-cyan/70 mb-2">
-                      Share this link with friends to join the room:
-                    </div>
-                    
-                    <div className="flex gap-2">
-                      <div className="flex-1 bg-cyber-darker border border-cyber-cyan/20 rounded p-2">
-                        <div className="text-xs text-cyber-cyan/70 font-mono break-all">
+                    <div className="flex gap-1">
+                      <div className="flex-1 bg-cyber-darker border border-cyber-cyan/20 rounded px-2 py-1">
+                        <div className="text-xs text-cyber-cyan/70 font-mono truncate">
                           {shareUrl}
                         </div>
                       </div>
@@ -549,18 +778,18 @@ export const GameLobbyComponent: React.FC = () => {
                         onClick={handleCopyShareUrl}
                         size="sm"
                         variant="outline"
-                        className="border-cyber-cyan/30 text-cyber-cyan hover:bg-cyber-cyan/10 flex-shrink-0"
+                        className="border-cyber-cyan/30 text-cyber-cyan hover:bg-cyber-cyan/10 px-2 py-1 h-auto"
                       >
                         {shareUrlCopied ? (
-                          <Check className="w-4 h-4" />
+                          <Check className="w-3 h-3" />
                         ) : (
-                          <Copy className="w-4 h-4" />
+                          <Copy className="w-3 h-3" />
                         )}
                       </Button>
                     </div>
                     
                     <div className="text-xs text-cyber-cyan/50">
-                      💡 Friends will need to sign in before joining
+                      💡 Share link to invite friends
                     </div>
                   </div>
                 </div>

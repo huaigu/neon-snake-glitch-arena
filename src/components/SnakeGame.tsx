@@ -2,6 +2,8 @@ import React from 'react';
 import { useSnakeGame } from '../hooks/useSnakeGame';
 import { useIsMobile } from '../hooks/use-mobile';
 import { useRoomContext } from '../contexts/RoomContext';
+import { useWeb3Auth } from '../contexts/Web3AuthContext';
+import { useMultisynq } from '../contexts/MultisynqContext';
 import { InfoPanel } from './InfoPanel';
 import { GameArea } from './GameArea';
 import { Timer, Zap, TrendingUp, Activity } from 'lucide-react';
@@ -28,7 +30,9 @@ export const SnakeGame: React.FC = () => {
     speedBoostCountdown
   } = useSnakeGame();
 
-  const { isSpectator: isExternalSpectator } = useRoomContext();
+  const { currentRoom, isSpectator: isExternalSpectator } = useRoomContext();
+  const { user } = useWeb3Auth();
+  const { gameView } = useMultisynq();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const playerSnake = snakes.find(snake => snake.isPlayer);
@@ -479,20 +483,40 @@ export const SnakeGame: React.FC = () => {
               </div>
             )}
 
-            <div className="space-y-3">
-              <p className="text-cyber-cyan/70 text-sm">
-                Return to lobby to start a new game.
+            <div className="space-y-4">
+              <p className="text-cyber-cyan/70 text-sm text-center">
+                Choose your next action:
               </p>
               
               {/* Action Buttons */}
-              <div className="flex justify-center">
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <button 
-                  onClick={() => navigate('/lobby')}
-                  className="bg-cyber-cyan hover:bg-cyber-cyan/80 text-cyber-darker font-bold py-2 px-4 rounded neon-border transition-all text-sm"
+                  onClick={() => {
+                    // Simply close the game over overlay and return to room lobby
+                    navigate('/room/' + (currentRoom?.id || ''));
+                  }}
+                  className="bg-cyber-green hover:bg-cyber-green/80 text-cyber-darker font-bold py-2 px-4 rounded neon-border transition-all text-sm"
                 >
-                  Return to Lobby
+                  Stay in Room
+                </button>
+                
+                <button 
+                  onClick={() => {
+                    // Leave room and return to main lobby
+                    if (currentRoom && user?.address && gameView) {
+                      gameView.leaveRoom(currentRoom.id, user.address);
+                    }
+                    navigate('/lobby');
+                  }}
+                  className="bg-cyber-red hover:bg-cyber-red/80 text-white font-bold py-2 px-4 rounded neon-border transition-all text-sm"
+                >
+                  Leave Room
                 </button>
               </div>
+              
+              <p className="text-cyber-cyan/50 text-xs text-center">
+                💡 Stay in room to play another round with the same players
+              </p>
             </div>
           </div>
         </div>

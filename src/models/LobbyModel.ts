@@ -28,6 +28,7 @@ export class LobbyModel extends Multisynq.Model {
     this.subscribe("lobby", "leave-room", this.handleLeaveRoom);
     this.subscribe("lobby", "set-player-ready", this.handleSetPlayerReady);
     this.subscribe("lobby", "force-start-game", this.handleForceStartGame);
+    this.subscribe("lobby", "room-state-changed", this.handleRoomStateChanged);
 
     console.log('LobbyModel: Initialization complete');
   }
@@ -393,6 +394,26 @@ export class LobbyModel extends Multisynq.Model {
     
     // 调用房间的强制开始方法
     targetRoom.handleForceStartGame({ hostAddress: payload.hostAddress });
+    this.publishLobbyState();
+  }
+
+  handleRoomStateChanged(payload: { roomId: string; status: string }) {
+    console.log('LobbyModel: Room state changed notification:', payload);
+    
+    // 验证房间是否存在
+    const room = this.gameRooms.get(payload.roomId);
+    if (!room) {
+      console.log('LobbyModel: Room not found for state change:', payload.roomId);
+      return;
+    }
+    
+    console.log('LobbyModel: Publishing lobby state due to room state change:', {
+      roomId: payload.roomId,
+      newStatus: payload.status,
+      roomCurrentStatus: room.status
+    });
+    
+    // 立即发布大厅状态更新
     this.publishLobbyState();
   }
 

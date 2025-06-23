@@ -15,17 +15,18 @@
 - `GRID_SIZE: 20` - 每个格子的像素大小
 
 ### 3. 游戏时间配置 (GAME_CONFIG.TIMING)
-- `GAME_TICK_RATE: 5500` - 游戏tick速率 (毫秒)
+- `GAME_TICK_RATE: 100` - 游戏tick速率 (毫秒)
 - `COUNTDOWN_DURATION: 3` - 游戏开始倒计时 (秒)
 - `FORCE_START_DELAY: 3` - 强制开始的延迟时间 (秒)
 - `ROOM_JOIN_TIMEOUT: 5` - 房间加入超时时间 (秒)
+- `GAME_END_RESULT_DURATION: 1` - 游戏结束后显示结果的时间 (秒)
 
 ### 4. UI 相关配置 (GAME_CONFIG.UI)
 - `PLAYER_SLOTS_DISPLAY: 8` - 玩家列表显示的槽位数量
 - `TOAST_DURATION: 3000` - Toast 消息显示时长 (毫秒)
 
 ### 5. NFT 相关配置 (GAME_CONFIG.NFT)
-- `SCORE_MULTIPLIER: 2` - NFT持有者的分数倍数
+- `SCORE_MULTIPLIER: 1` - NFT持有者的分数倍数
 
 ## 使用方式
 

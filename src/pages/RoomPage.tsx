@@ -549,16 +549,22 @@ export const RoomPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-cyber-darker">
       <div className="p-4 flex justify-between items-center">
+        {/* 移动端：只显示图标，PC端：显示文字 */}
         <Button
           onClick={handleLeaveRoom}
           variant="outline"
           className="border-cyber-cyan/30 text-cyber-cyan hover:bg-cyber-cyan/10"
+          title={isSpectator ? 'Stop Watching' : 'Back to Lobby'}
         >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          {isSpectator ? 'Stop Watching' : 'Back to Lobby'}
+          <ArrowLeft className="w-4 h-4" />
+          <span className="hidden sm:inline ml-2">
+            {isSpectator ? 'Stop Watching' : 'Back to Lobby'}
+          </span>
         </Button>
         
-        <Web3AuthButton />
+        <div className="flex-shrink-0">
+          <Web3AuthButton />
+        </div>
       </div>
 
       {/* 观察者模式提示 */}
@@ -603,7 +609,7 @@ export const RoomPage: React.FC = () => {
               onClick={cancelLeaveRoom}
               className="border-cyber-cyan/30 text-cyber-cyan hover:bg-cyber-cyan/10"
             >
-              Stay in Room
+              Back to Room
             </AlertDialogCancel>
             <AlertDialogAction 
               onClick={confirmLeaveRoom}

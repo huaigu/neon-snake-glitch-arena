@@ -434,10 +434,10 @@ export class GameRoomModel extends Multisynq.Model {
     
     this.publishRoomState();
     
-    console.log('GameRoomModel: Game ended, all player states reset. Auto-reset to waiting in 5 seconds.');
+    console.log('GameRoomModel: Game ended, showing results briefly then resetting to waiting state');
     
-    // Auto-reset to waiting state after a delay
-    this.future(5000).resetToWaiting();
+    // 短暂显示游戏结果后立刻重置为 waiting 状态
+    this.future(this.CONFIG.TIMING.GAME_END_RESULT_DURATION * 1000).resetToWaiting();
   }
 
   resetToWaiting() {
@@ -624,7 +624,8 @@ export class GameRoomModel extends Multisynq.Model {
       roomId: this.roomId,
       roomPlayersCount: roomState.players.length,
       gamePlayersCount: gameState.players.length,
-      hostAddress: this.hostAddress
+      hostAddress: this.hostAddress,
+      status: this.status
     });
     
     this.publish("room", "updated", {
@@ -632,6 +633,12 @@ export class GameRoomModel extends Multisynq.Model {
       game: gameState,
       foods: this.foods,
       segments: []
+    });
+    
+    // 通知大厅状态更新 - 确保大厅页面能看到房间状态变化
+    this.publish("lobby", "room-state-changed", {
+      roomId: this.roomId,
+      status: this.status
     });
   }
 }

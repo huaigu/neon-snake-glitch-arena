@@ -18,7 +18,8 @@ export const Web3AuthButton: React.FC = () => {
   if (isAuthenticated && user) {
     return (
       <div className="flex items-center gap-2">
-        <div className="flex items-center gap-2">
+        {/* 移动端隐藏用户信息，PC端显示 */}
+        <div className="hidden sm:flex items-center gap-2">
           {user.isGuest ? (
             <User className="w-4 h-4 text-cyber-orange" />
           ) : (
@@ -28,14 +29,17 @@ export const Web3AuthButton: React.FC = () => {
             {formatAddress(user.address)}
           </span>
         </div>
+        
         <Button
           onClick={signOut}
           variant="outline"
           size="sm"
           className="border-cyber-cyan/30 text-cyber-cyan hover:bg-cyber-cyan/10"
+          title="Sign Out"
         >
-          <LogOut className="w-4 h-4 mr-2" />
-          Sign Out
+          <LogOut className="w-4 h-4" />
+          {/* 移动端只显示图标，PC端显示文字 */}
+          <span className="hidden sm:inline ml-2">Sign Out</span>
         </Button>
       </div>
     );
@@ -81,9 +85,16 @@ export const Web3AuthButton: React.FC = () => {
                       onClick={openConnectModal}
                       disabled={isConnecting}
                       className="bg-cyber-cyan hover:bg-cyber-cyan/80 text-cyber-darker w-full"
+                      title={isConnecting ? 'Connecting...' : 'Connect Wallet'}
                     >
-                      <Wallet className="w-4 h-4 mr-2" />
-                      {isConnecting ? 'Connecting...' : 'Connect Wallet'}
+                      <Wallet className="w-4 h-4" />
+                      <span className="hidden sm:inline ml-2">
+                        {isConnecting ? 'Connecting...' : 'Connect Wallet'}
+                      </span>
+                      {/* 移动端显示简短文字 */}
+                      <span className="sm:hidden ml-2">
+                        {isConnecting ? 'Connecting...' : 'Connect'}
+                      </span>
                     </Button>
                   );
                 }
@@ -106,9 +117,16 @@ export const Web3AuthButton: React.FC = () => {
                       onClick={() => signInWithEthereum()}
                       disabled={isConnecting}
                       className="bg-cyber-cyan hover:bg-cyber-cyan/80 text-cyber-darker flex-1"
+                      title={isConnecting ? 'Signing...' : 'Sign & Authenticate'}
                     >
-                      <Wallet className="w-4 h-4 mr-2" />
-                      {isConnecting ? 'Signing...' : 'Sign & Authenticate'}
+                      <Wallet className="w-4 h-4" />
+                      <span className="hidden sm:inline ml-2">
+                        {isConnecting ? 'Signing...' : 'Sign & Authenticate'}
+                      </span>
+                      {/* 移动端显示简短文字 */}
+                      <span className="sm:hidden ml-2">
+                        {isConnecting ? 'Signing...' : 'Sign In'}
+                      </span>
                     </Button>
                   </div>
                 );
@@ -132,9 +150,16 @@ export const Web3AuthButton: React.FC = () => {
         disabled={isConnecting}
         variant="outline"
         className="border-cyber-orange/50 text-cyber-orange hover:bg-cyber-orange/10 hover:border-cyber-orange w-full"
+        title={isConnecting ? 'Connecting...' : 'Continue as Guest'}
       >
-        <User className="w-4 h-4 mr-2" />
-        {isConnecting ? 'Connecting...' : 'Continue as Guest'}
+        <User className="w-4 h-4" />
+        <span className="hidden sm:inline ml-2">
+          {isConnecting ? 'Connecting...' : 'Continue as Guest'}
+        </span>
+        {/* 移动端显示简短文字 */}
+        <span className="sm:hidden ml-2">
+          {isConnecting ? 'Connecting...' : 'Guest'}
+        </span>
       </Button>
     </div>
   );
