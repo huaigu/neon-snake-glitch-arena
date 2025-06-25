@@ -54,19 +54,15 @@ export const GameArea: React.FC<GameAreaProps> = ({
       const gameContainer = containerRef.current;
       
       const handleTouchEvent = (e: TouchEvent) => {
+        // 只阻止默认的滚动行为，但不阻止事件传播，让滑动控制能正常工作
         e.preventDefault();
-        e.stopPropagation();
       };
 
-      // 添加触摸事件监听器
-      gameContainer.addEventListener('touchstart', handleTouchEvent, { passive: false });
+      // 只添加touchmove事件来阻止滚动，保持touchstart和touchend的传播
       gameContainer.addEventListener('touchmove', handleTouchEvent, { passive: false });
-      gameContainer.addEventListener('touchend', handleTouchEvent, { passive: false });
 
       return () => {
-        gameContainer.removeEventListener('touchstart', handleTouchEvent);
         gameContainer.removeEventListener('touchmove', handleTouchEvent);
-        gameContainer.removeEventListener('touchend', handleTouchEvent);
       };
     }
   }, [isMobile]);
@@ -172,25 +168,10 @@ export const GameArea: React.FC<GameAreaProps> = ({
         isMobile ? 'px-1 py-2' : 'p-2'
       }`}
       style={isMobile ? {
-        touchAction: 'none',
+        touchAction: 'pan-y', // 允许垂直滑动但防止水平滚动
         overscrollBehavior: 'none',
         WebkitOverflowScrolling: 'auto'
       } : {}}
-      onTouchStart={(e) => {
-        if (isMobile) {
-          e.preventDefault();
-        }
-      }}
-      onTouchMove={(e) => {
-        if (isMobile) {
-          e.preventDefault();
-        }
-      }}
-      onTouchEnd={(e) => {
-        if (isMobile) {
-          e.preventDefault();
-        }
-      }}
     >
       {/* Outer container with enhanced boundary visualization - 最大化利用空间 */}
       <div className={`relative flex items-center justify-center ${
@@ -226,26 +207,7 @@ export const GameArea: React.FC<GameAreaProps> = ({
           style={{ 
             width: boardWidth, 
             height: boardHeight,
-            filter: isSpectator ? 'brightness(1.1) saturate(1.2)' : 'none',
-            touchAction: isMobile ? 'none' : 'auto'
-          }}
-          onTouchStart={(e) => {
-            if (isMobile) {
-              e.preventDefault();
-              e.stopPropagation();
-            }
-          }}
-          onTouchMove={(e) => {
-            if (isMobile) {
-              e.preventDefault();
-              e.stopPropagation();
-            }
-          }}
-          onTouchEnd={(e) => {
-            if (isMobile) {
-              e.preventDefault();
-              e.stopPropagation();
-            }
+            filter: isSpectator ? 'brightness(1.1) saturate(1.2)' : 'none'
           }}
         >
           {/* Grid background */}

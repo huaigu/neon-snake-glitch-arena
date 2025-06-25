@@ -7,22 +7,23 @@ interface UseMobileControlsProps {
 
 export const useMobileControls = ({ onDirectionChange, isEnabled }: UseMobileControlsProps) => {
   const handleTouchStart = useCallback((e: TouchEvent) => {
-    if (!isEnabled) return;
+    if (!isEnabled) {
+      console.log('useMobileControls: Touch start ignored - not enabled');
+      return;
+    }
     
-    // 阻止默认的滚动行为
-    e.preventDefault();
+    console.log('useMobileControls: Touch start detected');
     
     const touch = e.touches[0];
     const startX = touch.clientX;
     const startY = touch.clientY;
 
     const handleTouchMove = (moveEvent: TouchEvent) => {
-      // 阻止触摸移动时的默认行为（滚动）
+      // 只阻止游戏区域的滚动，不影响其他功能
       moveEvent.preventDefault();
     };
 
     const handleTouchEnd = (endEvent: TouchEvent) => {
-      // 阻止触摸结束时的默认行为
       endEvent.preventDefault();
       
       const endTouch = endEvent.changedTouches[0];
@@ -33,15 +34,21 @@ export const useMobileControls = ({ onDirectionChange, isEnabled }: UseMobileCon
       const deltaY = endY - startY;
       const minSwipeDistance = 30; // 降低最小滑动距离，提高响应性
       
+      console.log('useMobileControls: Touch end - deltaX:', deltaX, 'deltaY:', deltaY);
+      
       if (Math.abs(deltaX) > Math.abs(deltaY)) {
         // Horizontal swipe
         if (Math.abs(deltaX) > minSwipeDistance) {
-          onDirectionChange(deltaX > 0 ? 'right' : 'left');
+          const direction = deltaX > 0 ? 'right' : 'left';
+          console.log('useMobileControls: Horizontal swipe detected:', direction);
+          onDirectionChange(direction);
         }
       } else {
         // Vertical swipe
         if (Math.abs(deltaY) > minSwipeDistance) {
-          onDirectionChange(deltaY > 0 ? 'down' : 'up');
+          const direction = deltaY > 0 ? 'down' : 'up';
+          console.log('useMobileControls: Vertical swipe detected:', direction);
+          onDirectionChange(direction);
         }
       }
       
@@ -56,31 +63,16 @@ export const useMobileControls = ({ onDirectionChange, isEnabled }: UseMobileCon
   }, [onDirectionChange, isEnabled]);
 
   useEffect(() => {
+    console.log('useMobileControls: isEnabled changed to:', isEnabled);
+    
     if (isEnabled) {
+      console.log('useMobileControls: Adding touch event listeners');
       // 设置 passive: false 来允许 preventDefault
       document.addEventListener('touchstart', handleTouchStart, { passive: false });
-      return () => document.removeEventListener('touchstart', handleTouchStart);
+      return () => {
+        console.log('useMobileControls: Removing touch event listeners');
+        document.removeEventListener('touchstart', handleTouchStart);
+      };
     }
   }, [handleTouchStart, isEnabled]);
-
-  // 添加额外的全局触摸事件处理来防止页面滚动
-  useEffect(() => {
-    if (isEnabled) {
-      const preventScroll = (e: TouchEvent) => {
-        // 只在游戏激活时阻止滚动
-        e.preventDefault();
-      };
-
-      // 阻止整个文档的触摸滚动
-      document.body.addEventListener('touchstart', preventScroll, { passive: false });
-      document.body.addEventListener('touchmove', preventScroll, { passive: false });
-      document.body.addEventListener('touchend', preventScroll, { passive: false });
-
-      return () => {
-        document.body.removeEventListener('touchstart', preventScroll);
-        document.body.removeEventListener('touchmove', preventScroll);
-        document.body.removeEventListener('touchend', preventScroll);
-      };
-    }
-  }, [isEnabled]);
 };

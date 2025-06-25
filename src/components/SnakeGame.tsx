@@ -49,23 +49,12 @@ export const SnakeGame: React.FC = () => {
       document.documentElement.style.overflow = 'hidden';
       document.documentElement.style.touchAction = 'none';
       
-      // 阻止默认的触摸行为
-      const preventDefaultTouch = (e: TouchEvent) => {
-        e.preventDefault();
-      };
-      
-      document.addEventListener('touchstart', preventDefaultTouch, { passive: false });
-      document.addEventListener('touchmove', preventDefaultTouch, { passive: false });
-      
       return () => {
         // 恢复原始样式
         document.body.style.overflow = originalStyle;
         document.body.style.touchAction = originalTouchAction;
         document.documentElement.style.overflow = '';
         document.documentElement.style.touchAction = '';
-        
-        document.removeEventListener('touchstart', preventDefaultTouch);
-        document.removeEventListener('touchmove', preventDefaultTouch);
       };
     }
   }, [isMobile]);
