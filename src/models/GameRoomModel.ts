@@ -262,6 +262,15 @@ export class GameRoomModel extends Multisynq.Model {
   startCountdown() {
     this.status = 'countdown';
     this.countdown = this.CONFIG.TIMING.COUNTDOWN_DURATION;
+    
+    // 在倒计时开始时分配玩家位置 - 确保倒计时期间位置已确定
+    this.assignPlayerStartPositions();
+    
+    // Reset all snakes to their assigned positions
+    for (const snake of this.snakes.values()) {
+      snake.reset();
+    }
+    
     this.publishRoomState();
     
     this.countdownTick();
@@ -321,13 +330,7 @@ export class GameRoomModel extends Multisynq.Model {
     this.speedBoostCountdown = 20;  // 初始化速度提升倒计时
     this.foodCountdown = 10;        // 初始化食物生成倒计时
     
-    // 统一分配玩家起始位置 - 使用单次random确保同步
-    this.assignPlayerStartPositions();
-    
-    // Reset all snakes
-    for (const snake of this.snakes.values()) {
-      snake.reset();
-    }
+    // 注意：位置已在startCountdown()中分配，这里不需要重复分配
     
     // Spawn initial foods
     this.spawnFood();

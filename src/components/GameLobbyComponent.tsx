@@ -820,8 +820,15 @@ export const GameLobbyComponent: React.FC = () => {
                   <div className="space-y-2">
                     <div className="flex gap-1">
                       <div className="flex-1 bg-cyber-darker border border-cyber-cyan/20 rounded px-2 py-1">
-                        <div className="text-xs text-cyber-cyan/70 font-mono truncate">
-                          {shareUrl}
+                        <div className="text-xs text-cyber-cyan/70 font-mono">
+                          {/* PC端显示完整URL，移动端显示省略版本 */}
+                          <span className="hidden sm:inline">{shareUrl}</span>
+                          <span className="sm:hidden">
+                            {shareUrl.length > 40 
+                              ? `${shareUrl.substring(0, 20)}...${shareUrl.substring(shareUrl.length - 17)}`
+                              : shareUrl
+                            }
+                          </span>
                         </div>
                       </div>
                       
