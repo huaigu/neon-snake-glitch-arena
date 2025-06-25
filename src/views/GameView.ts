@@ -5,7 +5,7 @@ import GameModel from '../models/GameModel';
 export class GameView extends Multisynq.View {
   model!: GameModel;
   private lobbyCallback: ((data: any) => void) | null = null;
-  private gameCallback: ((gameSession: any, foods: any[], segments: any[]) => void) | null = null;
+  private gameCallback: ((gameSession: any, foods: any[]) => void) | null = null;
   private roomJoinedCallback: ((data: any) => void) | null = null;
   private roomCreatedCallback: ((data: any) => void) | null = null;
   private roomJoinFailedCallback: ((data: any) => void) | null = null;
@@ -53,7 +53,7 @@ export class GameView extends Multisynq.View {
     }
   }
 
-  setGameCallback(callback: (gameSession: any, foods: any[], segments: any[]) => void) {
+  setGameCallback(callback: (gameSession: any, foods: any[]) => void) {
     console.log('GameView: Setting game callback');
     this.gameCallback = callback;
   }
@@ -175,7 +175,7 @@ export class GameView extends Multisynq.View {
   private handleRoomUpdate = (data: any) => {
     console.log('GameView: Room updated:', data);
     if (this.gameCallback && data.game) {
-      this.gameCallback(data.game, data.foods || [], data.segments || []);
+      this.gameCallback(data.game, data.foods || []);
     }
   };
 

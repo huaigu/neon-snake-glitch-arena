@@ -13,7 +13,6 @@ export const SnakeGame: React.FC = () => {
   const {
     snakes,
     foods,
-    segments,
     gameRunning,
     gameOver,
     startGame,
@@ -26,7 +25,7 @@ export const SnakeGame: React.FC = () => {
     isSpectator,
     enterSpectatorMode,
     speedMultiplier,
-    segmentCountdown,
+    foodCountdown,
     speedBoostCountdown
   } = useSnakeGame();
 
@@ -94,11 +93,11 @@ export const SnakeGame: React.FC = () => {
             {(
               <div className="bg-cyber-darker/95 border-b border-cyber-cyan/30 px-4 py-2">
                 <div className="flex items-center justify-center gap-4">
-                  {/* Segments 倒计时 */}
+                  {/* Food 倒计时 */}
                   <div className="flex items-center gap-2 bg-cyber-darker/80 border border-cyber-purple/60 rounded-lg px-3 py-1.5">
                     <Timer className="w-4 h-4 text-cyber-purple" />
-                    <span className="text-xs text-cyber-purple/70">Power-ups</span>
-                    <span className="text-cyber-purple font-bold text-sm">{segmentCountdown}s</span>
+                    <span className="text-xs text-cyber-purple/70">Food Drop</span>
+                    <span className="text-cyber-purple font-bold text-sm">{foodCountdown}s</span>
                   </div>
 
                   {/* 当前速度 */}
@@ -174,7 +173,6 @@ export const SnakeGame: React.FC = () => {
               <GameArea
                 snakes={snakes}
                 foods={foods}
-                segments={segments}
                 isSpectator={isSpectator}
               />
 
@@ -264,10 +262,10 @@ export const SnakeGame: React.FC = () => {
           {(gameRunning || isSpectator) && (
             <div className="bg-cyber-darker/95 border-b border-cyber-cyan/30 px-2 py-1">
               <div className="flex justify-between items-center">
-                {/* Segments 倒计时 */}
+                {/* Food 倒计时 */}
                 <div className="flex items-center gap-1">
                   <Timer className="w-3 h-3 text-cyber-purple" />
-                  <span className="text-cyber-purple font-bold text-xs">{segmentCountdown}s</span>
+                  <span className="text-cyber-purple font-bold text-xs">{foodCountdown}s</span>
                 </div>
 
                 {/* 当前速度 */}
@@ -308,7 +306,6 @@ export const SnakeGame: React.FC = () => {
             <GameArea
               snakes={snakes}
               foods={foods}
-              segments={segments}
               isSpectator={isSpectator}
             />
 

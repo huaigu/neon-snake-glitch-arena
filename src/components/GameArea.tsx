@@ -1,5 +1,5 @@
 import React from 'react';
-import { Snake, Food, Segment } from '../hooks/useSnakeGame';
+import { Snake, Food } from '../hooks/useSnakeGame';
 import { useIsMobile } from '../hooks/use-mobile';
 import { useResponsiveGrid } from '../hooks/useResponsiveGrid';
 
@@ -30,7 +30,6 @@ const generateRainbowColor = (segmentIndex: number, snakeId: string): string => 
 interface GameAreaProps {
   snakes: Snake[];
   foods: Food[];
-  segments: Segment[];
   gridSize?: number; // 可选，主要用于向后兼容
   cellSize?: number; // 可选，主要用于向后兼容
   isSpectator?: boolean;
@@ -39,7 +38,6 @@ interface GameAreaProps {
 export const GameArea: React.FC<GameAreaProps> = ({ 
   snakes, 
   foods, 
-  segments, 
   isSpectator = false 
 }) => {
   const isMobile = useIsMobile();
@@ -121,44 +119,8 @@ export const GameArea: React.FC<GameAreaProps> = ({
     });
   };
 
-  // Get segment size and animations based on type
-  const getSegmentStyle = (segment: Segment) => {
-    const baseSize = cellSize - 2;
-    let size: number;
-    let animationClass: string;
-    
-    switch (segment.type) {
-      case 1:
-        size = baseSize * 0.7; // 70% of cell size
-        animationClass = 'animate-pulse';
-        break;
-      case 2:
-        size = baseSize * 0.85; // 85% of cell size
-        animationClass = 'animate-pulse';
-        break;
-      case 3:
-        size = baseSize; // Full cell size
-        animationClass = 'animate-pulse animate-bounce';
-        break;
-      default:
-        size = baseSize;
-        animationClass = 'animate-pulse';
-    }
-    
-    const offset = (cellSize - size) / 2;
-    
-    return {
-      size,
-      offset,
-      animationClass,
-      fontSize: Math.max(6, size * 0.4)
-    };
-  };
-
   // Food is always visible
   const visibleFoods = foods;
-  // Power segments affected by fog of war
-  const visibleSegments = getVisibleElements(segments);
   const visibleSnakes = getVisibleSnakes();
 
     return (
@@ -333,36 +295,7 @@ export const GameArea: React.FC<GameAreaProps> = ({
             );
           })}
 
-          {/* Power-up Segments with different sizes and animations */}
-          {visibleSegments.map((segment) => {
-            const segmentStyle = getSegmentStyle(segment);
-            
-            return (
-              <div
-                key={segment.id}
-                className={`absolute snake-segment flex items-center justify-center ${segmentStyle.animationClass}`}
-                style={{
-                  left: segment.position.x * cellSize + segmentStyle.offset,
-                  top: segment.position.y * cellSize + segmentStyle.offset,
-                  width: segmentStyle.size,
-                  height: segmentStyle.size,
-                  backgroundColor: segment.color,
-                  boxShadow: isSpectator ? '0 0 8px currentColor' : `0 0 ${4 + segment.type * 2}px currentColor`,
-                  borderRadius: segment.type === 3 ? '4px' : '2px'
-                }}
-              >
-                <span 
-                  className="font-bold text-black"
-                  style={{ 
-                    fontSize: segmentStyle.fontSize + 'px',
-                    lineHeight: '1'
-                  }}
-                >
-                  {segment.type}
-                </span>
-              </div>
-            );
-          })}
+
 
           {/* Snakes */}
           {visibleSnakes.map((snake) => (

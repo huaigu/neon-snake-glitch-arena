@@ -29,6 +29,8 @@ export class GameRoomModel extends Multisynq.Model {
   gameStartTime!: number;
   createdAt!: string;
   tickCounter!: number;  // 用于计算每10个tick的存活分数
+  speedBoostCountdown!: number;  // 速度提升倒计时
+  foodCountdown!: number;        // 食物生成倒计时
   
   // 使用全局游戏配置
   private readonly CONFIG = GAME_CONFIG;
@@ -50,6 +52,8 @@ export class GameRoomModel extends Multisynq.Model {
     this.gameStartTime = 0;
     this.createdAt = payload.createdAt;
     this.tickCounter = 0;
+    this.speedBoostCountdown = 20;
+    this.foodCountdown = 10;
 
     // Subscribe to room events
     this.subscribe("room", "change-direction", this.handleChangeDirection);
@@ -79,7 +83,7 @@ export class GameRoomModel extends Multisynq.Model {
     player.currentRoomId = this.roomId;
     player.isReady = false;
     
-    // 为玩家创建蛇
+    // 为玩家创建蛇（不设置位置，位置在游戏开始时统一设置）
     this.createSnakeForPlayer(player);
     console.log('GameRoomModel: Player joined as participant');
     
@@ -155,21 +159,92 @@ export class GameRoomModel extends Multisynq.Model {
     const colors = ['#ff0080', '#00ff80', '#8000ff', '#ff8000', '#0080ff', '#80ff00'];
     const colorIndex = this.snakes.size % colors.length;
     
-    // Generate safe starting position
-    const startX = Math.floor(this.CONFIG.BOARD.SIZE * 0.2 + this.random() * this.CONFIG.BOARD.SIZE * 0.6);
-    const startY = Math.floor(this.CONFIG.BOARD.SIZE * 0.2 + this.random() * this.CONFIG.BOARD.SIZE * 0.6);
-    
+    // 创建蛇但不设置位置，位置在游戏开始时统一设置
     const snake = SnakeModel.create({
       viewId: player.viewId,
       name: player.name,
-      startPosition: { x: startX, y: startY },
+      startPosition: { x: 0, y: 0 }, // 临时位置，游戏开始时重新设置
       color: colors[colorIndex],
       boardSize: this.CONFIG.BOARD.SIZE,
       hasNFT: player.hasNFT
     });
     
     this.snakes.set(player.viewId, snake);
-    console.log('GameRoomModel: Created snake for player:', player.viewId, 'at', startX, startY, 'NFT:', player.hasNFT);
+    console.log('GameRoomModel: Created snake for player:', player.viewId, 'color:', colors[colorIndex], 'NFT:', player.hasNFT);
+  }
+
+  // 统一分配所有玩家的起始位置 - 符合Multisynq最佳实践
+  assignPlayerStartPositions() {
+    const snakesArray = Array.from(this.snakes.values());
+    const playerCount = snakesArray.length;
+    
+    if (playerCount === 0) return;
+    
+    // 使用单次random生成种子，然后确定性地分配位置
+    const randomSeed = this.random();
+    const positions: Array<{x: number, y: number}> = [];
+    
+    if (playerCount === 1) {
+      // 单人游戏：中心位置
+      positions.push({
+        x: Math.floor(this.CONFIG.BOARD.SIZE / 2),
+        y: Math.floor(this.CONFIG.BOARD.SIZE / 2)
+      });
+    } else if (playerCount === 2) {
+      // 双人游戏：对角线位置
+      const offset = Math.floor(this.CONFIG.BOARD.SIZE * 0.2);
+      positions.push(
+        { x: offset, y: offset },
+        { x: this.CONFIG.BOARD.SIZE - offset - 1, y: this.CONFIG.BOARD.SIZE - offset - 1 }
+      );
+    } else if (playerCount <= 4) {
+      // 最多4人：四个角落
+      const offset = Math.floor(this.CONFIG.BOARD.SIZE * 0.15);
+      positions.push(
+        { x: offset, y: offset },
+        { x: this.CONFIG.BOARD.SIZE - offset - 1, y: offset },
+        { x: offset, y: this.CONFIG.BOARD.SIZE - offset - 1 },
+        { x: this.CONFIG.BOARD.SIZE - offset - 1, y: this.CONFIG.BOARD.SIZE - offset - 1 }
+      );
+    } else {
+      // 更多玩家：圆形分布
+      const centerX = this.CONFIG.BOARD.SIZE / 2;
+      const centerY = this.CONFIG.BOARD.SIZE / 2;
+      const radius = Math.min(centerX, centerY) * 0.6;
+      
+      for (let i = 0; i < playerCount; i++) {
+        const angle = (2 * Math.PI * i) / playerCount;
+        const x = Math.floor(centerX + radius * Math.cos(angle));
+        const y = Math.floor(centerY + radius * Math.sin(angle));
+        positions.push({ x, y });
+      }
+    }
+    
+    // 根据randomSeed打乱位置（确定性打乱）
+    const shuffledPositions = [...positions];
+    for (let i = shuffledPositions.length - 1; i > 0; i--) {
+      // 使用randomSeed生成确定性的索引
+      const j = Math.floor((randomSeed * (i + 1) * 1000) % (i + 1));
+      [shuffledPositions[i], shuffledPositions[j]] = [shuffledPositions[j], shuffledPositions[i]];
+    }
+    
+    // 分配位置给玩家
+    snakesArray.forEach((snake, index) => {
+      if (index < shuffledPositions.length) {
+        const position = shuffledPositions[index];
+        
+        // 边界检查和修正 - 确保有足够空间容纳3段身体（头部+2段身体向下延伸）
+        const safeX = Math.max(2, Math.min(position.x, this.CONFIG.BOARD.SIZE - 3));
+        const safeY = Math.max(2, Math.min(position.y, this.CONFIG.BOARD.SIZE - 5)); // 头部向上移动，身体向下，需要更多空间
+        const safePosition = { x: safeX, y: safeY };
+        
+        // 更新蛇的初始位置，这样reset()时会使用新位置
+        snake.initialPosition = safePosition;
+        console.log('GameRoomModel: Assigned safe position to player:', snake.viewId, 'at', safePosition.x, safePosition.y, 'board size:', this.CONFIG.BOARD.SIZE);
+      }
+    });
+    
+    console.log('GameRoomModel: All player positions assigned using seed:', randomSeed, 'board size:', this.CONFIG.BOARD.SIZE);
   }
 
   checkStartGame() {
@@ -243,6 +318,11 @@ export class GameRoomModel extends Multisynq.Model {
     this.gameStartTime = this.now();
     this.speedMultiplier = 1.0;
     this.tickCounter = 0;  // Reset tick counter for new game
+    this.speedBoostCountdown = 20;  // 初始化速度提升倒计时
+    this.foodCountdown = 10;        // 初始化食物生成倒计时
+    
+    // 统一分配玩家起始位置 - 使用单次random确保同步
+    this.assignPlayerStartPositions();
     
     // Reset all snakes
     for (const snake of this.snakes.values()) {
@@ -253,6 +333,10 @@ export class GameRoomModel extends Multisynq.Model {
     this.spawnFood();
     this.spawnFood();
     this.spawnFood();
+    
+    // 安排定时事件 - 使用future()符合Multisynq规范
+    this.future(20000).speedBoost(); // 20秒后第一次速度提升
+    this.future(10000).spawnFood(); // 10秒后第一次生成food
     
     this.publishRoomState();
     
@@ -267,6 +351,13 @@ export class GameRoomModel extends Multisynq.Model {
 
     // Increment tick counter
     this.tickCounter++;
+
+    // Update countdown timers - 在realm环境中使用this.now()
+    if (this.gameStartTime > 0) {
+      const elapsed = Math.floor((this.now() - this.gameStartTime) / 1000);
+      this.speedBoostCountdown = Math.max(0, 20 - (elapsed % 20));
+      this.foodCountdown = Math.max(0, 10 - (elapsed % 10));
+    }
 
     // Move all snakes
     for (const snake of this.snakes.values()) {
@@ -331,9 +422,6 @@ export class GameRoomModel extends Multisynq.Model {
           
           // Remove eaten food
           this.foods.splice(i, 1);
-          
-          // Spawn new food
-          this.spawnFood();
           
           console.log('GameRoomModel: Snake ate level', food.level, 'food, gained', scoreGain, 'points, new score:', snake.score);
           break;
@@ -452,6 +540,8 @@ export class GameRoomModel extends Multisynq.Model {
     this.countdown = 0;
     this.gameStartTime = 0;
     this.tickCounter = 0;
+    this.speedBoostCountdown = 20;
+    this.foodCountdown = 10;
     
     // 重置所有玩家状态
     for (const player of this.players.values()) {
@@ -468,9 +558,35 @@ export class GameRoomModel extends Multisynq.Model {
     this.publishRoomState();
   }
 
+  speedBoost() {
+    if (!this.isRunning || this.status !== 'playing') {
+      return;
+    }
+    
+    // 增加速度
+    this.speedMultiplier = Math.min(3.0, this.speedMultiplier + 0.2);
+    console.log('GameRoomModel: Speed boost applied! New speed:', this.speedMultiplier);
+    
+    this.publishRoomState();
+    
+    // 安排下一次速度提升
+    this.future(20000).speedBoost();
+  }
+
+
+
   spawnFood() {
+    // 如果游戏没在运行，不生成食物
+    if (!this.isRunning || this.status !== 'playing') {
+      return;
+    }
+    
     // Limit food on board
-    if (this.foods.length >= 8) return;
+    if (this.foods.length >= 8) {
+      // 如果已经有足够食物，安排下一次检查
+      this.future(10000).spawnFood();
+      return;
+    }
     
     let attempts = 0;
     const maxAttempts = 50;
@@ -489,6 +605,16 @@ export class GameRoomModel extends Multisynq.Model {
           }
         }
         if (occupied) break;
+      }
+      
+      // Check if position is occupied by other foods
+      if (!occupied) {
+        for (const food of this.foods) {
+          if (food.x === x && food.y === y) {
+            occupied = true;
+            break;
+          }
+        }
       }
       
       if (!occupied) {
@@ -524,6 +650,9 @@ export class GameRoomModel extends Multisynq.Model {
       
       attempts++;
     }
+    
+    // 安排下一次食物生成
+    this.future(10000).spawnFood();
   }
 
   handleChangeDirection(payload: { sessionId: string; viewId: string; direction: string }) {
@@ -617,14 +746,15 @@ export class GameRoomModel extends Multisynq.Model {
       snakesNFT: snakesArray.map(s => ({ name: s.name, hasNFT: s.hasNFT }))
     });
 
+    // 使用模型中计算好的倒计时 - 符合Multisynq最佳实践
     return {
       id: this.roomId,
       status: this.status,
       countdown: this.countdown,
       players: snakesArray,
       speedMultiplier: this.speedMultiplier,
-      speedBoostCountdown: 20,
-      segmentCountdown: 10
+      speedBoostCountdown: this.speedBoostCountdown,
+      foodCountdown: this.foodCountdown
     };
   }
 
@@ -643,8 +773,7 @@ export class GameRoomModel extends Multisynq.Model {
     this.publish("room", "updated", {
       room: roomState,
       game: gameState,
-      foods: this.foods,
-      segments: []
+      foods: this.foods
     });
     
     // 通知大厅状态更新 - 确保大厅页面能看到房间状态变化

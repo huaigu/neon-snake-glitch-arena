@@ -42,20 +42,22 @@ export class SnakeModel extends Multisynq.Model {
   }
 
   reset() {
-    console.log('SnakeModel: Resetting snake:', this.viewId);
+    console.log('SnakeModel: Resetting snake:', this.viewId, 'to position:', this.initialPosition);
     
-    // Reset to initial state
+    // Reset to initial state - 创建3段身体，向下延伸（这样头部向上移动时不会立即碰撞）
     this.body = [
-      { ...this.initialPosition },
-      { x: this.initialPosition.x, y: this.initialPosition.y + 1 },
-      { x: this.initialPosition.x, y: this.initialPosition.y + 2 }
+      { ...this.initialPosition },                                    // 头部
+      { x: this.initialPosition.x, y: this.initialPosition.y + 1 },   // 身体1
+      { x: this.initialPosition.x, y: this.initialPosition.y + 2 }    // 尾部
     ];
     
-    this.direction = { x: 0, y: -1 }; // Start moving up
+    this.direction = { x: 0, y: -1 }; // Start moving up (远离身体方向)
     this.nextDirection = { x: 0, y: -1 };
     this.isAlive = true;
     this.score = 0;
     this.isSpectator = false;
+    
+    console.log('SnakeModel: Snake reset with 3-segment body:', this.body);
   }
 
   changeDirection(newDirection: Position) {

@@ -33,13 +33,7 @@ export interface Food {
   value: number;
 }
 
-export interface Segment {
-  id: string;
-  position: Position;
-  type: 1 | 2 | 3; // 改为数字类型：1=+1长度, 2=+2长度, 3=+3长度
-  value: number;
-  color: string;
-}
+
 
 export const useSnakeGame = () => {
   const { gameView, isConnected } = useMultisynq();
@@ -50,7 +44,7 @@ export const useSnakeGame = () => {
   
   const [snakes, setSnakes] = useState<Snake[]>([]);
   const [foods, setFoods] = useState<Food[]>([]);
-  const [segments, setSegments] = useState<Segment[]>([]);
+
   const [gameRunning, setGameRunning] = useState(false);
   const [gameOver, setGameOver] = useState(false);
   const [countdown, setCountdown] = useState(0);
@@ -58,7 +52,7 @@ export const useSnakeGame = () => {
   const [gameSessionId, setGameSessionId] = useState<string | null>(null);
   const [isSpectator, setIsSpectator] = useState(false);
   const [speedMultiplier, setSpeedMultiplier] = useState(1.0);
-  const [segmentCountdown, setSegmentCountdown] = useState(10);
+  const [foodCountdown, setFoodCountdown] = useState(10);
   const [speedBoostCountdown, setSpeedBoostCountdown] = useState(20);
 
   // 合并内部观察者状态（死亡玩家）和外部观察者状态（链接加入的观察者）
@@ -90,7 +84,7 @@ export const useSnakeGame = () => {
     console.log('useSnakeGame: Setting up game callback with new model architecture, fixed gridSize:', gridSize);
     
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const gameCallback = (gameSession: any, foods: any[], segments: any[]) => {
+    const gameCallback = (gameSession: any, foods: any[]) => {
       console.log('=== useSnakeGame: Game callback triggered (NEW MODEL) ===');
       console.log('gameSession:', gameSession);
       console.log('gameSession status:', gameSession?.status);
@@ -103,9 +97,9 @@ export const useSnakeGame = () => {
         setGameSessionId(gameSession.id);
         setSpeedMultiplier(gameSession.speedMultiplier || 1.0);
         
-        // Use model-provided countdown values
+        // Use model-calculated countdown values - Multisynq best practice
         setSpeedBoostCountdown(gameSession.speedBoostCountdown || 20);
-        setSegmentCountdown(gameSession.segmentCountdown || 10);
+        setFoodCountdown(gameSession.foodCountdown || 10);
         
         // Map players to snakes format
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -194,8 +188,7 @@ export const useSnakeGame = () => {
         }));
         setFoods(gameFoods);
         
-        // Keep segments for backward compatibility
-        setSegments(segments || []);
+        // Segments removed - no longer used
         
         // Handle game state
         if (gameSession.status === 'countdown') {
@@ -222,7 +215,7 @@ export const useSnakeGame = () => {
           setIsSpectator(false);
           setSpeedMultiplier(1.0);
           setSpeedBoostCountdown(20);
-          setSegmentCountdown(10);
+          setFoodCountdown(10);
           setCountdown(0);
           
           console.log('useSnakeGame: Game reset to waiting state - all UI states reset');
@@ -232,7 +225,6 @@ export const useSnakeGame = () => {
         setGameSessionId(null);
         setSnakes([]);
         setFoods([]);
-        setSegments([]);
         setGameRunning(false);
         setShowCountdown(false);
         setGameOver(false);
@@ -248,7 +240,7 @@ export const useSnakeGame = () => {
     if (currentRoom && gameView.model) {
       const gameSession = gameView.getGameSessionByRoom(currentRoom.id);
       if (gameSession) {
-        gameCallback(gameSession, [], []);
+        gameCallback(gameSession, []);
       }
     }
 
@@ -307,7 +299,6 @@ export const useSnakeGame = () => {
   return {
     snakes,
     foods,
-    segments,
     gameRunning,
     gameOver,
     startGame: () => {},
@@ -320,7 +311,7 @@ export const useSnakeGame = () => {
     isSpectator: effectiveIsSpectator,
     enterSpectatorMode,
     speedMultiplier,
-    segmentCountdown,
+    foodCountdown,
     speedBoostCountdown
   };
 };
