@@ -48,6 +48,29 @@ export const GameArea: React.FC<GameAreaProps> = ({
   // 使用动态网格计算hook
   const { gridSize, cellSize } = useResponsiveGrid(containerRef);
 
+  // 移动端触摸事件处理
+  React.useEffect(() => {
+    if (isMobile && containerRef.current) {
+      const gameContainer = containerRef.current;
+      
+      const handleTouchEvent = (e: TouchEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+      };
+
+      // 添加触摸事件监听器
+      gameContainer.addEventListener('touchstart', handleTouchEvent, { passive: false });
+      gameContainer.addEventListener('touchmove', handleTouchEvent, { passive: false });
+      gameContainer.addEventListener('touchend', handleTouchEvent, { passive: false });
+
+      return () => {
+        gameContainer.removeEventListener('touchstart', handleTouchEvent);
+        gameContainer.removeEventListener('touchmove', handleTouchEvent);
+        gameContainer.removeEventListener('touchend', handleTouchEvent);
+      };
+    }
+  }, [isMobile]);
+
   // 计算游戏板尺寸
   const boardWidth = gridSize * cellSize;
   const boardHeight = gridSize * cellSize;
@@ -148,6 +171,26 @@ export const GameArea: React.FC<GameAreaProps> = ({
       className={`flex-1 flex flex-col items-center justify-center overflow-hidden ${
         isMobile ? 'px-1 py-2' : 'p-2'
       }`}
+      style={isMobile ? {
+        touchAction: 'none',
+        overscrollBehavior: 'none',
+        WebkitOverflowScrolling: 'auto'
+      } : {}}
+      onTouchStart={(e) => {
+        if (isMobile) {
+          e.preventDefault();
+        }
+      }}
+      onTouchMove={(e) => {
+        if (isMobile) {
+          e.preventDefault();
+        }
+      }}
+      onTouchEnd={(e) => {
+        if (isMobile) {
+          e.preventDefault();
+        }
+      }}
     >
       {/* Outer container with enhanced boundary visualization - 最大化利用空间 */}
       <div className={`relative flex items-center justify-center ${
@@ -183,7 +226,26 @@ export const GameArea: React.FC<GameAreaProps> = ({
           style={{ 
             width: boardWidth, 
             height: boardHeight,
-            filter: isSpectator ? 'brightness(1.1) saturate(1.2)' : 'none'
+            filter: isSpectator ? 'brightness(1.1) saturate(1.2)' : 'none',
+            touchAction: isMobile ? 'none' : 'auto'
+          }}
+          onTouchStart={(e) => {
+            if (isMobile) {
+              e.preventDefault();
+              e.stopPropagation();
+            }
+          }}
+          onTouchMove={(e) => {
+            if (isMobile) {
+              e.preventDefault();
+              e.stopPropagation();
+            }
+          }}
+          onTouchEnd={(e) => {
+            if (isMobile) {
+              e.preventDefault();
+              e.stopPropagation();
+            }
           }}
         >
           {/* Grid background */}

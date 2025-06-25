@@ -64,6 +64,37 @@
     @apply bg-cyber-darker text-foreground;
     font-family: 'Courier New', monospace;
   }
+
+  /* Mobile touch handling - 防止移动端滚动 */
+  .touch-none {
+    touch-action: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: auto;
+  }
+
+  /* 移动端游戏页面专用样式 */
+  .mobile-game-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    touch-action: none;
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: auto;
+    overflow: hidden;
+  }
+
+  /* 防止移动端双击缩放 */
+  .no-zoom {
+    touch-action: manipulation;
+  }
 }
 
 @layer components {

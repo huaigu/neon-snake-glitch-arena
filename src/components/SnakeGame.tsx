@@ -37,8 +37,54 @@ export const SnakeGame: React.FC = () => {
   const navigate = useNavigate();
   const playerSnake = snakes.find(snake => snake.isPlayer);
 
+  // 防止移动端页面滚动的效果
+  React.useEffect(() => {
+    if (isMobile) {
+      // 添加CSS样式来阻止滚动
+      const originalStyle = window.getComputedStyle(document.body).overflow;
+      const originalTouchAction = window.getComputedStyle(document.body).touchAction;
+      
+      document.body.style.overflow = 'hidden';
+      document.body.style.touchAction = 'none';
+      document.documentElement.style.overflow = 'hidden';
+      document.documentElement.style.touchAction = 'none';
+      
+      // 阻止默认的触摸行为
+      const preventDefaultTouch = (e: TouchEvent) => {
+        e.preventDefault();
+      };
+      
+      document.addEventListener('touchstart', preventDefaultTouch, { passive: false });
+      document.addEventListener('touchmove', preventDefaultTouch, { passive: false });
+      
+      return () => {
+        // 恢复原始样式
+        document.body.style.overflow = originalStyle;
+        document.body.style.touchAction = originalTouchAction;
+        document.documentElement.style.overflow = '';
+        document.documentElement.style.touchAction = '';
+        
+        document.removeEventListener('touchstart', preventDefaultTouch);
+        document.removeEventListener('touchmove', preventDefaultTouch);
+      };
+    }
+  }, [isMobile]);
+
   return (
-    <div className="h-screen bg-cyber-darker flex flex-col overflow-hidden">
+    <div 
+      className={`h-screen bg-cyber-darker flex flex-col ${
+        isMobile ? 'overflow-hidden touch-none' : 'overflow-hidden'
+      }`}
+      style={isMobile ? { 
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        touchAction: 'none',
+        overscrollBehavior: 'none'
+      } : {}}
+    >
       {/* Desktop Layout - Info Panel on side */}
       {!isMobile && (
         <div className="flex h-full">
@@ -165,7 +211,14 @@ export const SnakeGame: React.FC = () => {
 
       {/* Mobile Layout - 极简设计 */}
       {isMobile && (
-        <div className="h-full flex flex-col overflow-hidden">
+        <div 
+          className="h-full flex flex-col overflow-hidden touch-none"
+          style={{ 
+            touchAction: 'none',
+            overscrollBehavior: 'none',
+            WebkitOverflowScrolling: 'auto'
+          }}
+        >
           {/* Mobile Top Bar - 压缩到最小 */}
           <div className="bg-cyber-darker border-b border-cyber-cyan/30 p-2 flex justify-between items-center">
             <div className="text-cyber-cyan font-bold text-sm">CYBER SNAKE</div>
