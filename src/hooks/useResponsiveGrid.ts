@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useIsMobile } from './use-mobile';
+import { GAME_CONFIG } from '../utils/gameConstants';
 
 export const useResponsiveGrid = (containerRef?: React.RefObject<HTMLElement>) => {
-  // 固定逻辑网格大小，保证游戏逻辑一致性
-  const LOGICAL_GRID_SIZE = 60;
+  // 使用游戏配置中的棋盘大小，保证游戏逻辑一致性
+  const LOGICAL_GRID_SIZE = GAME_CONFIG.BOARD.SIZE;
   
   const [cellSize, setCellSize] = useState(12); // 动态单元格大小
   const isMobile = useIsMobile();
@@ -45,9 +46,11 @@ export const useResponsiveGrid = (containerRef?: React.RefObject<HTMLElement>) =
       // 选择较小的值确保游戏板能完全显示
       let newCellSize = Math.min(cellFromWidth, cellFromHeight);
       
-      // 根据设备类型设置不同的单元格大小限制
-      const minCellSize = isMobile ? 6 : 8;
-      const maxCellSize = isMobile ? 15 : 25;
+      // 根据设备类型和网格大小动态设置单元格大小限制
+      // 对于更大的网格，需要更小的单元格大小来保证显示
+      const gridSizeRatio = LOGICAL_GRID_SIZE / 60; // 以原来的60为基准
+      const minCellSize = Math.max(2, Math.floor((isMobile ? 6 : 8) / gridSizeRatio));
+      const maxCellSize = Math.max(5, Math.floor((isMobile ? 15 : 25) / gridSizeRatio));
       newCellSize = Math.max(minCellSize, Math.min(newCellSize, maxCellSize));
       
       // 只在调试模式下输出响应式尺寸计算日志，避免频繁日志输出
@@ -79,7 +82,7 @@ export const useResponsiveGrid = (containerRef?: React.RefObject<HTMLElement>) =
       clearTimeout(timeout);
       window.removeEventListener('resize', updateCellSize);
     };
-  }, [isMobile, containerRef]);
+  }, [isMobile, containerRef, LOGICAL_GRID_SIZE, cellSize]);
 
   return { 
     gridSize: LOGICAL_GRID_SIZE, // 返回固定的逻辑网格大小
