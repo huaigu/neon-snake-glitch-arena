@@ -27,7 +27,7 @@ export const monadTestnet = defineChain({
 });
 
 // 临时的项目ID - 请在 https://cloud.walletconnect.com 获取您自己的项目ID
-const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || 'c5b87b96e3b4b0e5ff1b4a3c2d9e8f7a';
+const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || '98cc4bf3-fb8d-4c82-bbb3-23afd11aa87d';
 
 export const config = getDefaultConfig({
   appName: 'Neon Snake Arena',

@@ -132,7 +132,7 @@ export const PlayerList: React.FC<PlayerListProps> = ({ players, currentPlayerId
                     : player.isSpectator 
                       ? 'Watching' 
                       : player.hasNFT 
-                        ? 'VIP Player' 
+                        ? 'NFT Holder' 
                         : 'Player'
                   }
                 </span>
