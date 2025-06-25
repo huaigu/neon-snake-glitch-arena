@@ -51,6 +51,20 @@ export const GameLobbyComponent: React.FC = () => {
     timestamp: new Date().toISOString()
   });
 
+  // 添加 activeRoom 结构的调试信息
+  console.log('GameLobbyComponent: ActiveRoom structure debug:', {
+    activeRoom: activeRoom ? {
+      id: activeRoom.id,
+      name: activeRoom.name,
+      status: activeRoom.status,
+      hostAddress: activeRoom.hostAddress,
+      host: activeRoom.host,
+      createdAt: activeRoom.createdAt,
+      createdAtType: typeof activeRoom.createdAt,
+      allKeys: Object.keys(activeRoom)
+    } : null
+  });
+
   // Convert room players to game players format for PlayerList component
   const players = React.useMemo(() => {
     if (!activeRoom) {
@@ -523,9 +537,9 @@ export const GameLobbyComponent: React.FC = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="flex">
                   {/* Room Details */}
-                  <div className="space-y-1.5">
+                  <div className="flex-1 space-y-1.5">
                     <div className="flex justify-between items-center">
                       <span className="text-cyber-cyan/70 text-sm">Room ID:</span>
                       <span className="text-cyber-cyan font-mono text-sm">
@@ -539,16 +553,37 @@ export const GameLobbyComponent: React.FC = () => {
                     <div className="flex justify-between items-center">
                       <span className="text-cyber-cyan/70 text-sm">Created:</span>
                       <span className="text-cyber-cyan text-sm">
-                        {new Date(activeRoom.createdAt).toLocaleTimeString([], { 
-                          hour: '2-digit', 
-                          minute: '2-digit' 
-                        })}
+                        {activeRoom.createdAt ? (
+                          new Date(activeRoom.createdAt).toLocaleTimeString([], { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          })
+                        ) : (
+                          (() => {
+                            // 备用方案：从房间ID中提取时间戳
+                            // 房间ID格式: room_${timestamp}_${random}
+                            const match = activeRoom.id.match(/room_(\d+)_/);
+                            if (match) {
+                              const timestamp = parseInt(match[1]);
+                              return new Date(timestamp).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              });
+                            }
+                            return <span className="text-red-400">No creation time</span>;
+                          })()
+                        )}
                       </span>
                     </div>
                   </div>
 
+                  {/* Middle Gap with Centered Divider */}
+                  <div className="w-8 flex items-start justify-center pt-2">
+                    <div className="w-px bg-cyber-cyan/20 h-16"></div>
+                  </div>
+
                   {/* Share Room Section */}
-                  <div>
+                  <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
                       <Share2 className="w-4 h-4 text-cyber-cyan" />
                       <span className="text-sm font-medium text-cyber-cyan">Share Room</span>
@@ -750,17 +785,33 @@ export const GameLobbyComponent: React.FC = () => {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-cyber-cyan/70">Created:</span>
-                    <span className="text-cyber-cyan">
-                      {new Date(activeRoom.createdAt).toLocaleTimeString([], { 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                      })}
+                    <span className="text-cyber-cyan text-sm">
+                      {activeRoom.createdAt ? (
+                        new Date(activeRoom.createdAt).toLocaleTimeString([], { 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        })
+                      ) : (
+                        (() => {
+                          // 备用方案：从房间ID中提取时间戳
+                          // 房间ID格式: room_${timestamp}_${random}
+                          const match = activeRoom.id.match(/room_(\d+)_/);
+                          if (match) {
+                            const timestamp = parseInt(match[1]);
+                            return new Date(timestamp).toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            });
+                          }
+                          return <span className="text-red-400">No creation time</span>;
+                        })()
+                      )}
                     </span>
                   </div>
                 </div>
 
                 {/* Share Room Section - Compact */}
-                <div className="border-t border-cyber-cyan/20 pt-3">
+                <div className="border-t border-cyber-cyan/20 pt-1">
                   <div className="flex items-center gap-2 mb-2">
                     <Share2 className="w-3 h-3 text-cyber-cyan" />
                     <span className="text-xs font-medium text-cyber-cyan">Share Room</span>

@@ -115,7 +115,7 @@ export class LobbyModel extends Multisynq.Model {
     }
   }
 
-  handleCreateRoom(payload: { roomName: string; playerName: string; hostAddress: string; hasNFT?: boolean }) {
+  handleCreateRoom(payload: { roomName: string; playerName: string; hostAddress: string; hasNFT?: boolean; createdAt: string }) {
     console.log('LobbyModel: Creating room:', payload);
     
     // 服务端安全检查：确保玩家不会创建多个房间（作为客户端检查的后备）
@@ -217,7 +217,8 @@ export class LobbyModel extends Multisynq.Model {
     const room = GameRoomModel.create({
       id: roomId,
       name: payload.roomName,
-      hostAddress: payload.hostAddress
+      hostAddress: payload.hostAddress,
+      createdAt: payload.createdAt
     });
     
     this.gameRooms.set(roomId, room);
@@ -237,7 +238,7 @@ export class LobbyModel extends Multisynq.Model {
       roomId: roomId,
       roomName: payload.roomName,
       hostAddress: payload.hostAddress,
-      hostViewId: hostPlayer.viewId
+      hostViewId: hostPlayer.viewId,
     });
     
     // Notify the creator that room was created (保持兼容性)
@@ -420,6 +421,19 @@ export class LobbyModel extends Multisynq.Model {
   getLobbyState() {
     const rooms = Array.from(this.gameRooms.values()).map(room => room.getRoomState());
     const connectedPlayers = this.players.size;
+    
+    // 添加 createdAt 调试信息
+    console.log('LobbyModel: getLobbyState() rooms debug:', {
+      roomsCount: rooms.length,
+      roomsWithCreatedAt: rooms.map(r => ({
+        id: r.id,
+        name: r.name,
+        createdAt: r.createdAt,
+        createdAtType: typeof r.createdAt,
+        hasCreatedAt: 'createdAt' in r,
+        allKeys: Object.keys(r)
+      }))
+    });
     
     return {
       rooms,

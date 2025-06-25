@@ -33,7 +33,7 @@ export class GameRoomModel extends Multisynq.Model {
   // 使用全局游戏配置
   private readonly CONFIG = GAME_CONFIG;
 
-  init(payload: { id: string; name: string; hostAddress: string }) {
+  init(payload: { id: string; name: string; hostAddress: string; createdAt: string }) {
     console.log('GameRoomModel: Initializing room:', payload);
     
     this.roomId = payload.id;
@@ -48,7 +48,7 @@ export class GameRoomModel extends Multisynq.Model {
     this.winner = null;
     this.speedMultiplier = 1.0;
     this.gameStartTime = 0;
-    this.createdAt = new Date(this.now()).toISOString(); // 在初始化时设置创建时间
+    this.createdAt = payload.createdAt;
     this.tickCounter = 0;
 
     // Subscribe to room events
@@ -573,7 +573,7 @@ export class GameRoomModel extends Multisynq.Model {
       hostAddress: this.hostAddress
     });
 
-    return {
+    const roomState = {
       id: this.roomId,
       name: this.name,
       hostAddress: this.hostAddress,
@@ -584,6 +584,18 @@ export class GameRoomModel extends Multisynq.Model {
       isPrivate: false,
       createdAt: this.createdAt
     };
+
+    // 添加详细的 createdAt 调试信息
+    console.log('GameRoomModel: getRoomState() returning:', {
+      roomId: this.roomId,
+      createdAt: this.createdAt,
+      createdAtType: typeof this.createdAt,
+      createdAtInResult: roomState.createdAt,
+      createdAtInResultType: typeof roomState.createdAt,
+      allKeys: Object.keys(roomState)
+    });
+
+    return roomState;
   }
 
   getGameState() {

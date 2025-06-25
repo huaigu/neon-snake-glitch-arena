@@ -113,6 +113,18 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
         timestamp: new Date().toISOString()
       });
       
+      // 添加 createdAt 调试信息
+      console.log('🔄 RoomContext: Lobby rooms createdAt debug:', {
+        roomsWithCreatedAt: lobbyData.rooms.map(r => ({
+          id: r.id,
+          name: r.name,
+          createdAt: r.createdAt,
+          createdAtType: typeof r.createdAt,
+          hasCreatedAt: 'createdAt' in r,
+          allKeys: Object.keys(r)
+        }))
+      });
+      
       setRooms(lobbyData.rooms);
       setConnectedPlayersCount(lobbyData.connectedPlayers);
     };
@@ -147,6 +159,13 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
             const room = currentState.rooms.find(r => r.id === data.roomId);
             if (room) {
               console.log('RoomContext: Found room data, setting currentRoom and resolving promise:', room);
+              console.log('RoomContext: Room creation callback - room data debug:', {
+                id: room.id,
+                name: room.name,
+                createdAt: room.createdAt,
+                createdAtType: typeof room.createdAt,
+                allKeys: Object.keys(room)
+              });
               setCurrentRoom({ ...room });
               setLoading(false);
               setError(null); // 清除任何之前的错误
@@ -627,11 +646,29 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
         if (room) {
           console.log('RoomContext: Found room for pure spectating:', room);
           
+          // 添加调试信息
+          console.log('RoomContext: Initial spectator room data:', {
+            id: room.id,
+            name: room.name,
+            createdAt: room.createdAt,
+            createdAtType: typeof room.createdAt,
+            allKeys: Object.keys(room)
+          });
+          
           // 使用独立的spectatorRoom状态，不修改currentRoom
-          setSpectatorRoom({ 
+          const spectatorRoomData = { 
             ...room,
             isSpectatorView: true // 标记这是观察者视图
+          };
+          
+          console.log('RoomContext: Setting spectator room with data:', {
+            id: spectatorRoomData.id,
+            createdAt: spectatorRoomData.createdAt,
+            createdAtType: typeof spectatorRoomData.createdAt,
+            allKeys: Object.keys(spectatorRoomData)
           });
+          
+          setSpectatorRoom(spectatorRoomData);
           
           setLoading(false);
           
@@ -643,15 +680,32 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
               const updatedState = gameView.model.lobby.getLobbyState();
               const updatedRoom = updatedState.rooms.find(r => r.id === roomId);
               if (updatedRoom) {
+                // 添加调试信息
+                console.log('RoomContext: Spectator room update - updatedRoom data:', {
+                  id: updatedRoom.id,
+                  createdAt: updatedRoom.createdAt,
+                  createdAtType: typeof updatedRoom.createdAt,
+                  allKeys: Object.keys(updatedRoom)
+                });
+                
                 // 只在房间状态实际改变时更新，避免不必要的重新渲染
                 setSpectatorRoom(prevRoom => {
                   if (!prevRoom || 
                       prevRoom.status !== updatedRoom.status || 
                       JSON.stringify(prevRoom.players) !== JSON.stringify(updatedRoom.players)) {
-                    return {
+                    const newRoom = {
                       ...updatedRoom,
-                      isSpectatorView: true
+                      isSpectatorView: true // 确保保留观察者标记
                     };
+                    
+                    console.log('RoomContext: Updating spectator room with new data:', {
+                      id: newRoom.id,
+                      createdAt: newRoom.createdAt,
+                      createdAtType: typeof newRoom.createdAt,
+                      allKeys: Object.keys(newRoom)
+                    });
+                    
+                    return newRoom;
                   }
                   return prevRoom;
                 });

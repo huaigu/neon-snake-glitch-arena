@@ -99,7 +99,8 @@ export class GameView extends Multisynq.View {
       roomName,
       playerName,
       hostAddress,
-      hasNFT
+      hasNFT,
+      createdAt: new Date().toISOString()
     });
   }
 
