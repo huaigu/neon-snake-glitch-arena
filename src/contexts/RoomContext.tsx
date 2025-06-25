@@ -100,19 +100,15 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     console.log('RoomContext: Setting up GameView lobby callback for new model architecture');
     
     const lobbyCallback = (lobbyData: { rooms: Room[]; connectedPlayers: number }) => {
-      console.log('=== LOBBY CALLBACK TRIGGERED (NEW MODEL) ===');
-      console.log('RoomContext: Received lobby data from new model:', {
+      console.log('🔄 RoomContext: Lobby update received:', {
         roomsCount: lobbyData.rooms.length,
         connectedPlayers: lobbyData.connectedPlayers,
-        detailedRooms: lobbyData.rooms.map(r => ({
+        roomsData: lobbyData.rooms.map(r => ({
           id: r.id,
           name: r.name,
+          status: r.status,
           playersCount: r.players.length,
-          players: r.players.map(p => ({ 
-            name: p.name, 
-            isReady: p.isReady, 
-            address: p.address 
-          }))
+          playerAddresses: r.players.map(p => p.address)
         })),
         timestamp: new Date().toISOString()
       });

@@ -24,7 +24,7 @@ export const RoomPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated, user } = useWeb3Auth();
-  const { currentRoom, joinRoom, leaveRoom, spectateRoom, leaveSpectator, rooms, isConnected, isSpectator, spectatorRoom } = useRoomContext();
+  const { currentRoom, setCurrentRoom, joinRoom, leaveRoom, spectateRoom, leaveSpectator, rooms, isConnected, isSpectator, spectatorRoom } = useRoomContext();
   const { joinSession, isConnecting, error: connectionError } = useMultisynq();
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
@@ -122,6 +122,29 @@ export const RoomPage: React.FC = () => {
         setJoinState('success');
       }
       return;
+    }
+
+    // 增强检测：即使 currentRoom 还没更新，也检查用户是否已经在目标房间的玩家列表中
+    if (!currentRoom && rooms.length > 0 && user?.address) {
+      const targetRoom = rooms.find(r => r.id === roomId);
+      if (targetRoom && targetRoom.players.some(p => p.address === user.address)) {
+        console.log('RoomPage: User found in target room players list, setting success state and currentRoom', {
+          roomId: targetRoom.id,
+          roomName: targetRoom.name,
+          roomStatus: targetRoom.status,
+          playersCount: targetRoom.players.length,
+          userInPlayers: true,
+          joinState: joinState
+        });
+        
+        // 主动设置currentRoom状态，因为用户已经在房间中
+        setCurrentRoom({ ...targetRoom });
+        
+        if (joinState !== 'success') {
+          setJoinState('success');
+        }
+        return;
+      }
     }
 
     // 如果在观察者模式中且正在观看目标房间，也标记为成功
@@ -252,7 +275,7 @@ export const RoomPage: React.FC = () => {
         }
       })();
     }
-  }, [isAuthenticated, isConnected, roomId, currentRoom?.id, rooms.length, hasAttemptedJoin, user?.address, isSpectator, spectatorRoom?.id, joinState]);
+  }, [isAuthenticated, isConnected, roomId, currentRoom?.id, rooms, hasAttemptedJoin, user?.address, isSpectator, spectatorRoom?.id, joinState]);
 
   // 全局5秒超时检查 - 无论什么原因，如果5秒后仍未成功进入房间则显示错误
   useEffect(() => {
@@ -268,8 +291,17 @@ export const RoomPage: React.FC = () => {
     console.log(`RoomPage: Setting ${ROOM_JOIN_TIMEOUT}-second global timeout for room entry`);
     const timeoutId = setTimeout(() => {
       // 最终检查：用户是否已经成功进入房间
-      const userInRoom = (currentRoom && currentRoom.id === roomId) || 
-                        (isSpectator && spectatorRoom && spectatorRoom.id === roomId);
+      const userInCurrentRoom = currentRoom && currentRoom.id === roomId;
+      const userInSpectatorRoom = isSpectator && spectatorRoom && spectatorRoom.id === roomId;
+      
+      // 增强检测：检查用户是否在房间的玩家列表中（即使 currentRoom 未更新）
+      let userInRoomPlayersList = false;
+      if (!userInCurrentRoom && !userInSpectatorRoom && user?.address && rooms.length > 0) {
+        const targetRoom = rooms.find(r => r.id === roomId);
+        userInRoomPlayersList = targetRoom && targetRoom.players.some(p => p.address === user.address);
+      }
+      
+      const userInRoom = userInCurrentRoom || userInSpectatorRoom || userInRoomPlayersList;
       
       if (!userInRoom) {
         console.log(`RoomPage: ${ROOM_JOIN_TIMEOUT}-second timeout reached - user not in room`, {
@@ -279,7 +311,11 @@ export const RoomPage: React.FC = () => {
           isSpectator,
           joinState: joinState,
           roomsCount: rooms.length,
-          targetRoomExists: rooms.some(r => r.id === roomId)
+          targetRoomExists: rooms.some(r => r.id === roomId),
+          userInCurrentRoom,
+          userInSpectatorRoom,
+          userInRoomPlayersList,
+          userAddress: user?.address
         });
         
         setJoinState('error');
@@ -293,7 +329,7 @@ export const RoomPage: React.FC = () => {
     }, ROOM_JOIN_TIMEOUT * 1000);
 
     return () => clearTimeout(timeoutId);
-  }, [isConnected, roomId, joinState, currentRoom?.id, isSpectator, spectatorRoom?.id, rooms]);
+  }, [isConnected, roomId, joinState, currentRoom?.id, isSpectator, spectatorRoom?.id, rooms, user?.address]);
 
   // 重置状态当roomId真正变化时（避免初始化时的重置）
   useEffect(() => {
