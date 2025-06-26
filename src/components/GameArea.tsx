@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Snake, Food } from '../hooks/useSnakeGame';
 import { useIsMobile } from '../hooks/use-mobile';
@@ -33,12 +34,16 @@ interface GameAreaProps {
   gridSize?: number; // 可选，主要用于向后兼容
   cellSize?: number; // 可选，主要用于向后兼容
   isSpectator?: boolean;
+  countdown?: number;
+  showCountdown?: boolean;
 }
 
 export const GameArea: React.FC<GameAreaProps> = ({ 
   snakes, 
   foods, 
-  isSpectator = false 
+  isSpectator = false,
+  countdown = 0,
+  showCountdown = false
 }) => {
   const isMobile = useIsMobile();
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -295,8 +300,6 @@ export const GameArea: React.FC<GameAreaProps> = ({
             );
           })}
 
-
-
           {/* Snakes */}
           {visibleSnakes.map((snake) => (
             <div key={snake.id}>
@@ -374,6 +377,45 @@ export const GameArea: React.FC<GameAreaProps> = ({
               )}
             </div>
           ))}
+
+          {/* Circular Countdown Timer */}
+          {showCountdown && countdown > 0 && (
+            <div 
+              className="absolute flex items-center justify-center pointer-events-none"
+              style={{
+                left: (gridSize / 2) * cellSize - 40,
+                top: (gridSize / 2) * cellSize - 40,
+                zIndex: 50
+              }}
+            >
+              {/* 圆形背景 */}
+              <div 
+                className="w-20 h-20 md:w-24 md:h-24 rounded-full flex items-center justify-center border-4"
+                style={{
+                  backgroundColor: 'rgba(0, 255, 255, 0.1)', // 浅青色背景
+                  borderColor: 'rgba(0, 255, 255, 0.6)',
+                  boxShadow: `
+                    0 0 20px rgba(0, 255, 255, 0.3),
+                    inset 0 0 20px rgba(0, 255, 255, 0.1)
+                  `,
+                  backdropFilter: 'blur(2px)',
+                  animation: 'neon-pulse 1s ease-in-out infinite'
+                }}
+              >
+                {/* 倒计时数字 */}
+                <span 
+                  className="font-bold text-white"
+                  style={{
+                    fontSize: isMobile ? '24px' : '32px',
+                    textShadow: '0 0 10px rgba(255, 255, 255, 0.8)',
+                    color: '#00ffff'
+                  }}
+                >
+                  {countdown}
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* Spectator Mode Visual Enhancement */}
           {isSpectator && (
