@@ -1,5 +1,6 @@
 import * as Multisynq from '@multisynq/client';
 import GameModel from '../models/GameModel';
+import { setupGameViewCallbacks } from '../contexts/RoomContext';
 
 export class GameView extends Multisynq.View {
   model!: GameModel;
@@ -38,6 +39,10 @@ export class GameView extends Multisynq.View {
     this.subscribe("leaderboard", "updated", this.handleLeaderboardUpdate);
     
     console.log('GameView: Subscriptions set up');
+    
+    // 立即设置全局callbacks，确保每次GameView实例创建时都有正确的callbacks
+    console.log('GameView: Setting up global callbacks in constructor');
+    setupGameViewCallbacks(this);
   }
 
   // Lobby management methods

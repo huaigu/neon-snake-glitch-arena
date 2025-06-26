@@ -58,6 +58,94 @@ export const useRoomContext = () => {
   return context;
 };
 
+// 全局callback设置函数，供GameView构造函数调用
+export const setupGameViewCallbacks = (gameViewInstance: GameView) => {
+  console.log('🔧 Global: Setting up GameView callbacks from global function');
+  
+  // 获取当前的用户信息 - 从localStorage或其他全局状态获取
+  const userDataStr = localStorage.getItem('web3auth_user_data');
+  let stableUserAddress = '';
+  
+  if (userDataStr) {
+    try {
+      const userData = JSON.parse(userDataStr);
+      stableUserAddress = userData.address || userData.guestId || '';
+    } catch (error) {
+      console.warn('Failed to parse user data from localStorage:', error);
+    }
+  }
+  
+  if (!stableUserAddress) {
+    console.warn('🔧 Global: No user address available for callback setup');
+    return;
+  }
+  
+  console.log('🔧 Global: Setting up callbacks for user:', stableUserAddress);
+  
+  // 设置lobby回调
+  const lobbyCallback = (lobbyData: { rooms: Room[]; connectedPlayers: number }) => {
+    console.log('🔄 Global: Lobby update received via global callback:', {
+      roomsCount: lobbyData.rooms.length,
+      connectedPlayers: lobbyData.connectedPlayers
+    });
+    
+    // 触发自定义事件，通知RoomContext更新状态
+    window.dispatchEvent(new CustomEvent('global-lobby-update', {
+      detail: lobbyData
+    }));
+  };
+  
+  // 设置房间加入成功回调
+  const roomJoinedCallback = (data: { viewId: string; roomId: string }) => {
+    console.log('📨 Global: Room joined callback received:', data);
+    if (stableUserAddress && (data.viewId === stableUserAddress)) {
+      console.log('📨 Global: Current user successfully joined room via global callback');
+      
+      // 触发自定义事件，通知RoomContext处理房间加入
+      window.dispatchEvent(new CustomEvent('global-room-joined', {
+        detail: data
+      }));
+    }
+  };
+  
+  // 设置其他必要的回调
+  const roomCreatedCallback = (data: { roomId: string; roomName: string; hostAddress: string; hostViewId: string }) => {
+    console.log('📨 Global: Room created callback received:', data);
+    if (stableUserAddress && data.hostAddress === stableUserAddress) {
+      window.dispatchEvent(new CustomEvent('global-room-created', {
+        detail: data
+      }));
+    }
+  };
+  
+  const roomJoinFailedCallback = (data: { viewId: string; reason: string }) => {
+    console.log('📨 Global: Room join failed callback received:', data);
+    if (stableUserAddress && (data.viewId === stableUserAddress)) {
+      window.dispatchEvent(new CustomEvent('global-room-join-failed', {
+        detail: data
+      }));
+    }
+  };
+  
+  const roomCreationFailedCallback = (data: { hostAddress: string; reason: string }) => {
+    console.log('📨 Global: Room creation failed callback received:', data);
+    if (stableUserAddress === data.hostAddress) {
+      window.dispatchEvent(new CustomEvent('global-room-creation-failed', {
+        detail: data
+      }));
+    }
+  };
+  
+  // 设置所有回调
+  gameViewInstance.setLobbyCallback(lobbyCallback);
+  gameViewInstance.setRoomJoinedCallback(roomJoinedCallback);
+  gameViewInstance.setRoomCreatedCallback(roomCreatedCallback);
+  gameViewInstance.setRoomJoinFailedCallback(roomJoinFailedCallback);
+  gameViewInstance.setRoomCreationFailedCallback(roomCreationFailedCallback);
+  
+  console.log('✅ Global: All GameView callbacks set successfully via global function');
+};
+
 interface RoomProviderProps {
   children: ReactNode;
 }
@@ -291,9 +379,17 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
 
       // 批量设置所有回调函数，确保原子性
       console.log('🔧 RoomContext: Setting all GameView callbacks...');
+      console.log('🔧 RoomContext: About to set roomJoinedCallback:', {
+        callbackFunction: typeof roomJoinedCallback,
+        callbackName: roomJoinedCallback.name,
+        gameViewHasSetMethod: typeof gameViewInstance.setRoomJoinedCallback === 'function'
+      });
+      
       gameViewInstance.setRoomCreatedCallback(roomCreatedCallback);
       gameViewInstance.setRoomJoinedCallback(roomJoinedCallback);
       gameViewInstance.setRoomJoinFailedCallback(roomJoinFailedCallback);
+      
+      console.log('🔧 RoomContext: All GameView callbacks set successfully');
       gameViewInstance.setRoomCreationFailedCallback(roomCreationFailedCallback);
       console.log('✅ RoomContext: All GameView callbacks set successfully');
 
@@ -324,8 +420,46 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
         setupCallbacks(newGameView);
       }
     };
+    
+    // 监听全局callback事件
+    const handleGlobalLobbyUpdate = (event: CustomEvent) => {
+      console.log('🔄 RoomContext: Received global-lobby-update event');
+      const lobbyData = event.detail;
+      setRooms(lobbyData.rooms);
+      setConnectedPlayersCount(lobbyData.connectedPlayers);
+    };
+    
+    const handleGlobalRoomJoined = (event: CustomEvent) => {
+      console.log('📨 RoomContext: Received global-room-joined event');
+      const data = event.detail;
+      
+      // 清除当前加入尝试的超时
+      const joinAttempt = window.currentJoinAttempt;
+      if (joinAttempt && joinAttempt.userAddress === stableUserAddress) {
+        const callbackTime = Date.now() - joinAttempt.startTime;
+        console.log(`📨 RoomContext: Global callback received after ${callbackTime}ms`);
+        clearTimeout(joinAttempt.timeoutId);
+        delete window.currentJoinAttempt;
+      }
+      
+      // 设置当前房间
+      if (gameView?.model?.lobby) {
+        const currentState = gameView.model.lobby.getLobbyState();
+        const room = currentState.rooms.find(r => r.id === data.roomId);
+        if (room) {
+          console.log('📨 RoomContext: Found joined room data via global callback, setting currentRoom:', {
+            roomId: room.id,
+            roomName: room.name,
+            playersCount: room.players.length
+          });
+          setCurrentRoom({ ...room });
+        }
+      }
+    };
 
     window.addEventListener('multisynq-gameview-ready', handleGameViewReady as EventListener);
+    window.addEventListener('global-lobby-update', handleGlobalLobbyUpdate as EventListener);
+    window.addEventListener('global-room-joined', handleGlobalRoomJoined as EventListener);
 
     return () => {
       console.log('RoomContext: Cleaning up GameView callbacks and subscriptions', {
@@ -342,6 +476,8 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
 
       // 移除事件监听器
       window.removeEventListener('multisynq-gameview-ready', handleGameViewReady as EventListener);
+      window.removeEventListener('global-lobby-update', handleGlobalLobbyUpdate as EventListener);
+      window.removeEventListener('global-room-joined', handleGlobalRoomJoined as EventListener);
     };
   }, [gameView, isConnected, stableUserAddress]); // 使用稳定的地址引用
 
