@@ -1,3 +1,4 @@
+
 import * as Multisynq from '@multisynq/client';
 
 interface Position {
@@ -18,6 +19,7 @@ export class SnakeModel extends Multisynq.Model {
   boardSize!: number;
   initialPosition!: Position;
   hasNFT!: boolean;
+  isPositionLocked!: boolean; // New field to lock position during countdown
 
   init(payload: {
     viewId: string;
@@ -36,6 +38,7 @@ export class SnakeModel extends Multisynq.Model {
     this.initialPosition = payload.startPosition;
     this.isSpectator = false;
     this.hasNFT = payload.hasNFT || false;
+    this.isPositionLocked = false; // Initialize as unlocked
     
     this.reset();
   }
@@ -62,6 +65,7 @@ export class SnakeModel extends Multisynq.Model {
     this.isAlive = true;
     this.score = 0;
     this.isSpectator = false;
+    this.isPositionLocked = false; // Reset lock state
     
     console.log('SnakeModel: Snake reset complete:', {
       viewId: this.viewId,
@@ -70,11 +74,30 @@ export class SnakeModel extends Multisynq.Model {
       headPosition: this.body[0],
       direction: this.direction,
       boardSize: this.boardSize,
-      isAlive: this.isAlive
+      isAlive: this.isAlive,
+      isPositionLocked: this.isPositionLocked
     });
   }
 
+  // New method to lock position during countdown
+  lockPosition() {
+    this.isPositionLocked = true;
+    console.log('SnakeModel: Position locked for snake:', this.viewId);
+  }
+
+  // New method to unlock position when game starts
+  unlockPosition() {
+    this.isPositionLocked = false;
+    console.log('SnakeModel: Position unlocked for snake:', this.viewId);
+  }
+
   changeDirection(newDirection: Position) {
+    // Don't allow direction changes during countdown when position is locked
+    if (this.isPositionLocked) {
+      console.log('SnakeModel: Direction change blocked - position is locked during countdown');
+      return;
+    }
+
     // Prevent 180-degree turns
     const currentDir = this.direction;
     const oppositeDirection = {
@@ -89,7 +112,13 @@ export class SnakeModel extends Multisynq.Model {
   }
 
   move() {
-    if (!this.isAlive || this.isSpectator) return;
+    if (!this.isAlive || this.isSpectator || this.isPositionLocked) {
+      // Don't move during countdown when position is locked
+      if (this.isPositionLocked) {
+        console.log('SnakeModel: Movement blocked - position is locked during countdown');
+      }
+      return;
+    }
     
     // Update direction from queued direction
     this.direction = { ...this.nextDirection };
@@ -149,7 +178,8 @@ export class SnakeModel extends Multisynq.Model {
       score: this.score,
       color: this.color,
       isSpectator: this.isSpectator,
-      hasNFT: this.hasNFT
+      hasNFT: this.hasNFT,
+      isPositionLocked: this.isPositionLocked
     };
   }
 

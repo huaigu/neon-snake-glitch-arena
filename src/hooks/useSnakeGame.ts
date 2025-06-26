@@ -26,6 +26,7 @@ export interface Snake {
   name: string;
   isSpectator?: boolean;
   hasNFT?: boolean; // NFT holder flag for rainbow snake effect
+  isPositionLocked?: boolean; // Track if position is locked during countdown
 }
 
 export interface Food {
@@ -77,19 +78,19 @@ export const useSnakeGame = () => {
 
   // Define changeDirection first
   const changeDirection = useCallback((direction: 'up' | 'down' | 'left' | 'right') => {
-    if (!gameView || !gameSessionId || !user?.address || !gameRunning || effectiveIsSpectator) {
-      console.log('useSnakeGame: Cannot change direction - spectator mode or game not running');
+    if (!gameView || !gameSessionId || !user?.address || (!gameRunning && !showCountdown) || effectiveIsSpectator) {
+      console.log('useSnakeGame: Cannot change direction - spectator mode, game not running, or countdown not active');
       return;
     }
 
     console.log('useSnakeGame: Changing direction:', direction);
     gameView.changeDirection(gameSessionId, user.address, direction);
-  }, [gameView, gameSessionId, user?.address, gameRunning, effectiveIsSpectator]);
+  }, [gameView, gameSessionId, user?.address, gameRunning, showCountdown, effectiveIsSpectator]);
 
   // Now mobile controls can use changeDirection safely
   useMobileControls({
     onDirectionChange: changeDirection,
-    isEnabled: isMobile && gameRunning && !effectiveIsSpectator
+    isEnabled: isMobile && (gameRunning || showCountdown) && !effectiveIsSpectator
   });
 
   // Updated game callback setup to work with new model structure
@@ -116,6 +117,7 @@ export const useSnakeGame = () => {
         name?: string;
         isSpectator?: boolean;
         hasNFT?: boolean;
+        isPositionLocked?: boolean;
       }>;
       countdown?: number;
       speedMultiplier?: number;
@@ -131,7 +133,8 @@ export const useSnakeGame = () => {
         gameSessionPlayers: gameSession?.players?.map((p) => ({
           id: p.id.slice(-6),
           name: p.name,
-          isAlive: p.isAlive
+          isAlive: p.isAlive,
+          isPositionLocked: p.isPositionLocked
         })) || []
       });
 
@@ -150,7 +153,8 @@ export const useSnakeGame = () => {
           segmentsLength: p.segments?.length || 0,
           hasBody: !!p.body,
           bodyLength: p.body?.length || 0,
-          position: p.position
+          position: p.position,
+          isPositionLocked: p.isPositionLocked
         }))
       });
 
@@ -169,10 +173,11 @@ export const useSnakeGame = () => {
           name: player.name,
           isSpectator: player.isSpectator || false,
           // 使用来自Snake模型的实际NFT状态
-          hasNFT: player.hasNFT || false
+          hasNFT: player.hasNFT || false,
+          isPositionLocked: player.isPositionLocked || false
         }));
 
-        console.log('useSnakeGame: Mapped snakes with segments/body data:', {
+        console.log('useSnakeGame: Mapped snakes with segments/body data and position lock status:', {
           totalSnakes: rawGameSnakes.length,
           snakesData: rawGameSnakes.map((s, index) => ({
             index,
@@ -181,7 +186,8 @@ export const useSnakeGame = () => {
             hasNFT: s.hasNFT,
             isPlayer: s.isPlayer,
             segments: s.segments?.length || 0,
-            isAlive: s.isAlive
+            isAlive: s.isAlive,
+            isPositionLocked: s.isPositionLocked
           }))
         });
         
@@ -199,7 +205,8 @@ export const useSnakeGame = () => {
             name: s.name, 
             color: s.color, 
             hasNFT: s.hasNFT,
-            isPlayer: s.isPlayer
+            isPlayer: s.isPlayer,
+            isPositionLocked: s.isPositionLocked
           })),
           playerAddressSorting: rawGameSnakes
             .sort((a, b) => a.id.localeCompare(b.id))
@@ -221,7 +228,7 @@ export const useSnakeGame = () => {
           // Debug boundary information
           if (currentPlayerSnake.segments.length > 0) {
             const head = currentPlayerSnake.segments[0];
-            console.log('useSnakeGame: Player snake head position:', head, 'gridSize:', gridSize, 'boundaries: 0 to', gridSize - 1);
+            console.log('useSnakeGame: Player snake head position:', head, 'gridSize:', gridSize, 'boundaries: 0 to', gridSize - 1, 'position locked:', currentPlayerSnake.isPositionLocked);
             
             // Check if head is near boundaries
             if (head.x <= 1 || head.x >= gridSize - 2 || head.y <= 1 || head.y >= gridSize - 2) {
@@ -246,21 +253,21 @@ export const useSnakeGame = () => {
         }));
         setFoods(gameFoods);
         
-        // Segments removed - no longer used
-        
         // Handle game state
         if (gameSession.status === 'countdown') {
-          console.log('useSnakeGame: Setting countdown state:', {
+          console.log('useSnakeGame: Setting countdown state - positions should be locked:', {
             countdown: gameSession.countdown,
             expectedCountdown: COUNTDOWN_DURATION,
             snakesCount: gameSnakes.length,
-            snakesWithSegments: gameSnakes.filter(s => s.segments.length > 0).length
+            snakesWithSegments: gameSnakes.filter(s => s.segments.length > 0).length,
+            positionLockedSnakes: gameSnakes.filter(s => s.isPositionLocked).length
           });
           setShowCountdown(true);
           setCountdown(gameSession.countdown || COUNTDOWN_DURATION);
           setGameRunning(false);
           setGameOver(false);
         } else if (gameSession.status === 'playing') {
+          console.log('useSnakeGame: Game started - positions should be unlocked now');
           setShowCountdown(false);
           setGameRunning(true);
           setGameOver(false);
@@ -372,10 +379,17 @@ export const useSnakeGame = () => {
     gameView.enterSpectatorMode(gameSessionId, user.address);
   }, [gameView, gameSessionId, user?.address, gameRunning]);
 
-  // Keyboard controls
+  // Keyboard controls - allow during countdown but block when position is locked
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (!gameRunning || effectiveIsSpectator) return;
+      if ((!gameRunning && !showCountdown) || effectiveIsSpectator) return;
+      
+      // Check if current player's snake position is locked
+      const currentPlayerSnake = snakes.find(snake => snake.isPlayer);
+      if (currentPlayerSnake?.isPositionLocked) {
+        console.log('useSnakeGame: Key input blocked - snake position is locked during countdown');
+        return;
+      }
       
       switch (e.key.toLowerCase()) {
         case 'w':
@@ -403,7 +417,7 @@ export const useSnakeGame = () => {
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [gameRunning, changeDirection, effectiveIsSpectator]);
+  }, [gameRunning, showCountdown, changeDirection, effectiveIsSpectator, snakes]);
 
   // 只在debug模式下输出渲染日志
   // console.log('useSnakeGame render - multiplayer mode, snakes:', snakes.length, 'gameRunning:', gameRunning, 'countdown:', countdown, 'segments:', segments.length, 'isSpectator:', effectiveIsSpectator, 'speedMultiplier:', speedMultiplier, 'gridSize:', gridSize);
