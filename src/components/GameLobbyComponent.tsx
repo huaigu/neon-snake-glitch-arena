@@ -64,14 +64,14 @@ export const GameLobbyComponent: React.FC = () => {
     } : null
   });
 
-  // Convert room players to game players format for PlayerList component
-  const players = React.useMemo(() => {
+  // Convert room players to snake format for PlayerList component
+  const snakes = React.useMemo(() => {
     if (!activeRoom) {
-      console.log('GameLobbyComponent: No activeRoom, returning empty players array');
+      console.log('GameLobbyComponent: No activeRoom, returning empty snakes array');
       return [];
     }
     
-    console.log('GameLobbyComponent: Converting room players to game format:', {
+    console.log('GameLobbyComponent: Converting room players to snake format:', {
       roomId: activeRoom.id,
       roomStatus: activeRoom.status,
       roomPlayers: activeRoom.players.map(p => ({ 
@@ -89,7 +89,10 @@ export const GameLobbyComponent: React.FC = () => {
       color: PLAYER_COLORS[index % PLAYER_COLORS.length],
       isReady: roomPlayer.isReady,
       isBot: false,
-      hasNFT: roomPlayer.hasNFT || false
+      hasNFT: roomPlayer.hasNFT || false,
+      isAlive: true, // Default to alive for lobby
+      score: 0, // Default score for lobby
+      isSpectator: false
     }));
   }, [activeRoom?.players, activeRoom?.status, isSpectator]); // 添加 status 作为依赖项
 
@@ -395,7 +398,7 @@ export const GameLobbyComponent: React.FC = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <PlayerList players={players} currentPlayerId={user?.address || ''} />
+                  <PlayerList snakes={snakes} currentPlayerId={user?.address || ''} />
                 </CardContent>
               </Card>
             </div>
@@ -634,7 +637,7 @@ export const GameLobbyComponent: React.FC = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <PlayerList players={players} currentPlayerId={user?.address || ''} />
+                <PlayerList snakes={snakes} currentPlayerId={user?.address || ''} />
               </CardContent>
             </Card>
 
