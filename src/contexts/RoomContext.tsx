@@ -129,23 +129,46 @@ export const setupGameViewCallbacks = (gameViewInstance: GameView) => {
   const roomCreatedCallback = (data: { roomId: string; roomName: string; hostAddress: string; hostViewId: string }) => {
     console.log('📨 Global: Room created callback received:', data);
     
-    // 在运行时获取最新的用户地址
+    // 在运行时获取最新的用户地址 - 添加详细调试
+    console.log('📨 Global: Checking localStorage for user data...');
     const userDataStr = localStorage.getItem('web3auth_user_data');
+    console.log('📨 Global: localStorage web3auth_user_data:', userDataStr);
+    
+    // 也检查其他可能的键名
+    const allLocalStorageKeys = Object.keys(localStorage);
+    console.log('📨 Global: All localStorage keys:', allLocalStorageKeys);
+    
     let currentUserAddress = '';
     
     if (userDataStr) {
       try {
         const userData = JSON.parse(userDataStr);
         currentUserAddress = userData.address || userData.guestId || '';
+        console.log('📨 Global: Parsed user data:', {
+          address: userData.address,
+          guestId: userData.guestId,
+          finalAddress: currentUserAddress
+        });
       } catch (error) {
         console.warn('Failed to parse user data in room created callback:', error);
       }
+    } else {
+      console.warn('📨 Global: No user data found in localStorage');
     }
     
+    console.log('📨 Global: Address comparison:', {
+      currentUserAddress,
+      dataHostAddress: data.hostAddress,
+      matches: currentUserAddress === data.hostAddress
+    });
+    
     if (currentUserAddress && data.hostAddress === currentUserAddress) {
+      console.log('📨 Global: User addresses match, dispatching global-room-created event');
       window.dispatchEvent(new CustomEvent('global-room-created', {
         detail: data
       }));
+    } else {
+      console.log('📨 Global: User addresses do not match or no address available');
     }
   };
   
@@ -262,6 +285,33 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
       setConnectedPlayersCount(lobbyData.connectedPlayers);
     };
     
+    const handleGlobalRoomCreated = (event: CustomEvent) => {
+      console.log('📨 RoomContext: Received global-room-created event');
+      const data = event.detail;
+      
+      // 处理房间创建成功事件
+      const pendingCreation = window.pendingRoomCreation;
+      if (pendingCreation && pendingCreation.userAddress === stableUserAddress) {
+        console.log('📨 RoomContext: Found matching pending creation, resolving...');
+        clearTimeout(pendingCreation.timeout);
+        delete window.pendingRoomCreation;
+        
+        // 设置当前房间
+        if (gameView?.model?.lobby) {
+          const currentState = gameView.model.lobby.getLobbyState();
+          const room = currentState.rooms.find(r => r.id === data.roomId);
+          if (room) {
+            console.log('📨 RoomContext: Found created room data, setting currentRoom:', room);
+            setCurrentRoom({ ...room });
+          }
+        }
+        
+        pendingCreation.resolve(data.roomId);
+      } else {
+        console.log('📨 RoomContext: No matching pending creation found or user mismatch');
+      }
+    };
+    
     const handleGlobalRoomJoined = (event: CustomEvent) => {
       console.log('📨 RoomContext: Received global-room-joined event');
       const data = event.detail;
@@ -292,6 +342,7 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
 
     window.addEventListener('multisynq-gameview-ready', handleGameViewReady as EventListener);
     window.addEventListener('global-lobby-update', handleGlobalLobbyUpdate as EventListener);
+    window.addEventListener('global-room-created', handleGlobalRoomCreated as EventListener);
     window.addEventListener('global-room-joined', handleGlobalRoomJoined as EventListener);
 
     return () => {
@@ -310,6 +361,7 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
       // 移除事件监听器
       window.removeEventListener('multisynq-gameview-ready', handleGameViewReady as EventListener);
       window.removeEventListener('global-lobby-update', handleGlobalLobbyUpdate as EventListener);
+      window.removeEventListener('global-room-created', handleGlobalRoomCreated as EventListener);
       window.removeEventListener('global-room-joined', handleGlobalRoomJoined as EventListener);
     };
   }, [gameView, isConnected, stableUserAddress]); // 使用稳定的地址引用
