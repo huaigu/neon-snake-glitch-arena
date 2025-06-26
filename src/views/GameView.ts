@@ -180,12 +180,27 @@ export class GameView extends Multisynq.View {
 
   // Helper methods for backward compatibility
   getGameSessionByRoom(roomId: string) {
-    if (!this.model?.lobby) return null;
+    console.log('GameView: Getting game session by room:', roomId);
+    if (!this.model?.lobby) {
+      console.log('GameView: No lobby model available');
+      return null;
+    }
     
     const room = this.model.lobby.gameRooms.get(roomId);
-    if (!room) return null;
+    if (!room) {
+      console.log('GameView: No room found for ID:', roomId);
+      return null;
+    }
     
-    return room.getGameState();
+    const gameState = room.getGameState();
+    console.log('GameView: Retrieved game state:', {
+      roomId,
+      status: gameState?.status,
+      countdown: gameState?.countdown,
+      playersCount: gameState?.players?.length
+    });
+    
+    return gameState;
   }
 
   // Event handlers

@@ -44,6 +44,13 @@ export class SnakeModel extends Multisynq.Model {
   reset() {
     console.log('SnakeModel: Resetting snake:', this.viewId, 'to position:', this.initialPosition);
     
+    // 边界检查 - 确保初始位置有效
+    if (!this.initialPosition || this.initialPosition.x === undefined || this.initialPosition.y === undefined) {
+      console.error('SnakeModel: Invalid initial position for snake:', this.viewId, this.initialPosition);
+      // 使用默认位置
+      this.initialPosition = { x: 10, y: 10 };
+    }
+    
     // Reset to initial state - 创建3段身体，向下延伸（这样头部向上移动时不会立即碰撞）
     this.body = [
       { ...this.initialPosition },                                    // 头部
@@ -57,7 +64,7 @@ export class SnakeModel extends Multisynq.Model {
     this.score = 0;
     this.isSpectator = false;
     
-    console.log('SnakeModel: Snake reset with 3-segment body:', this.body);
+    console.log('SnakeModel: Snake reset with 3-segment body:', this.body, 'board size:', this.boardSize);
   }
 
   changeDirection(newDirection: Position) {

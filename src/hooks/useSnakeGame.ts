@@ -78,34 +78,72 @@ export const useSnakeGame = () => {
   // Updated game callback setup to work with new model structure
   useEffect(() => {
     if (!gameView || !isConnected) {
+      console.log('useSnakeGame: Not ready - gameView:', !!gameView, 'isConnected:', isConnected);
       return;
     }
 
-    console.log('useSnakeGame: Setting up game callback with new model architecture, fixed gridSize:', gridSize);
-    
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const gameCallback = (gameSession: any, foods: any[]) => {
-      console.log('=== useSnakeGame: Game callback triggered (NEW MODEL) ===');
-      console.log('gameSession:', gameSession);
-      console.log('gameSession status:', gameSession?.status);
-      console.log('gameSession players:', gameSession?.players);
-      console.log('current user address:', user?.address);
-      console.log('current room:', currentRoom?.id);
-      console.log('==========================================');
-      
-      if (gameSession) {
-        setGameSessionId(gameSession.id);
-        setSpeedMultiplier(gameSession.speedMultiplier || 1.0);
-        
-        // Use model-calculated countdown values - Multisynq best practice
-        setSpeedBoostCountdown(gameSession.speedBoostCountdown || 20);
-        setFoodCountdown(gameSession.foodCountdown || 10);
-        
+    console.log('useSnakeGame: Setting up game callback with new model architecture');
+
+    const gameCallback = (gameSession: {
+      id: string;
+      status: string;
+      players: Array<{
+        id: string;
+        segments?: Array<{ x: number; y: number }>;
+        body?: Array<{ x: number; y: number }>;
+        direction?: { x: number; y: number };
+        position?: { x: number; y: number };
+        color?: string;
+        isAlive?: boolean;
+        score?: number;
+        name?: string;
+        isSpectator?: boolean;
+        hasNFT?: boolean;
+      }>;
+      countdown?: number;
+      speedMultiplier?: number;
+      speedBoostCountdown?: number;
+      foodCountdown?: number;
+    }, foods: Array<{ x: number; y: number; type?: string; level?: number; value?: number }>) => {
+      console.log('=== useSnakeGame: Game callback triggered (LOCAL) ===', {
+        hasGameSession: !!gameSession,
+        gameSessionId: gameSession?.id,
+        gameSessionStatus: gameSession?.status,
+        playersCount: gameSession?.players?.length || 0,
+        currentUserId: user?.address?.slice(-6) || 'none',
+        gameSessionPlayers: gameSession?.players?.map((p) => ({
+          id: p.id.slice(-6),
+          name: p.name,
+          isAlive: p.isAlive
+        })) || []
+      });
+
+      if (!gameSession) return;
+
+      console.log('useSnakeGame: Raw snake data from gameSession:', {
+        gameStatus: gameSession.status,
+        countdown: gameSession.countdown,
+        playersCount: gameSession.players.length,
+        playersData: gameSession.players.map((p) => ({ 
+          id: p.id.slice(-6), 
+          name: p.name, 
+          hasNFT: p.hasNFT,
+          isCurrentPlayer: p.id === user?.address,
+          hasSegments: !!p.segments,
+          segmentsLength: p.segments?.length || 0,
+          hasBody: !!p.body,
+          bodyLength: p.body?.length || 0,
+          position: p.position
+        }))
+      });
+
+      setGameSessionId(gameSession.id);
+
+      if (gameSession.players && gameSession.players.length > 0) {
         // Map players to snakes format
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const rawGameSnakes = gameSession.players.map((player: any) => ({
+        const rawGameSnakes = gameSession.players.map((player) => ({
           id: player.id,
-          segments: player.segments || [player.position],
+          segments: player.segments || player.body || [player.position],
           direction: player.direction,
           color: player.color, // 临时颜色，将被重新分配
           isAlive: player.isAlive,
@@ -117,13 +155,16 @@ export const useSnakeGame = () => {
           hasNFT: player.hasNFT || false
         }));
 
-        console.log('useSnakeGame: Raw snake NFT data from gameSession:', {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          playersWithNFT: gameSession.players.map((p: any) => ({ 
-            id: p.id.slice(-6), 
-            name: p.name, 
-            hasNFT: p.hasNFT,
-            isCurrentPlayer: p.id === user?.address
+        console.log('useSnakeGame: Mapped snakes with segments/body data:', {
+          totalSnakes: rawGameSnakes.length,
+          snakesData: rawGameSnakes.map((s, index) => ({
+            index,
+            id: s.id.slice(-6),
+            name: s.name,
+            hasNFT: s.hasNFT,
+            isPlayer: s.isPlayer,
+            segments: s.segments?.length || 0,
+            isAlive: s.isAlive
           }))
         });
         
@@ -192,6 +233,11 @@ export const useSnakeGame = () => {
         
         // Handle game state
         if (gameSession.status === 'countdown') {
+          console.log('useSnakeGame: Setting countdown state:', {
+            countdown: gameSession.countdown,
+            snakesCount: gameSnakes.length,
+            snakesWithSegments: gameSnakes.filter(s => s.segments.length > 0).length
+          });
           setShowCountdown(true);
           setCountdown(gameSession.countdown || 3);
           setGameRunning(false);
@@ -233,7 +279,18 @@ export const useSnakeGame = () => {
         setSpeedBoostCountdown(20);
       }
     };
+
+    // 监听全局游戏更新事件（从setupGameViewCallbacks触发）
+    const handleGlobalGameUpdate = (event: CustomEvent) => {
+      console.log('=== useSnakeGame: Game callback triggered (GLOBAL) ===');
+      const { gameSession, foods } = event.detail;
+      gameCallback(gameSession, foods);
+    };
+
+    // 设置全局事件监听器
+    window.addEventListener('global-game-update', handleGlobalGameUpdate as EventListener);
     
+    // 保留原有的gameCallback设置作为fallback
     gameView.setGameCallback(gameCallback);
 
     // Try to get initial game state for current room
@@ -245,7 +302,8 @@ export const useSnakeGame = () => {
     }
 
     return () => {
-      console.log('useSnakeGame: Cleaning up game callback');
+      console.log('useSnakeGame: Cleaning up game callback and global event listener');
+      window.removeEventListener('global-game-update', handleGlobalGameUpdate as EventListener);
       gameView.setGameCallback(() => {});
     };
   }, [gameView, isConnected, currentRoom, user?.address, gridSize]);

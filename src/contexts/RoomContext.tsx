@@ -231,7 +231,43 @@ export const setupGameViewCallbacks = (gameViewInstance: GameView) => {
   gameViewInstance.setRoomJoinFailedCallback(roomJoinFailedCallback);
   gameViewInstance.setRoomCreationFailedCallback(roomCreationFailedCallback);
   
-  console.log('✅ Global: All GameView callbacks set successfully via global function');
+  // 设置游戏回调 - 通过全局事件分发给useSnakeGame
+  const gameCallback = (gameSession: {
+    status?: string;
+    id?: string;
+    players?: Array<{
+      id: string;
+      segments?: Array<{ x: number; y: number }>;
+      body?: Array<{ x: number; y: number }>;
+      direction?: { x: number; y: number };
+      position?: { x: number; y: number };
+      color?: string;
+      isAlive?: boolean;
+      score?: number;
+      name?: string;
+      isSpectator?: boolean;
+      hasNFT?: boolean;
+    }>;
+    countdown?: number;
+  }, foods: Array<{ x: number; y: number; type?: string }>) => {
+    console.log('🎮 Global: Game callback triggered from global setup:', {
+      hasGameSession: !!gameSession,
+      gameSessionStatus: gameSession?.status,
+      gameSessionId: gameSession?.id,
+      playersCount: gameSession?.players?.length || 0,
+      foodsCount: foods.length,
+      timestamp: new Date().toISOString()
+    });
+    
+    // 触发自定义事件，让useSnakeGame监听
+    window.dispatchEvent(new CustomEvent('global-game-update', {
+      detail: { gameSession, foods }
+    }));
+  };
+  
+  gameViewInstance.setGameCallback(gameCallback);
+  
+  console.log('✅ Global: All GameView callbacks set successfully via global function (including gameCallback)');
   
   // 延迟触发一次lobby状态更新，确保React组件的事件监听器已经设置好
   setTimeout(() => {

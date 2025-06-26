@@ -159,18 +159,19 @@ export class GameRoomModel extends Multisynq.Model {
     const colors = ['#ff0080', '#00ff80', '#8000ff', '#ff8000', '#0080ff', '#80ff00'];
     const colorIndex = this.snakes.size % colors.length;
     
-    // 创建蛇但不设置位置，位置在游戏开始时统一设置
+    // 创建蛇但设置一个有效的临时位置，避免边界问题
+    const tempPosition = { x: 10, y: 10 }; // 使用中间位置作为临时位置
     const snake = SnakeModel.create({
       viewId: player.viewId,
       name: player.name,
-      startPosition: { x: 0, y: 0 }, // 临时位置，游戏开始时重新设置
+      startPosition: tempPosition,
       color: colors[colorIndex],
       boardSize: this.CONFIG.BOARD.SIZE,
       hasNFT: player.hasNFT
     });
     
     this.snakes.set(player.viewId, snake);
-    console.log('GameRoomModel: Created snake for player:', player.viewId, 'color:', colors[colorIndex], 'NFT:', player.hasNFT);
+    console.log('GameRoomModel: Created snake for player:', player.viewId, 'color:', colors[colorIndex], 'NFT:', player.hasNFT, 'temp position:', tempPosition);
   }
 
   // 统一分配所有玩家的起始位置 - 符合Multisynq最佳实践
@@ -245,6 +246,16 @@ export class GameRoomModel extends Multisynq.Model {
     });
     
     console.log('GameRoomModel: All player positions assigned using seed:', randomSeed, 'board size:', this.CONFIG.BOARD.SIZE);
+    
+    // 验证所有蛇的位置设置
+    for (const snake of this.snakes.values()) {
+      console.log('GameRoomModel: Snake position verification:', {
+        viewId: snake.viewId,
+        name: snake.name,
+        initialPosition: snake.initialPosition,
+        currentBody: snake.body
+      });
+    }
   }
 
   checkStartGame() {
@@ -741,7 +752,8 @@ export class GameRoomModel extends Multisynq.Model {
   getGameState() {
     const snakesArray = Array.from(this.snakes.values()).map(snake => ({
       id: snake.viewId,
-      segments: snake.body,
+      segments: snake.body, // 身体位置数组
+      body: snake.body,     // 也保留body字段以兼容
       direction: snake.direction,
       color: snake.color,
       isAlive: snake.isAlive,
