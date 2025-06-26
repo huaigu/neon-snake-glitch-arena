@@ -151,13 +151,13 @@ export const GameArea: React.FC<GameAreaProps> = ({
         WebkitOverflowScrolling: 'auto'
       } : {}}
     >
-      {/* Outer container with enhanced boundary visualization - 最大化利用空间 */}
-      <div className={`relative flex items-center justify-center ${
+      {/* Outer container with enhanced boundary visualization - 使用 padding 代替 absolute */}
+      <div className={`flex items-center justify-center ${
         isMobile ? 'w-full max-w-full' : 'h-full max-h-full'
       }`}>
-        {/* Animated boundary frame - 唯一的游戏边框 */}
+        {/* Animated boundary frame wrapper - 用 padding 创建边框空间 */}
         <div 
-          className="absolute inset-0 rounded-lg p-2 m-2"
+          className="relative rounded-lg p-2"
           style={{
             background: `
               linear-gradient(45deg, transparent 30%, rgba(0, 255, 255, 0.1) 50%, transparent 70%),
@@ -171,14 +171,8 @@ export const GameArea: React.FC<GameAreaProps> = ({
             `,
             animation: 'neon-pulse 3s ease-in-out infinite'
           }}
-        />
+        >
         
-        {/* Corner markers */}
-        <div className="absolute -top-1 -left-1 w-4 h-4 md:w-6 md:h-6 border-l-2 border-t-2 md:border-l-4 md:border-t-4 border-cyber-cyan animate-pulse" />
-        <div className="absolute -top-1 -right-1 w-4 h-4 md:w-6 md:h-6 border-r-2 border-t-2 md:border-r-4 md:border-t-4 border-cyber-cyan animate-pulse" />
-        <div className="absolute -bottom-1 -left-1 w-4 h-4 md:w-6 md:h-6 border-l-2 border-b-2 md:border-l-4 md:border-b-4 border-cyber-cyan animate-pulse" />
-        <div className="absolute -bottom-1 -right-1 w-4 h-4 md:w-6 md:h-6 border-r-2 border-b-2 md:border-r-4 md:border-b-4 border-cyber-cyan animate-pulse" />
-
         {/* Game board */}
         <div 
           className="relative bg-cyber-darker overflow-hidden"
@@ -188,6 +182,23 @@ export const GameArea: React.FC<GameAreaProps> = ({
             filter: isSpectator ? 'brightness(1.1) saturate(1.2)' : 'none'
           }}
         >
+          {/* Corner markers - 在 game board 内部，相对于 game board 定位 */}
+          <div 
+            className="absolute w-4 h-4 md:w-6 md:h-6 border-l-2 border-t-2 md:border-l-4 md:border-t-4 border-cyber-cyan animate-pulse"
+            style={{ left: -8, top: -8 }}
+          />
+          <div 
+            className="absolute w-4 h-4 md:w-6 md:h-6 border-r-2 border-t-2 md:border-r-4 md:border-t-4 border-cyber-cyan animate-pulse"
+            style={{ right: -8, top: -8 }}
+          />
+          <div 
+            className="absolute w-4 h-4 md:w-6 md:h-6 border-l-2 border-b-2 md:border-l-4 md:border-b-4 border-cyber-cyan animate-pulse"
+            style={{ left: -8, bottom: -8 }}
+          />
+          <div 
+            className="absolute w-4 h-4 md:w-6 md:h-6 border-r-2 border-b-2 md:border-r-4 md:border-b-4 border-cyber-cyan animate-pulse"
+            style={{ right: -8, bottom: -8 }}
+          />
           {/* Grid background */}
           <div className="absolute inset-0">
             {/* Major grid lines every 5 cells */}
@@ -390,6 +401,7 @@ export const GameArea: React.FC<GameAreaProps> = ({
           {isSpectator && (
             <div className="absolute inset-0 pointer-events-none border-2 border-cyber-cyan/50 rounded animate-pulse" />
           )}
+        </div>
         </div>
       </div>
     </div>
