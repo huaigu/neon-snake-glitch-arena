@@ -174,36 +174,72 @@ export class GameRoomModel extends Multisynq.Model {
     console.log('GameRoomModel: Created snake for player:', player.viewId, 'color:', colors[colorIndex], 'NFT:', player.hasNFT, 'temp position:', tempPosition);
   }
 
-  // 统一分配所有玩家的起始位置 - 在倒计时开始时调用
-  assignAndSynchronizeStartPositions() {
+  checkStartGame() {
+    if (this.status !== 'waiting') return;
+    
+    const allReady = Array.from(this.players.values()).every(p => p.isReady);
+    const hasPlayers = this.players.size >= 1; // Allow single player for testing
+    
+    if (allReady && hasPlayers) {
+      console.log('GameRoomModel: All players ready, starting countdown');
+      this.startCountdown();
+    }
+  }
+
+  startCountdown() {
+    console.log('GameRoomModel: Starting countdown - calculating positions with this.random()');
+    
+    this.status = 'countdown';
+    this.countdown = this.CONFIG.TIMING.COUNTDOWN_DURATION;
+    
+    // 使用this.random()立即计算所有玩家位置
+    const calculatedPositions = this.calculateStartPositions();
+    
+    // 发布位置同步事件给所有蛇模型
+    this.publish("room", "sync-positions", {
+      roomId: this.roomId,
+      positions: calculatedPositions
+    });
+    
+    console.log('GameRoomModel: Positions calculated and sync event published:', calculatedPositions);
+    
+    // 立即推送状态确保前端能看到倒计时
+    this.publishRoomState();
+    
+    console.log('GameRoomModel: Countdown started, scheduling first tick');
+    this.countdownTick();
+  }
+
+  // 使用this.random()计算起始位置的新方法
+  calculateStartPositions() {
     const snakesArray = Array.from(this.snakes.values());
     const playerCount = snakesArray.length;
     
-    if (playerCount === 0) return;
+    if (playerCount === 0) return {};
     
-    console.log('GameRoomModel: Assigning start positions for', playerCount, 'players at countdown start');
+    console.log('GameRoomModel: Calculating start positions for', playerCount, 'players using this.random()');
     
-    // 使用单次random生成种子，然后确定性地分配位置
-    const randomSeed = this.random();
-    const positions: Array<{x: number, y: number}> = [];
+    // 使用this.random()生成确定性的位置分配
+    const positions: { [viewId: string]: { x: number, y: number } } = {};
+    const basePositions: Array<{x: number, y: number}> = [];
     
     if (playerCount === 1) {
       // 单人游戏：中心位置
-      positions.push({
+      basePositions.push({
         x: Math.floor(this.CONFIG.BOARD.SIZE / 2),
         y: Math.floor(this.CONFIG.BOARD.SIZE / 2)
       });
     } else if (playerCount === 2) {
       // 双人游戏：对角线位置
       const offset = Math.floor(this.CONFIG.BOARD.SIZE * 0.2);
-      positions.push(
+      basePositions.push(
         { x: offset, y: offset },
         { x: this.CONFIG.BOARD.SIZE - offset - 1, y: this.CONFIG.BOARD.SIZE - offset - 1 }
       );
     } else if (playerCount <= 4) {
       // 最多4人：四个角落
       const offset = Math.floor(this.CONFIG.BOARD.SIZE * 0.15);
-      positions.push(
+      basePositions.push(
         { x: offset, y: offset },
         { x: this.CONFIG.BOARD.SIZE - offset - 1, y: offset },
         { x: offset, y: this.CONFIG.BOARD.SIZE - offset - 1 },
@@ -219,69 +255,38 @@ export class GameRoomModel extends Multisynq.Model {
         const angle = (2 * Math.PI * i) / playerCount;
         const x = Math.floor(centerX + radius * Math.cos(angle));
         const y = Math.floor(centerY + radius * Math.sin(angle));
-        positions.push({ x, y });
+        basePositions.push({ x, y });
       }
     }
     
-    // 根据randomSeed打乱位置（确定性打乱）
-    const shuffledPositions = [...positions];
+    // 使用this.random()确定性地打乱位置
+    const shuffledPositions = [...basePositions];
     for (let i = shuffledPositions.length - 1; i > 0; i--) {
-      // 使用randomSeed生成确定性的索引
-      const j = Math.floor((randomSeed * (i + 1) * 1000) % (i + 1));
+      const j = Math.floor(this.random() * (i + 1));
       [shuffledPositions[i], shuffledPositions[j]] = [shuffledPositions[j], shuffledPositions[i]];
     }
     
-    // 分配位置给玩家并立即同步
+    // 分配位置给每个玩家
     snakesArray.forEach((snake, index) => {
       if (index < shuffledPositions.length) {
         const position = shuffledPositions[index];
         
-        // 边界检查和修正 - 确保有足够空间容纳3段身体
+        // 边界检查和修正
         const safeX = Math.max(2, Math.min(position.x, this.CONFIG.BOARD.SIZE - 3));
         const safeY = Math.max(2, Math.min(position.y, this.CONFIG.BOARD.SIZE - 5)); 
         const safePosition = { x: safeX, y: safeY };
         
-        // 立即设置新位置并重置蛇到该位置
-        snake.setInitialPosition(safePosition);
+        positions[snake.viewId] = safePosition;
         
-        console.log('GameRoomModel: Assigned and synchronized position for player:', {
+        console.log('GameRoomModel: Calculated position for player:', {
           viewId: snake.viewId,
           name: snake.name,
-          position: safePosition,
-          bodyAfterReset: snake.body
+          position: safePosition
         });
       }
     });
     
-    console.log('GameRoomModel: All player positions assigned and synchronized using seed:', randomSeed, 'at countdown start');
-  }
-
-  checkStartGame() {
-    if (this.status !== 'waiting') return;
-    
-    const allReady = Array.from(this.players.values()).every(p => p.isReady);
-    const hasPlayers = this.players.size >= 1; // Allow single player for testing
-    
-    if (allReady && hasPlayers) {
-      console.log('GameRoomModel: All players ready, starting countdown');
-      this.startCountdown();
-    }
-  }
-
-  startCountdown() {
-    console.log('GameRoomModel: Starting countdown - positions will be determined and synchronized now');
-    
-    this.status = 'countdown';
-    this.countdown = this.CONFIG.TIMING.COUNTDOWN_DURATION;
-    
-    // 在倒计时开始时立即分配并同步所有玩家位置
-    this.assignAndSynchronizeStartPositions();
-    
-    // 立即推送状态确保前端能看到倒计时和正确同步的蛇位置
-    this.publishRoomState();
-    
-    console.log('GameRoomModel: Countdown started with synchronized positions, scheduling first tick');
-    this.countdownTick();
+    return positions;
   }
 
   countdownTick() {
@@ -346,8 +351,8 @@ export class GameRoomModel extends Multisynq.Model {
     this.speedBoostCountdown = 20;  // 初始化速度提升倒计时
     this.foodCountdown = 10;        // 初始化食物生成倒计时
     
-    // 注意：位置已在startCountdown()中确定并同步，这里不需要重新分配
-    console.log('GameRoomModel: Game started, snakes will begin moving from their countdown-synchronized positions');
+    // 注意：位置已在startCountdown()中计算并通过事件同步，这里不需要重新分配
+    console.log('GameRoomModel: Game started, snakes will begin moving from their synchronized positions');
     
     // Spawn initial foods
     this.spawnFood();

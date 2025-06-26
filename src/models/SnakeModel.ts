@@ -38,7 +38,27 @@ export class SnakeModel extends Multisynq.Model {
     this.isSpectator = false;
     this.hasNFT = payload.hasNFT || false;
     
+    // 订阅位置同步事件
+    this.subscribe("room", "sync-positions", this.handlePositionSync);
+    
     this.reset();
+  }
+
+  // 处理位置同步事件
+  handlePositionSync(payload: { roomId: string; positions: { [viewId: string]: Position } }) {
+    console.log('SnakeModel: Received position sync event:', payload);
+    
+    const myPosition = payload.positions[this.viewId];
+    if (myPosition) {
+      console.log('SnakeModel: Syncing to new position:', {
+        viewId: this.viewId,
+        oldPosition: this.initialPosition,
+        newPosition: myPosition
+      });
+      
+      // 更新初始位置并重置到新位置
+      this.setInitialPosition(myPosition);
+    }
   }
 
   reset() {
