@@ -21,7 +21,6 @@ export const GameLobbyComponent: React.FC = () => {
     spectatorRoom,
     setPlayerReady, 
     forceStartGame,
-    loading, 
     error, 
     isConnected,
     isSpectator 

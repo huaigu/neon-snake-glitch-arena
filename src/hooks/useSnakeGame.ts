@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useGameContext } from '../contexts/GameContext';
 import { useRoomContext } from '../contexts/RoomContext';
@@ -33,6 +34,19 @@ export interface Food {
   level: 1 | 2 | 3;  // 食物等级
   value: number;
 }
+
+// Helper function to convert direction objects to string literals
+const convertDirectionToString = (direction: { x: number; y: number } | undefined): 'up' | 'down' | 'left' | 'right' => {
+  if (!direction) return 'up';
+  
+  if (direction.x === 0 && direction.y === -1) return 'up';
+  if (direction.x === 0 && direction.y === 1) return 'down';
+  if (direction.x === -1 && direction.y === 0) return 'left';
+  if (direction.x === 1 && direction.y === 0) return 'right';
+  
+  // Default fallback
+  return 'up';
+};
 
 export const useSnakeGame = () => {
   const { gameView, isConnected } = useMultisynq();
@@ -147,7 +161,7 @@ export const useSnakeGame = () => {
         const rawGameSnakes = gameSession.players.map((player) => ({
           id: player.id,
           segments: player.segments || player.body || [player.position],
-          direction: player.direction,
+          direction: convertDirectionToString(player.direction), // Convert to string literal
           color: player.color, // 临时颜色，将被重新分配
           isAlive: player.isAlive,
           score: player.score,
@@ -223,12 +237,12 @@ export const useSnakeGame = () => {
           setIsSpectator(false);
         }
         
-        // Map foods to expected format
-        const gameFoods = foods.map(food => ({
+        // Map foods to expected format with proper type casting
+        const gameFoods: Food[] = foods.map(food => ({
           position: { x: food.x, y: food.y },
-          type: food.type,
-          level: food.level || 1,  // 默认为1级食物
-          value: food.value
+          type: (food.type === 'normal' || food.type === 'bonus') ? food.type : 'normal', // Type guard
+          level: (food.level === 1 || food.level === 2 || food.level === 3) ? food.level : 1, // Type guard
+          value: food.value || 1
         }));
         setFoods(gameFoods);
         

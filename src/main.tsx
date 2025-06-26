@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Web3Provider } from "./contexts/Web3AuthContext";
+import { Web3AuthProvider } from "./contexts/Web3AuthContext";
 import App from "./App.tsx";
 import "./index.css";
 
@@ -16,7 +16,7 @@ const queryClient = new QueryClient();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <Web3Provider>
+    <Web3AuthProvider>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <TooltipProvider>
@@ -25,6 +25,6 @@ createRoot(document.getElementById("root")!).render(
           </TooltipProvider>
         </BrowserRouter>
       </QueryClientProvider>
-    </Web3Provider>
+    </Web3AuthProvider>
   </StrictMode>,
 );
