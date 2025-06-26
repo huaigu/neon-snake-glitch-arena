@@ -1,4 +1,3 @@
-
 import * as Multisynq from '@multisynq/client';
 
 interface Position {
@@ -64,7 +63,15 @@ export class SnakeModel extends Multisynq.Model {
     this.score = 0;
     this.isSpectator = false;
     
-    console.log('SnakeModel: Snake reset with 3-segment body:', this.body, 'board size:', this.boardSize);
+    console.log('SnakeModel: Snake reset complete:', {
+      viewId: this.viewId,
+      name: this.name,
+      bodyLength: this.body.length,
+      headPosition: this.body[0],
+      direction: this.direction,
+      boardSize: this.boardSize,
+      isAlive: this.isAlive
+    });
   }
 
   changeDirection(newDirection: Position) {

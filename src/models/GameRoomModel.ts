@@ -271,6 +271,12 @@ export class GameRoomModel extends Multisynq.Model {
   }
 
   startCountdown() {
+    console.log('GameRoomModel: Starting countdown with config:', {
+      duration: this.CONFIG.TIMING.COUNTDOWN_DURATION,
+      playersCount: this.players.size,
+      snakesCount: this.snakes.size
+    });
+    
     this.status = 'countdown';
     this.countdown = this.CONFIG.TIMING.COUNTDOWN_DURATION;
     
@@ -280,22 +286,39 @@ export class GameRoomModel extends Multisynq.Model {
     // Reset all snakes to their assigned positions
     for (const snake of this.snakes.values()) {
       snake.reset();
+      console.log('GameRoomModel: Snake reset during countdown:', {
+        viewId: snake.viewId,
+        name: snake.name,
+        bodyLength: snake.body.length,
+        headPosition: snake.body[0],
+        direction: snake.direction
+      });
     }
     
+    // 立即推送状态确保前端能看到倒计时和正确的蛇位置
     this.publishRoomState();
     
+    console.log('GameRoomModel: Countdown started, scheduling first tick');
     this.countdownTick();
   }
 
   countdownTick() {
-    if (this.status !== 'countdown') return;
+    if (this.status !== 'countdown') {
+      console.log('GameRoomModel: countdownTick called but status is not countdown:', this.status);
+      return;
+    }
     
+    console.log('GameRoomModel: Countdown tick - current value:', this.countdown);
     this.countdown--;
+    
+    // 立即推送状态，确保前端能及时看到倒计时更新
     this.publishRoomState();
     
     if (this.countdown <= 0) {
+      console.log('GameRoomModel: Countdown finished, starting game');
       this.startGame();
     } else {
+      console.log('GameRoomModel: Scheduling next countdown tick in 1000ms, remaining:', this.countdown);
       this.future(1000).countdownTick();
     }
   }
@@ -594,8 +617,6 @@ export class GameRoomModel extends Multisynq.Model {
     // 安排下一次速度提升
     this.future(20000).speedBoost();
   }
-
-
 
   spawnFood() {
     // 如果游戏没在运行，不生成食物

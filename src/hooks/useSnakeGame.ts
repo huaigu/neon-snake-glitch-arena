@@ -7,6 +7,7 @@ import { useResponsiveGrid } from './useResponsiveGrid';
 import { useMobileControls } from './useMobileControls';
 import { useIsMobile } from './use-mobile';
 import { assignPlayerColors } from '../utils/gameConfig';
+import { COUNTDOWN_DURATION } from '../utils/gameConstants';
 
 export interface Position {
   x: number;
@@ -236,11 +237,12 @@ export const useSnakeGame = () => {
         if (gameSession.status === 'countdown') {
           console.log('useSnakeGame: Setting countdown state:', {
             countdown: gameSession.countdown,
+            expectedCountdown: COUNTDOWN_DURATION,
             snakesCount: gameSnakes.length,
             snakesWithSegments: gameSnakes.filter(s => s.segments.length > 0).length
           });
           setShowCountdown(true);
-          setCountdown(gameSession.countdown || 3);
+          setCountdown(gameSession.countdown || COUNTDOWN_DURATION);
           setGameRunning(false);
           setGameOver(false);
         } else if (gameSession.status === 'playing') {
