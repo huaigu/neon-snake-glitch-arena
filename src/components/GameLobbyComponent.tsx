@@ -11,6 +11,7 @@ import { Users, Crown, Share2, Copy, Check, Trophy, Play, Clock } from 'lucide-r
 import { useToast } from './ui/use-toast';
 import { PLAYER_COLORS } from '../utils/gameConfig';
 import { MIN_FORCE_START, MIN_PLAYERS, TOAST_DURATION, FORCE_START_DELAY } from '../utils/gameConstants';
+import type { Snake } from '../hooks/useSnakeGame';
 
 export const GameLobbyComponent: React.FC = () => {
   // console.log('=== GameLobbyComponent RENDER START ===');
@@ -92,9 +93,13 @@ export const GameLobbyComponent: React.FC = () => {
       hasNFT: roomPlayer.hasNFT || false,
       isAlive: true, // Default to alive for lobby
       score: 0, // Default score for lobby
-      isSpectator: false
+      isSpectator: false,
+      // Required Snake interface properties for PlayerList compatibility
+      segments: [{ x: 10, y: 10 }], // Default single segment for lobby display
+      direction: 'up' as const,
+      isPlayer: roomPlayer.address === user?.address
     }));
-  }, [activeRoom?.players, activeRoom?.status, isSpectator]); // 添加 status 作为依赖项
+  }, [activeRoom?.players, activeRoom?.status, isSpectator, user?.address]); // 添加 user?.address 作为依赖项
 
   // Find current player from room players 
   const currentPlayer = React.useMemo(() => {
