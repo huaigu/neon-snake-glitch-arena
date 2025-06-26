@@ -16,10 +16,10 @@ export const GAME_CONFIG = {
   // 游戏时间配置
   TIMING: {
     GAME_TICK_RATE: 800,    // 游戏tick速率 (毫秒)
-    COUNTDOWN_DURATION: 3,   // 游戏开始倒计时 (秒)
+    COUNTDOWN_DURATION: 5,   // 游戏开始倒计时 (秒)
     FORCE_START_DELAY: 3,    // 强制开始的延迟时间 (秒)
     ROOM_JOIN_TIMEOUT: 5,    // 房间加入超时时间 (秒)
-    GAME_END_RESULT_DURATION: 5,  // 游戏结束后显示结果的时间 (秒)
+    GAME_END_RESULT_DURATION: 10,  // 游戏结束后显示结果的时间 (秒)
   },
   
   // UI 相关配置

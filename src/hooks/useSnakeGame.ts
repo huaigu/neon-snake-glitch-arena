@@ -33,11 +33,9 @@ export interface Food {
   value: number;
 }
 
-
-
 export const useSnakeGame = () => {
   const { gameView, isConnected } = useMultisynq();
-  const { currentRoom, isSpectator: isExternalSpectator } = useRoomContext();
+  const { currentRoom, spectatorRoom, isSpectator: isExternalSpectator } = useRoomContext();
   const { user } = useWeb3Auth();
   const { gridSize, cellSize } = useResponsiveGrid();
   const isMobile = useIsMobile();
@@ -57,6 +55,9 @@ export const useSnakeGame = () => {
 
   // 合并内部观察者状态（死亡玩家）和外部观察者状态（链接加入的观察者）
   const effectiveIsSpectator = isSpectator || isExternalSpectator;
+  
+  // 获取当前活动房间：观察者模式使用spectatorRoom，否则使用currentRoom
+  const activeRoom = isExternalSpectator ? spectatorRoom : currentRoom;
 
   // Define changeDirection first
   const changeDirection = useCallback((direction: 'up' | 'down' | 'left' | 'right') => {
@@ -293,11 +294,19 @@ export const useSnakeGame = () => {
     // 保留原有的gameCallback设置作为fallback
     gameView.setGameCallback(gameCallback);
 
-    // Try to get initial game state for current room
-    if (currentRoom && gameView.model) {
-      const gameSession = gameView.getGameSessionByRoom(currentRoom.id);
+    // Try to get initial game state for current room or spectator room
+    if (activeRoom && gameView.model) {
+      console.log('useSnakeGame: Trying to get initial game state for room:', {
+        roomId: activeRoom.id,
+        isExternalSpectator,
+        roomSource: isExternalSpectator ? 'spectatorRoom' : 'currentRoom'
+      });
+      const gameSession = gameView.getGameSessionByRoom(activeRoom.id);
       if (gameSession) {
+        console.log('useSnakeGame: Found initial game session, triggering callback');
         gameCallback(gameSession, []);
+      } else {
+        console.log('useSnakeGame: No initial game session found for room:', activeRoom.id);
       }
     }
 
@@ -306,7 +315,7 @@ export const useSnakeGame = () => {
       window.removeEventListener('global-game-update', handleGlobalGameUpdate as EventListener);
       gameView.setGameCallback(() => {});
     };
-  }, [gameView, isConnected, currentRoom, user?.address, gridSize]);
+  }, [gameView, isConnected, activeRoom, user?.address, gridSize, isExternalSpectator]);
 
   const enterSpectatorMode = useCallback(() => {
     if (!gameView || !gameSessionId || !user?.address || !gameRunning) {

@@ -291,7 +291,8 @@ export const GameLobbyComponent: React.FC = () => {
         console.log('GameLobbyComponent: Game starting/started, user is a player, navigating to game page');
         navigate('/game');
       } else if (isSpectator) {
-        console.log('GameLobbyComponent: Game starting/started, user is spectator, staying on lobby');
+        console.log('GameLobbyComponent: Game starting/started, user is spectator, navigating to game page for spectator view');
+        navigate('/game');
       } else {
         console.log('GameLobbyComponent: Game starting/started, but user is not a player, staying on lobby');
       }
