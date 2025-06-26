@@ -323,7 +323,7 @@ export const SnakeGame: React.FC = () => {
 
       {/* Countdown Overlay - Only shown once */}
       {showCountdown && (
-        <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-50">
+        <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="text-center p-4">
             <h2 className="text-2xl md:text-3xl font-bold text-cyber-cyan neon-text mb-3">
               Game Starting
