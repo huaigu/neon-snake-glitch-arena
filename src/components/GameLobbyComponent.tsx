@@ -452,7 +452,7 @@ export const GameLobbyComponent: React.FC = () => {
                       </Button>
 
                       {/* 房主强制开始按钮 */}
-                      {isHost && activeRoom.status === 'waiting' && (
+                      {isHost && (
                         <div className="border-t border-cyber-cyan/20 pt-3">
                           <div className="text-xs text-cyber-cyan/70 mb-2 flex items-center gap-2">
                             <Crown className="w-3 h-3" />
@@ -473,7 +473,7 @@ export const GameLobbyComponent: React.FC = () => {
                               onClick={handleForceStart}
                               variant="outline"
                               className="w-full border-yellow-400 text-yellow-400 hover:bg-yellow-400/10"
-                              disabled={totalPlayers < MIN_PLAYERS}
+                              disabled={totalPlayers < MIN_PLAYERS || activeRoom.status !== 'waiting'}
                               title={totalPlayers < MIN_PLAYERS ? `At least ${MIN_PLAYERS} players are required` : ''}
                             >
                               <Play className="w-4 h-4 mr-2" />
