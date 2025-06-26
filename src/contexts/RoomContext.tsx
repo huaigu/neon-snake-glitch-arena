@@ -24,6 +24,12 @@ declare global {
     pendingRoomCreation?: PendingRoomCreation;
     spectatorUpdateInterval?: NodeJS.Timeout;
     currentJoinAttempt?: JoinAttempt;
+    pendingLeaveRoomCheck?: {
+      check: () => boolean;
+      timeout: NodeJS.Timeout;
+      userAddress: string;
+      roomId: string;
+    };
   }
 }
 
@@ -292,6 +298,17 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
       const lobbyData = event.detail;
       setRooms(lobbyData.rooms);
       setConnectedPlayersCount(lobbyData.connectedPlayers);
+      
+      // 检查是否有待处理的退出房间确认
+      const pendingLeave = window.pendingLeaveRoomCheck;
+      if (pendingLeave && pendingLeave.userAddress === stableUserAddress) {
+        console.log('🚪 RoomContext: Checking pending leave room confirmation...');
+        const leaveConfirmed = pendingLeave.check();
+        if (leaveConfirmed) {
+          console.log('🚪 RoomContext: Leave room confirmed, cleaning up pending check');
+          delete window.pendingLeaveRoomCheck;
+        }
+      }
     };
     
     const handleGlobalRoomCreated = (event: CustomEvent) => {
@@ -365,6 +382,13 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
       if (joinAttempt) {
         clearTimeout(joinAttempt.timeoutId);
         delete window.currentJoinAttempt;
+      }
+      
+      // 清理未完成的退出房间检查
+      const pendingLeave = window.pendingLeaveRoomCheck;
+      if (pendingLeave) {
+        clearTimeout(pendingLeave.timeout);
+        delete window.pendingLeaveRoomCheck;
       }
 
       // 移除事件监听器
@@ -621,18 +645,57 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
       return;
     }
 
+    const leavingRoomId = currentRoom.id;
+    const wasHost = currentRoom.hostAddress === stableUserAddress;
+
     console.log('🚪 RoomContext: Leaving room via GameView:', {
-      roomId: currentRoom.id,
+      roomId: leavingRoomId,
       roomName: currentRoom.name,
       userAddress: stableUserAddress,
-      wasHost: currentRoom.hostAddress === stableUserAddress
+      wasHost: wasHost
     });
     
-    gameView.leaveRoom(currentRoom.id, stableUserAddress);
+    gameView.leaveRoom(leavingRoomId, stableUserAddress);
     
-    // 立即清空前端状态
-    setCurrentRoom(null);
-    console.log('🚪 RoomContext: Front-end currentRoom cleared immediately');
+    // 不要立即清空状态，等待lobby状态更新确认退出成功
+    console.log('🚪 RoomContext: Sent leave room request, waiting for lobby state update...');
+    
+    // 设置超时保护，防止卡在退出状态
+    const leaveTimeout = setTimeout(() => {
+      console.warn('🚪 RoomContext: Leave room timeout after 3 seconds, forcing clear currentRoom');
+      setCurrentRoom(null);
+    }, 3000);
+    
+    // 监听下一次lobby更新来确认退出成功
+    const checkLeaveSuccess = () => {
+      if (gameView?.model?.lobby) {
+        const currentState = gameView.model.lobby.getLobbyState();
+        
+        // 检查用户是否还在任何房间中
+        const userInAnyRoom = currentState.rooms.some(room => 
+          room.players.some(player => player.address === stableUserAddress)
+        );
+        
+        if (!userInAnyRoom) {
+          console.log('✅ 🚪 RoomContext: Leave room confirmed by lobby state - user not in any room');
+          clearTimeout(leaveTimeout);
+          setCurrentRoom(null);
+          return true;
+        } else {
+          console.log('⏳ 🚪 RoomContext: Still waiting for leave confirmation - user still in rooms');
+          return false;
+        }
+      }
+      return false;
+    };
+    
+    // 存储检查函数，供lobby更新时调用
+    window.pendingLeaveRoomCheck = {
+      check: checkLeaveSuccess,
+      timeout: leaveTimeout,
+      userAddress: stableUserAddress,
+      roomId: leavingRoomId
+    };
   };
 
   const setPlayerReady = (roomId: string, playerAddress: string, isReady: boolean): void => {
