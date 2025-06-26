@@ -137,9 +137,9 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ onRequestData }) => {
               <User className="w-4 h-4" />
               {leaderboardData.totalPlayers} Players
             </span>
-            <span>
+            {/* <span>
               Last updated: {formatDate(leaderboardData.lastUpdated)}
-            </span>
+            </span> */}
           </div>
         )}
       </CardHeader>

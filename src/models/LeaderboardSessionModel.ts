@@ -47,7 +47,7 @@ export class LeaderboardSessionModel extends Multisynq.Model {
     console.log('LeaderboardSessionModel: Initialization complete with persistence support');
   }
 
-  // 保存排行榜数据到会话
+  // 保存排行榜数据到会话 (通过根模型)
   save() {
     if (this.loadingPersistentData) { 
       console.log('LeaderboardSessionModel: Skip saving - currently loading persistent data');
@@ -69,17 +69,17 @@ export class LeaderboardSessionModel extends Multisynq.Model {
         version: '1.0'
       };
       
-      console.log('LeaderboardSessionModel: Saving leaderboard data', {
+      console.log('LeaderboardSessionModel: Requesting save through root model', {
         playerCount: dataToSave.playerScores.length,
         timestamp: dataToSave.lastSaved
       });
       
-      // 使用persistSession保存数据
-      this.persistSession(() => dataToSave);
+      // 通知根模型进行持久化
+      this.publish("root", "persist-leaderboard", dataToSave);
       
-      console.log('LeaderboardSessionModel: Successfully saved leaderboard data to session');
+      console.log('LeaderboardSessionModel: Save request sent to root model');
     } catch (error) {
-      console.error('LeaderboardSessionModel: Failed to save leaderboard data', error);
+      console.error('LeaderboardSessionModel: Failed to request save', error);
     }
   }
 
