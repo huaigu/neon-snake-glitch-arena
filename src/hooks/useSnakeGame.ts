@@ -221,6 +221,11 @@ export const useSnakeGame = () => {
         }));
         setFoods(gameFoods);
         
+        // Update speed multiplier from game session
+        if (gameSession.speedMultiplier !== undefined) {
+          setSpeedMultiplier(gameSession.speedMultiplier);
+        }
+
         // Handle game state
         if (gameSession.status === 'countdown') {
           console.log('useSnakeGame: Countdown state - positions are synchronized and fixed:', {
@@ -333,6 +338,26 @@ export const useSnakeGame = () => {
     console.log('useSnakeGame: Entering spectator mode');
     gameView.enterSpectatorMode(gameSessionId, user.address);
   }, [gameView, gameSessionId, user?.address, gameRunning]);
+
+  // Listen to local countdown updates from GameView using future()
+  useEffect(() => {
+    const handleLocalCountdownUpdate = (event: CustomEvent) => {
+      const { speedBoostCountdown: newSpeedBoostCountdown, foodCountdown: newFoodCountdown } = event.detail;
+      console.log('useSnakeGame: Local countdown update received:', {
+        speedBoostCountdown: newSpeedBoostCountdown,
+        foodCountdown: newFoodCountdown
+      });
+      
+      setSpeedBoostCountdown(newSpeedBoostCountdown);
+      setFoodCountdown(newFoodCountdown);
+    };
+
+    window.addEventListener('local-countdown-update', handleLocalCountdownUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('local-countdown-update', handleLocalCountdownUpdate as EventListener);
+    };
+  }, []);
 
   // Keyboard controls - work during countdown and game with synchronized positions
   useEffect(() => {

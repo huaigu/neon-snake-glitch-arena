@@ -11,6 +11,12 @@ export class GameView extends Multisynq.View {
   private roomJoinFailedCallback: ((data: any) => void) | null = null;
   private roomCreationFailedCallback: ((data: any) => void) | null = null;
   private leaderboardCallback: ((data: any) => void) | null = null;
+  
+  // Local countdown timers - computed using future() for real-time UI updates
+  private gameStartTime: number = 0;
+  private speedBoostCountdown: number = 20;
+  private foodCountdown: number = 10;
+  private isCountdownActive: boolean = false;
 
   constructor(model: GameModel) {
     super(model);
@@ -178,6 +184,62 @@ export class GameView extends Multisynq.View {
     });
   }
 
+  // Local countdown management using future() method
+  startLocalCountdowns() {
+    console.log('GameView: Starting local countdowns using future()');
+    this.gameStartTime = Date.now();
+    this.speedBoostCountdown = 20;
+    this.foodCountdown = 10;
+    this.isCountdownActive = true;
+    
+    // Start the countdown tick loop
+    this.countdownTick();
+  }
+
+  stopLocalCountdowns() {
+    console.log('GameView: Stopping local countdowns');
+    this.isCountdownActive = false;
+  }
+
+  countdownTick() {
+    if (!this.isCountdownActive) {
+      return;
+    }
+
+    // Calculate elapsed time in seconds
+    const elapsed = Math.floor((Date.now() - this.gameStartTime) / 1000);
+    
+    // Update countdowns with cycling behavior
+    this.speedBoostCountdown = Math.max(0, 20 - (elapsed % 20));
+    this.foodCountdown = Math.max(0, 10 - (elapsed % 10));
+    
+    console.log('GameView: Local countdown tick:', {
+      elapsed,
+      speedBoostCountdown: this.speedBoostCountdown,
+      foodCountdown: this.foodCountdown
+    });
+
+    // Trigger a global update event for UI components to listen to
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('local-countdown-update', {
+        detail: {
+          speedBoostCountdown: this.speedBoostCountdown,
+          foodCountdown: this.foodCountdown
+        }
+      }));
+    }
+
+    // Schedule next tick using future() - 1 second intervals
+    this.future(1000).countdownTick();
+  }
+
+  getLocalCountdowns() {
+    return {
+      speedBoostCountdown: this.speedBoostCountdown,
+      foodCountdown: this.foodCountdown
+    };
+  }
+
   // Helper methods for backward compatibility
   getGameSessionByRoom(roomId: string) {
     console.log('GameView: Getting game session by room:', roomId);
@@ -213,6 +275,17 @@ export class GameView extends Multisynq.View {
 
   private handleRoomUpdate = (data: any) => {
     console.log('GameView: Room updated:', data);
+    
+    // Start local countdowns when game starts playing
+    if (data.game?.status === 'playing' && !this.isCountdownActive) {
+      this.startLocalCountdowns();
+    }
+    
+    // Stop local countdowns when game is not playing
+    if (data.game?.status !== 'playing' && this.isCountdownActive) {
+      this.stopLocalCountdowns();
+    }
+    
     if (this.gameCallback && data.game) {
       this.gameCallback(data.game, data.foods || []);
     }

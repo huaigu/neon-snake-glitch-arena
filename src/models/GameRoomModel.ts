@@ -621,8 +621,11 @@ export class GameRoomModel extends Multisynq.Model {
   spawnFood() {
     // 如果游戏没在运行，不生成食物
     if (!this.isRunning || this.status !== 'playing') {
+      console.log('GameRoomModel: spawnFood() called but game not running. Status:', this.status, 'Running:', this.isRunning);
       return;
     }
+    
+    console.log('GameRoomModel: spawnFood() called - attempting to spawn food. Current foods count:', this.foods.length);
     
     // Limit food on board
     if (this.foods.length >= 8) {
@@ -687,11 +690,15 @@ export class GameRoomModel extends Multisynq.Model {
         };
         
         this.foods.push(food);
-        console.log('GameRoomModel: Spawned level', level, 'food at:', x, y, 'worth', value, 'points');
+        console.log('GameRoomModel: ✅ SUCCESS! Spawned level', level, 'food at:', x, y, 'worth', value, 'points. Total foods now:', this.foods.length);
         break;
       }
       
       attempts++;
+    }
+    
+    if (attempts >= maxAttempts) {
+      console.log('GameRoomModel: ❌ FAILED to spawn food after', maxAttempts, 'attempts. Board might be too crowded.');
     }
     
     // 安排下一次食物生成

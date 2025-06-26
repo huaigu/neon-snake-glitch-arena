@@ -9,13 +9,13 @@ export const GAME_CONFIG = {
   
   // 游戏棋盘配置
   BOARD: {
-    SIZE: 200,                // 游戏棋盘大小 (60x60)
+    SIZE: 160,                // 游戏棋盘大小 (60x60)
     GRID_SIZE: 20,           // 每个格子的像素大小
   },
   
   // 游戏时间配置
   TIMING: {
-    GAME_TICK_RATE: 100,    // 游戏tick速率 (毫秒)
+    GAME_TICK_RATE: 140,    // 游戏tick速率 (毫秒)
     COUNTDOWN_DURATION: 5,   // 游戏开始倒计时 (秒)
     FORCE_START_DELAY: 3,    // 强制开始的延迟时间 (秒)
     ROOM_JOIN_TIMEOUT: 5,    // 房间加入超时时间 (秒)

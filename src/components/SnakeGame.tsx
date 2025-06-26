@@ -331,12 +331,12 @@ export const SnakeGame: React.FC = () => {
             <div className="text-4xl md:text-6xl font-bold text-cyber-green neon-text animate-pulse mb-3">
               {countdown}
             </div>
-            <p className="text-cyber-cyan/70 mb-4 text-sm">
+            {/* <p className="text-cyber-cyan/70 mb-4 text-sm">
               All players ready!
-            </p>
+            </p> */}
             
             {/* Player snakes preview - 紧凑版 */}
-            {snakes.length > 0 && (
+            { snakes.length == -1 && (
               <div className="bg-cyber-darker/90 p-2 rounded border border-cyber-cyan/30">
                 <p className="text-cyber-cyan mb-1 text-xs">Players:</p>
                 <div className="flex flex-wrap justify-center gap-1">

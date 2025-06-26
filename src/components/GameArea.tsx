@@ -96,6 +96,11 @@ export const GameArea: React.FC<GameAreaProps> = ({
   };
 
   const getVisibleSnakes = (): Snake[] => {
+    // In localhost, disable fog of war for debugging
+    if (window.location.hostname.includes('localhost')) {
+      return snakes;
+    }
+    
     if (isSpectator || !currentPlayerSnake || !currentPlayerSnake.isAlive) {
       return snakes;
     }
@@ -122,6 +127,17 @@ export const GameArea: React.FC<GameAreaProps> = ({
   // Food is always visible
   const visibleFoods = foods;
   const visibleSnakes = getVisibleSnakes();
+
+  // Debug logging for localhost
+  if (window.location.hostname.includes('localhost')) {
+    console.log('GameArea: Rendering debug info:', {
+      foodsCount: foods.length,
+      foods: foods,
+      visibleFoodsCount: visibleFoods.length,
+      gridSize,
+      cellSize
+    });
+  }
 
     return (
     <div 
@@ -222,8 +238,8 @@ export const GameArea: React.FC<GameAreaProps> = ({
             }}
           />
 
-          {/* Fog of War Effect */}
-          {!isSpectator && currentPlayerSnake && currentPlayerSnake.isAlive && (
+          {/* Fog of War Effect - disabled in localhost for debugging */}
+          {!isSpectator && currentPlayerSnake && currentPlayerSnake.isAlive && !window.location.hostname.includes('localhost') && (
             <div className="absolute inset-0 pointer-events-none">
               <div 
                 className="absolute bg-black/60"
@@ -240,58 +256,53 @@ export const GameArea: React.FC<GameAreaProps> = ({
 
           {/* Food - always visible */}
           {visibleFoods.map((food, index) => {
-            // 根据食物等级确定颜色和效果
-            let foodClass = '';
-            let foodColor = '';
-            let glow = '';
+            // 根据食物等级确定颜色和效果，与Power-up Segments图例保持一致
+            let backgroundColor = '';
+            let animationClass = '';
+            let shadowEffect = '';
             
             switch (food.level) {
               case 1:
-                foodClass = 'bg-green-400';
-                foodColor = '#4ade80';
-                glow = '0 0 4px #4ade80';
+                backgroundColor = '#00ffff'; // 青色
+                animationClass = 'animate-pulse';
+                shadowEffect = '0 0 8px #00ffff, 0 0 16px #00ffff';
                 break;
               case 2:
-                foodClass = 'bg-blue-400 animate-pulse';
-                foodColor = '#60a5fa';
-                glow = '0 0 6px #60a5fa';
+                backgroundColor = '#ffff00'; // 黄色
+                animationClass = 'animate-pulse';
+                shadowEffect = '0 0 10px #ffff00, 0 0 20px #ffff00';
                 break;
               case 3:
-                foodClass = 'bg-yellow-400 animate-pulse animate-bounce';
-                foodColor = '#facc15';
-                glow = '0 0 8px #facc15, 0 0 12px #facc15';
+                backgroundColor = '#ff00ff'; // 紫红色
+                animationClass = 'animate-pulse animate-bounce';
+                shadowEffect = '0 0 12px #ff00ff, 0 0 24px #ff00ff, 0 0 36px #ff00ff';
                 break;
               default:
-                foodClass = 'bg-green-400';
-                foodColor = '#4ade80';
-                glow = '0 0 4px #4ade80';
+                backgroundColor = '#00ffff';
+                animationClass = 'animate-pulse';
+                shadowEffect = '0 0 8px #00ffff, 0 0 16px #00ffff';
             }
+            
+            // 食物大小比格子稍微大一些
+            const foodSize = cellSize + 2;
+            const offset = (cellSize - foodSize) / 2;
             
             return (
               <div
                 key={`food-${index}`}
-                className={`absolute rounded-sm ${foodClass} snake-segment flex items-center justify-center`}
+                className={`absolute rounded ${animationClass}`}
                 style={{
-                  left: food.position.x * cellSize + 1,
-                  top: food.position.y * cellSize + 1,
-                  width: cellSize - 2,
-                  height: cellSize - 2,
-                  boxShadow: isSpectator ? `0 0 12px ${foodColor}` : glow
+                  left: food.position.x * cellSize + offset,
+                  top: food.position.y * cellSize + offset,
+                  width: foodSize,
+                  height: foodSize,
+                  backgroundColor: backgroundColor,
+                  boxShadow: shadowEffect,
+                  // 在localhost下添加明显的边框用于调试
+                  border: window.location.hostname.includes('localhost') ? '1px solid red' : 'none',
+                  zIndex: 10 // 确保食物在其他元素之上
                 }}
-              >
-                {/* 显示食物等级 */}
-                {food.level > 1 && (
-                  <span 
-                    className="text-black font-bold text-xs"
-                    style={{ 
-                      fontSize: Math.max(6, cellSize * 0.3) + 'px',
-                      lineHeight: '1'
-                    }}
-                  >
-                    {food.level}
-                  </span>
-                )}
-              </div>
+              />
             );
           })}
 
