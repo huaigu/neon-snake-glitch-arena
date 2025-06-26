@@ -63,7 +63,7 @@ export const setupGameViewCallbacks = (gameViewInstance: GameView) => {
   console.log('🔧 Global: Setting up GameView callbacks from global function');
   
   // 获取当前的用户信息 - 从localStorage或其他全局状态获取
-  const userDataStr = localStorage.getItem('web3auth_user_data');
+  const userDataStr = localStorage.getItem('web3_user');
   let stableUserAddress = '';
   
   if (userDataStr) {
@@ -98,7 +98,7 @@ export const setupGameViewCallbacks = (gameViewInstance: GameView) => {
     console.log('📨 Global: Room joined callback received:', data);
     
     // 在运行时获取最新的用户地址
-    const userDataStr = localStorage.getItem('web3auth_user_data');
+    const userDataStr = localStorage.getItem('web3_user');
     let currentUserAddress = '';
     
     if (userDataStr) {
@@ -131,8 +131,8 @@ export const setupGameViewCallbacks = (gameViewInstance: GameView) => {
     
     // 在运行时获取最新的用户地址 - 添加详细调试
     console.log('📨 Global: Checking localStorage for user data...');
-    const userDataStr = localStorage.getItem('web3auth_user_data');
-    console.log('📨 Global: localStorage web3auth_user_data:', userDataStr);
+    const userDataStr = localStorage.getItem('web3_user');
+    console.log('📨 Global: localStorage web3_user:', userDataStr);
     
     // 也检查其他可能的键名
     const allLocalStorageKeys = Object.keys(localStorage);
@@ -176,7 +176,7 @@ export const setupGameViewCallbacks = (gameViewInstance: GameView) => {
     console.log('📨 Global: Room join failed callback received:', data);
     
     // 在运行时获取最新的用户地址
-    const userDataStr = localStorage.getItem('web3auth_user_data');
+    const userDataStr = localStorage.getItem('web3_user');
     let currentUserAddress = '';
     
     if (userDataStr) {
@@ -199,7 +199,7 @@ export const setupGameViewCallbacks = (gameViewInstance: GameView) => {
     console.log('📨 Global: Room creation failed callback received:', data);
     
     // 在运行时获取最新的用户地址
-    const userDataStr = localStorage.getItem('web3auth_user_data');
+    const userDataStr = localStorage.getItem('web3_user');
     let currentUserAddress = '';
     
     if (userDataStr) {
@@ -226,6 +226,15 @@ export const setupGameViewCallbacks = (gameViewInstance: GameView) => {
   gameViewInstance.setRoomCreationFailedCallback(roomCreationFailedCallback);
   
   console.log('✅ Global: All GameView callbacks set successfully via global function');
+  
+  // 延迟触发一次lobby状态更新，确保React组件的事件监听器已经设置好
+  setTimeout(() => {
+    if (gameViewInstance.model?.lobby) {
+      console.log('🔄 Global: Triggering delayed lobby state update for React sync');
+      const currentState = gameViewInstance.model.lobby.getLobbyState();
+      lobbyCallback(currentState);
+    }
+  }, 100); // 100ms延迟应该足够让React useEffect执行
 };
 
 interface RoomProviderProps {
@@ -465,18 +474,29 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     // 首先检查用户是否已经主持了其他房间
     if (gameView.model?.lobby) {
       const currentState = gameView.model.lobby.getLobbyState();
+      
+      console.log('🏠 RoomContext: Checking for existing hosted rooms before creating new room:', {
+        userAddress: stableUserAddress,
+        totalRooms: currentState.rooms.length,
+        allHosts: currentState.rooms.map(r => ({ roomId: r.id, hostAddress: r.hostAddress, roomName: r.name }))
+      });
+      
       const existingHostedRoom = currentState.rooms.find(room => 
         room.hostAddress === stableUserAddress
       );
       
       if (existingHostedRoom) {
-        console.log('RoomContext: User already hosts a room:', {
+        console.error('❌ RoomContext: User already hosts a room - creation blocked:', {
           userAddress: stableUserAddress,
           existingRoomId: existingHostedRoom.id,
-          existingRoomName: existingHostedRoom.name
+          existingRoomName: existingHostedRoom.name,
+          existingRoomStatus: existingHostedRoom.status,
+          existingRoomPlayers: existingHostedRoom.players.length
         });
         
         return null;
+      } else {
+        console.log('✅ RoomContext: No existing hosted rooms found - proceeding with creation');
       }
     }
 
@@ -601,9 +621,18 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
       return;
     }
 
-    console.log('RoomContext: Leaving room via GameView:', currentRoom.id);
+    console.log('🚪 RoomContext: Leaving room via GameView:', {
+      roomId: currentRoom.id,
+      roomName: currentRoom.name,
+      userAddress: stableUserAddress,
+      wasHost: currentRoom.hostAddress === stableUserAddress
+    });
+    
     gameView.leaveRoom(currentRoom.id, stableUserAddress);
+    
+    // 立即清空前端状态
     setCurrentRoom(null);
+    console.log('🚪 RoomContext: Front-end currentRoom cleared immediately');
   };
 
   const setPlayerReady = (roomId: string, playerAddress: string, isReady: boolean): void => {

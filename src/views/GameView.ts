@@ -50,11 +50,8 @@ export class GameView extends Multisynq.View {
     console.log('GameView: Setting lobby callback');
     this.lobbyCallback = callback;
     
-    // Immediately call with current state if available
-    if (this.model?.lobby) {
-      const currentState = this.model.lobby.getLobbyState();
-      callback(currentState);
-    }
+    // Note: 不再立即调用callback，避免时序问题
+    // 全局callback设置会延迟触发一次状态更新
   }
 
   setGameCallback(callback: (gameSession: any, foods: any[]) => void) {
