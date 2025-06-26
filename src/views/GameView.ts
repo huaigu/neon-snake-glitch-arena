@@ -1,4 +1,3 @@
-
 import * as Multisynq from '@multisynq/client';
 import GameModel from '../models/GameModel';
 
@@ -184,6 +183,9 @@ export class GameView extends Multisynq.View {
     // 调用房间加入成功的回调函数
     if (this.roomJoinedCallback) {
       this.roomJoinedCallback(data);
+    } else {
+      console.warn('⚠️ GameView: roomJoinedCallback is null - this may happen during reconnection. Event data:', data);
+      console.warn('⚠️ GameView: This indicates callbacks were not properly re-registered after reconnection');
     }
   };
 
@@ -192,6 +194,8 @@ export class GameView extends Multisynq.View {
     // 调用房间加入失败的回调函数
     if (this.roomJoinFailedCallback) {
       this.roomJoinFailedCallback(data);
+    } else {
+      console.warn('⚠️ GameView: roomJoinFailedCallback is null - this may happen during reconnection. Event data:', data);
     }
   };
 
@@ -200,6 +204,8 @@ export class GameView extends Multisynq.View {
     // 调用房间创建成功的回调函数，用于直接导航
     if (this.roomCreatedCallback) {
       this.roomCreatedCallback(data);
+    } else {
+      console.warn('⚠️ GameView: roomCreatedCallback is null - this may happen during reconnection. Event data:', data);
     }
   };
 
@@ -212,6 +218,8 @@ export class GameView extends Multisynq.View {
     console.log('GameView: Room creation failed:', data);
     if (this.roomCreationFailedCallback) {
       this.roomCreationFailedCallback(data);
+    } else {
+      console.warn('⚠️ GameView: roomCreationFailedCallback is null - this may happen during reconnection. Event data:', data);
     }
   };
 

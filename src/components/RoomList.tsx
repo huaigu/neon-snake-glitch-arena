@@ -18,7 +18,6 @@ export const RoomList: React.FC = () => {
     currentPlayerName, 
     createRoom, 
     joinRoom, 
-    loading, 
     error,
     isConnected
   } = useRoomContext();
@@ -27,6 +26,7 @@ export const RoomList: React.FC = () => {
   const [newRoomName, setNewRoomName] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [isJoiningAnyRoom, setIsJoiningAnyRoom] = useState(false);
 
   const handleCreateRoom = async () => {
     if (!newRoomName.trim()) return;
@@ -43,9 +43,27 @@ export const RoomList: React.FC = () => {
   };
 
   const handleJoinRoom = async (roomId: string) => {
-    const success = await joinRoom(roomId);
-    if (success) {
-      navigate(`/room/${roomId}`);
+    if (isJoiningAnyRoom) {
+      console.log('RoomList: Already joining a room, ignoring duplicate click');
+      return;
+    }
+
+    setIsJoiningAnyRoom(true);
+    
+    try {
+      console.log('RoomList: Starting join room process:', roomId);
+      const success = await joinRoom(roomId);
+      
+      if (success) {
+        console.log('RoomList: Join room successful, navigating to room:', roomId);
+        navigate(`/room/${roomId}`);
+      } else {
+        console.log('RoomList: Join room failed for room:', roomId);
+      }
+    } catch (error) {
+      console.error('RoomList: Error joining room:', error);
+    } finally {
+      setIsJoiningAnyRoom(false);
     }
   };
 
@@ -82,7 +100,6 @@ export const RoomList: React.FC = () => {
     return `${name.slice(0, frontChars)}...${name.slice(-backChars)}`;
   };
 
-  // Check if current player already hosts a room - 直接从model读取最新状态
   const currentPlayerHostsRoom = React.useMemo(() => {
     if (!user?.address || !gameView?.model?.lobby) {
       return false;
@@ -95,7 +112,6 @@ export const RoomList: React.FC = () => {
     
     const hostsRoom = !!existingHostedRoom;
     
-    // 添加调试信息
     console.log('RoomList: Host room check (from model):', {
       userAddress: user.address,
       roomsWithHosts: currentState.rooms.map(r => ({ id: r.id, name: r.name, hostAddress: r.hostAddress })),
@@ -104,11 +120,10 @@ export const RoomList: React.FC = () => {
     });
     
     return hostsRoom;
-  }, [user?.address, gameView?.model?.lobby, rooms.length]); // 依赖rooms.length来触发重新计算
+  }, [user?.address, gameView?.model?.lobby, rooms.length]);
 
   return (
     <div className="w-full max-w-6xl mx-auto p-4">
-      {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
           <div className="flex items-center gap-3 mb-2">
@@ -135,7 +150,7 @@ export const RoomList: React.FC = () => {
           <DialogTrigger asChild>
             <Button 
               className="bg-cyber-cyan hover:bg-cyber-cyan/80 text-cyber-darker"
-              disabled={loading || !isConnected || currentPlayerHostsRoom}
+              disabled={!isConnected || currentPlayerHostsRoom}
               title={currentPlayerHostsRoom ? "You can only create one room at a time" : ""}
             >
               <Plus className="w-4 h-4 mr-2" />
@@ -189,7 +204,6 @@ export const RoomList: React.FC = () => {
         </Dialog>
       </div>
 
-      {/* Connection Status Alert */}
       {!isConnected && (
         <Alert className="mb-6 border-red-500/50 bg-red-500/10">
           <AlertCircle className="h-4 w-4" />
@@ -199,7 +213,6 @@ export const RoomList: React.FC = () => {
         </Alert>
       )}
 
-      {/* Host Room Limit Alert */}
       {currentPlayerHostsRoom && (
         <Alert className="mb-6 border-yellow-500/50 bg-yellow-500/10">
           <AlertCircle className="h-4 w-4" />
@@ -209,7 +222,6 @@ export const RoomList: React.FC = () => {
         </Alert>
       )}
 
-      {/* Error Alert */}
       {error && (
         <Alert className="mb-6 border-red-500/50 bg-red-500/10">
           <AlertCircle className="h-4 w-4" />
@@ -219,7 +231,6 @@ export const RoomList: React.FC = () => {
         </Alert>
       )}
 
-      {/* Room Stats */}
       {rooms.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <Card className="cyber-panel">
@@ -266,7 +277,6 @@ export const RoomList: React.FC = () => {
         </div>
       )}
 
-      {/* Rooms Grid */}
       {rooms.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {rooms.map((room) => (
@@ -308,7 +318,7 @@ export const RoomList: React.FC = () => {
                     }}
                     disabled={
                       (room.status === 'waiting' && room.players.length >= room.maxPlayers) ||
-                      loading ||
+                      isJoiningAnyRoom ||
                       !isConnected
                     }
                     className="w-full"
@@ -318,10 +328,10 @@ export const RoomList: React.FC = () => {
                         : 'default'
                     }
                   >
-                    {loading ? (
+                    {isJoiningAnyRoom ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Loading...
+                        Joining...
                       </>
                     ) : room.status === 'playing' ? (
                       <>
@@ -351,8 +361,7 @@ export const RoomList: React.FC = () => {
         </div>
       )}
 
-      {/* Empty State */}
-      {!loading && rooms.length === 0 && isConnected && (
+      {rooms.length === 0 && isConnected && (
         <div className="text-center py-12">
           <Users className="w-16 h-16 text-cyber-cyan/30 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-cyber-cyan/70 mb-2">
@@ -364,7 +373,7 @@ export const RoomList: React.FC = () => {
           <Button
             onClick={() => setIsDialogOpen(true)}
             className="bg-cyber-cyan hover:bg-cyber-cyan/80 text-cyber-darker"
-            disabled={loading || currentPlayerHostsRoom}
+            disabled={currentPlayerHostsRoom}
           >
             <Plus className="w-4 h-4 mr-2" />
             Create Room

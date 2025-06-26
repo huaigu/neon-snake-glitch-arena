@@ -67,11 +67,35 @@ export const MultisynqProvider: React.FC<MultisynqProviderProps> = ({ children }
         // 创建 GameView 实例
         const newGameView = newSession.view as GameView;
         
+        console.log('MultisynqContext: New GameView instance created, callbacks need to be re-registered', {
+          newGameViewInstance: !!newGameView,
+          timestamp: new Date().toISOString()
+        });
+        
         setSession(newSession);
         setGameView(newGameView);
         setIsConnected(true);
         setError(null);
+        
         console.log('Successfully joined Multisynq session with GameModel and GameView');
+        
+        // 立即触发一个自定义事件，通知需要重新设置callbacks
+        // 这样可以避免等待React渲染周期
+        setTimeout(() => {
+          console.log('🚀 MultisynqContext: Dispatching multisynq-gameview-ready event');
+          window.dispatchEvent(new CustomEvent('multisynq-gameview-ready', {
+            detail: { gameView: newGameView }
+          }));
+        }, 0);
+        
+        // 额外的强制callback重设机制 - 延迟一点再触发一次
+        setTimeout(() => {
+          console.log('🚀 MultisynqContext: Dispatching delayed multisynq-gameview-ready event (backup)');
+          window.dispatchEvent(new CustomEvent('multisynq-gameview-ready', {
+            detail: { gameView: newGameView }
+          }));
+        }, 100);
+        
       } catch (error) {
         console.error('Failed to join Multisynq session:', error);
         setIsConnected(false);

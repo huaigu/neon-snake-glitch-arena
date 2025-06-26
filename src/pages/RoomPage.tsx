@@ -66,162 +66,125 @@ export const RoomPage: React.FC = () => {
     }
   }, [isAuthenticated, isConnected, isConnecting, connectionError, joinSession]);
 
-  // 添加调试用的effect，监控关键状态变化
+  // 主要的房间状态检查和加入逻辑
   useEffect(() => {
     console.log('RoomPage: Key state changed:', {
       roomId,
       isAuthenticated,
       isConnected,
       isConnecting,
-      connectionError: !!connectionError,
-      roomsCount: rooms.length,
-      roomsList: rooms.map(r => ({ id: r.id, name: r.name, players: r.players.length })),
+      connectionError,
       currentRoomId: currentRoom?.id,
+      roomsCount: rooms.length,
       joinState,
       hasAttemptedJoin,
-      timestamp: new Date().toISOString()
+      userAddress: user?.address,
+      isSpectator,
+      spectatorRoomId: spectatorRoom?.id
     });
-  }, [roomId, isAuthenticated, isConnected, isConnecting, connectionError, rooms.length, currentRoom?.id, joinState, hasAttemptedJoin]);
 
-  // 简化的房间状态检查逻辑
-  useEffect(() => {
-    if (!isAuthenticated || !roomId) {
+    // 基础条件检查
+    if (!isAuthenticated || !isConnected || !roomId || isConnecting) {
+      console.log('RoomPage: Basic conditions not met, waiting...');
+      return;
+    }
+
+    if (connectionError) {
+      console.log('RoomPage: Connection error detected');
+      setJoinState('error');
+      setJoinError(connectionError);
+      return;
+    }
+
+    // 检查是否正在进行加入尝试（防止重复调用）
+    const currentJoinAttempt = window.currentJoinAttempt;
+    if (currentJoinAttempt && currentJoinAttempt.userAddress === user?.address && currentJoinAttempt.roomId === roomId) {
+      console.log('RoomPage: Join attempt already in progress, waiting for completion...');
       return;
     }
 
     console.log('RoomPage: Room state check triggered', {
       isAuthenticated,
-      isConnected, 
+      isConnected,
       roomId,
       currentRoomId: currentRoom?.id,
       isSpectator,
       spectatorRoomId: spectatorRoom?.id,
-      joinState
+      joinState,
+      hasAttemptedJoin,
+      roomsCount: rooms.length
     });
 
-    // 清理陈旧的观察者状态 - 如果当前roomId与观察者房间不匹配
-    if (isSpectator && spectatorRoom && spectatorRoom.id !== roomId) {
-      console.log('RoomPage: Clearing stale spectator state', {
-        currentRoomId: roomId,
-        spectatorRoomId: spectatorRoom.id
-      });
-      leaveSpectator();
-    }
-
-    // 如果已经在目标房间中，直接标记为成功
+    // 如果用户已经在当前房间中，直接设置成功状态
     if (currentRoom && currentRoom.id === roomId) {
-      console.log('RoomPage: Already in target room, setting success state', {
-        roomId: currentRoom.id,
-        roomName: currentRoom.name,
-        roomStatus: currentRoom.status,
-        playersCount: currentRoom.players?.length || 0,
-        userAddress: user?.address,
-        userInPlayers: currentRoom.players?.some(p => p.address === user?.address) || false
-      });
-      if (joinState !== 'success') {
-        setJoinState('success');
-      }
+      console.log('RoomPage: User already in target room via currentRoom, setting success state');
+      setJoinState('success');
       return;
     }
 
-    // 增强检测：即使 currentRoom 还没更新，也检查用户是否已经在目标房间的玩家列表中
-    if (!currentRoom && rooms.length > 0 && user?.address) {
-      const targetRoom = rooms.find(r => r.id === roomId);
-      if (targetRoom && targetRoom.players.some(p => p.address === user.address)) {
-        console.log('RoomPage: User found in target room players list, setting success state and currentRoom', {
-          roomId: targetRoom.id,
-          roomName: targetRoom.name,
-          roomStatus: targetRoom.status,
-          playersCount: targetRoom.players.length,
-          userInPlayers: true,
-          joinState: joinState
-        });
-        
-        // 主动设置currentRoom状态，因为用户已经在房间中
-        setCurrentRoom({ ...targetRoom });
-        
-        if (joinState !== 'success') {
-          setJoinState('success');
-        }
-        return;
-      }
-    }
-
-    // 如果在观察者模式中且正在观看目标房间，也标记为成功
+    // 如果用户已经在观察者模式中观看目标房间，设置成功状态
     if (isSpectator && spectatorRoom && spectatorRoom.id === roomId) {
-      console.log('RoomPage: Already spectating target room, setting success state', {
-        roomId: spectatorRoom.id,
-        roomName: spectatorRoom.name,
-        roomStatus: spectatorRoom.status
-      });
-      if (joinState !== 'success') {
-        setJoinState('success');
+      console.log('RoomPage: User already spectating target room, setting success state');
+      setJoinState('success');
+      return;
+    }
+
+    // 检查用户是否已经在目标房间的玩家列表中（但currentRoom状态还没更新）
+    if (user?.address && rooms.length > 0) {
+      const targetRoom = rooms.find(r => r.id === roomId);
+      if (targetRoom) {
+        const isPlayerInRoom = targetRoom.players.some(player => player.address === user.address);
+        if (isPlayerInRoom) {
+          console.log('RoomPage: User found in target room players list, setting success state and currentRoom', {
+            roomId: targetRoom.id,
+            roomName: targetRoom.name,
+            roomStatus: targetRoom.status,
+            playersCount: targetRoom.players.length,
+            userInPlayers: true,
+            userAddress: user.address
+          });
+          setJoinState('success');
+          // 直接设置currentRoom状态，避免等待回调
+          setCurrentRoom({ ...targetRoom });
+          return;
+        }
       }
-      return;
     }
 
-    // 如果在其他房间中，显示房间不匹配（不考虑观察者状态）
-    if (!isSpectator && currentRoom && currentRoom.id !== roomId) {
-      console.log('RoomPage: In different room', {
-        currentRoomId: currentRoom.id,
-        targetRoomId: roomId,
-        isSpectator
-      });
-      return; // UI会显示房间不匹配的提示
-    }
-
-    // 等待连接建立
-    if (!isConnected) {
-      console.log('RoomPage: Waiting for connection...');
-      setJoinState('waiting');
-      return;
-    }
-
-    // 连接已建立，等待房间列表加载
+    // 如果房间数据还没加载完成，等待
     if (rooms.length === 0) {
-      console.log('RoomPage: Connected but waiting for room list...');
-      setJoinState('waiting');
+      console.log('RoomPage: No rooms data available yet, waiting...');
       return;
     }
 
-    // 检查目标房间是否存在 - 但不立即显示错误，让5秒超时机制处理
-    const targetRoom = rooms.find(room => room.id === roomId);
+    // 查找目标房间
+    const targetRoom = rooms.find(r => r.id === roomId);
     if (!targetRoom) {
-      console.log('RoomPage: Target room not found yet, waiting for timeout or room list update...', {
-        roomId,
-        roomsCount: rooms.length,
-        hasAttemptedJoin,
-        joinState
+      console.log('RoomPage: Target room not found in rooms list:', {
+        targetRoomId: roomId,
+        availableRooms: rooms.map(r => ({ id: r.id, name: r.name }))
       });
-      // 不立即设置错误状态，让5秒超时机制处理所有错误情况
-      if (joinState !== 'waiting') {
-        setJoinState('waiting');
-      }
+      setJoinState('error');
+      setJoinError('Room not found');
       return;
     }
 
-    // 如果已经尝试过加入，不要重复尝试
+    // 检查用户是否已经在房间中
+    const isPlayerInRoom = user?.address && targetRoom.players.some(player => player.address === user.address);
+
+    // 如果已经尝试过加入，等待状态更新
     if (hasAttemptedJoin) {
       console.log('RoomPage: Already attempted join, waiting for state update...');
       return;
     }
 
-    // 如果正在加入过程中，不要重复尝试
-    if (joinState === 'joining' || joinState === 'spectating') {
-      console.log('RoomPage: Join in progress, waiting for completion...');
-      return;
-    }
-
     console.log('RoomPage: Attempting to join/spectate room', {
-      roomId,
+      roomId: targetRoom.id,
       roomStatus: targetRoom.status
     });
 
+    // 标记已尝试加入，防止重复调用
     setHasAttemptedJoin(true);
-    setJoinError(null);
-
-    // 检查用户是否是房间中的玩家
-    const isPlayerInRoom = targetRoom.players.some(player => player.address === user?.address);
     
     // 如果房间正在进行游戏或倒计时，但用户是玩家，则直接加入；否则进入观察者模式
     if (targetRoom.status === 'playing' || targetRoom.status === 'countdown' || targetRoom.status === 'finished') {
@@ -279,13 +242,28 @@ export const RoomPage: React.FC = () => {
 
   // 全局5秒超时检查 - 无论什么原因，如果5秒后仍未成功进入房间则显示错误
   useEffect(() => {
-    if (!isConnected || !roomId || joinState === 'error' || joinState === 'success') {
+    // 基础条件检查：没有连接或没有roomId时不启动超时
+    if (!isConnected || !roomId) {
+      return;
+    }
+
+    // 如果已经成功或者已经出错，不需要超时处理
+    if (joinState === 'error' || joinState === 'success') {
       return;
     }
 
     // 如果用户已经在房间中，不需要超时处理
     if ((currentRoom && currentRoom.id === roomId) || (isSpectator && spectatorRoom && spectatorRoom.id === roomId)) {
       return;
+    }
+
+    // 增强检测：如果用户已经在目标房间的玩家列表中，也不需要超时处理
+    if (user?.address && rooms.length > 0) {
+      const targetRoom = rooms.find(r => r.id === roomId);
+      const userInRoomPlayersList = targetRoom && targetRoom.players.some(p => p.address === user.address);
+      if (userInRoomPlayersList) {
+        return;
+      }
     }
 
     console.log(`RoomPage: Setting ${ROOM_JOIN_TIMEOUT}-second global timeout for room entry`);
@@ -318,18 +296,14 @@ export const RoomPage: React.FC = () => {
           userAddress: user?.address
         });
         
-        setJoinState('error');
-        const targetRoomExists = rooms.some(r => r.id === roomId);
-        if (targetRoomExists) {
-          setJoinError('Unable to join the room. Please try again.');
-        } else {
-          setJoinError(`Room "${roomId}" does not exist or has expired.`);
-        }
+        // 5秒超时后自动返回lobby
+        console.log(`RoomPage: Auto-navigating to lobby after ${ROOM_JOIN_TIMEOUT}-second timeout`);
+        navigate('/lobby');
       }
     }, ROOM_JOIN_TIMEOUT * 1000);
 
     return () => clearTimeout(timeoutId);
-  }, [isConnected, roomId, joinState, currentRoom?.id, isSpectator, spectatorRoom?.id, rooms, user?.address]);
+  }, [isConnected, roomId, currentRoom?.id, isSpectator, spectatorRoom?.id, rooms, user?.address, navigate]);
 
   // 重置状态当roomId真正变化时（避免初始化时的重置）
   useEffect(() => {
