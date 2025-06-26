@@ -75,12 +75,10 @@ export const setupGameViewCallbacks = (gameViewInstance: GameView) => {
     }
   }
   
-  if (!stableUserAddress) {
-    console.warn('🔧 Global: No user address available for callback setup');
-    return;
-  }
-  
-  console.log('🔧 Global: Setting up callbacks for user:', stableUserAddress);
+  console.log('🔧 Global: Setting up callbacks', {
+    hasUserAddress: !!stableUserAddress,
+    userAddress: stableUserAddress || 'Not available yet'
+  });
   
   // 设置lobby回调
   const lobbyCallback = (lobbyData: { rooms: Room[]; connectedPlayers: number }) => {
@@ -98,20 +96,53 @@ export const setupGameViewCallbacks = (gameViewInstance: GameView) => {
   // 设置房间加入成功回调
   const roomJoinedCallback = (data: { viewId: string; roomId: string }) => {
     console.log('📨 Global: Room joined callback received:', data);
-    if (stableUserAddress && (data.viewId === stableUserAddress)) {
+    
+    // 在运行时获取最新的用户地址
+    const userDataStr = localStorage.getItem('web3auth_user_data');
+    let currentUserAddress = '';
+    
+    if (userDataStr) {
+      try {
+        const userData = JSON.parse(userDataStr);
+        currentUserAddress = userData.address || userData.guestId || '';
+      } catch (error) {
+        console.warn('Failed to parse user data in callback:', error);
+      }
+    }
+    
+    if (currentUserAddress && (data.viewId === currentUserAddress)) {
       console.log('📨 Global: Current user successfully joined room via global callback');
       
       // 触发自定义事件，通知RoomContext处理房间加入
       window.dispatchEvent(new CustomEvent('global-room-joined', {
         detail: data
       }));
+    } else {
+      console.log('📨 Global: Room joined by different user or no user address available', {
+        dataViewId: data.viewId,
+        currentUserAddress: currentUserAddress || 'Not available'
+      });
     }
   };
   
   // 设置其他必要的回调
   const roomCreatedCallback = (data: { roomId: string; roomName: string; hostAddress: string; hostViewId: string }) => {
     console.log('📨 Global: Room created callback received:', data);
-    if (stableUserAddress && data.hostAddress === stableUserAddress) {
+    
+    // 在运行时获取最新的用户地址
+    const userDataStr = localStorage.getItem('web3auth_user_data');
+    let currentUserAddress = '';
+    
+    if (userDataStr) {
+      try {
+        const userData = JSON.parse(userDataStr);
+        currentUserAddress = userData.address || userData.guestId || '';
+      } catch (error) {
+        console.warn('Failed to parse user data in room created callback:', error);
+      }
+    }
+    
+    if (currentUserAddress && data.hostAddress === currentUserAddress) {
       window.dispatchEvent(new CustomEvent('global-room-created', {
         detail: data
       }));
@@ -120,7 +151,21 @@ export const setupGameViewCallbacks = (gameViewInstance: GameView) => {
   
   const roomJoinFailedCallback = (data: { viewId: string; reason: string }) => {
     console.log('📨 Global: Room join failed callback received:', data);
-    if (stableUserAddress && (data.viewId === stableUserAddress)) {
+    
+    // 在运行时获取最新的用户地址
+    const userDataStr = localStorage.getItem('web3auth_user_data');
+    let currentUserAddress = '';
+    
+    if (userDataStr) {
+      try {
+        const userData = JSON.parse(userDataStr);
+        currentUserAddress = userData.address || userData.guestId || '';
+      } catch (error) {
+        console.warn('Failed to parse user data in join failed callback:', error);
+      }
+    }
+    
+    if (currentUserAddress && (data.viewId === currentUserAddress)) {
       window.dispatchEvent(new CustomEvent('global-room-join-failed', {
         detail: data
       }));
@@ -129,7 +174,21 @@ export const setupGameViewCallbacks = (gameViewInstance: GameView) => {
   
   const roomCreationFailedCallback = (data: { hostAddress: string; reason: string }) => {
     console.log('📨 Global: Room creation failed callback received:', data);
-    if (stableUserAddress === data.hostAddress) {
+    
+    // 在运行时获取最新的用户地址
+    const userDataStr = localStorage.getItem('web3auth_user_data');
+    let currentUserAddress = '';
+    
+    if (userDataStr) {
+      try {
+        const userData = JSON.parse(userDataStr);
+        currentUserAddress = userData.address || userData.guestId || '';
+      } catch (error) {
+        console.warn('Failed to parse user data in creation failed callback:', error);
+      }
+    }
+    
+    if (currentUserAddress === data.hostAddress) {
       window.dispatchEvent(new CustomEvent('global-room-creation-failed', {
         detail: data
       }));
