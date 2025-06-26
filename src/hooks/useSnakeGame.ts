@@ -7,7 +7,7 @@ import { useResponsiveGrid } from './useResponsiveGrid';
 import { useMobileControls } from './useMobileControls';
 import { useIsMobile } from './use-mobile';
 import { assignPlayerColors } from '../utils/gameConfig';
-import { COUNTDOWN_DURATION } from '../utils/gameConstants';
+import { COUNTDOWN_DURATION, GAME_END_RESULT_DURATION } from '../utils/gameConstants';
 
 export interface Position {
   x: number;
@@ -46,6 +46,7 @@ export const useSnakeGame = () => {
 
   const [gameRunning, setGameRunning] = useState(false);
   const [gameOver, setGameOver] = useState(false);
+  const [gameEndTime, setGameEndTime] = useState<number | null>(null);
   const [countdown, setCountdown] = useState(0);
   const [showCountdown, setShowCountdown] = useState(false);
   const [gameSessionId, setGameSessionId] = useState<string | null>(null);
@@ -250,24 +251,51 @@ export const useSnakeGame = () => {
           setGameRunning(true);
           setGameOver(false);
         } else if (gameSession.status === 'finished') {
+          console.log('useSnakeGame: Game finished - showing game over screen:', {
+            hasSnakes: gameSnakes.length > 0,
+            currentTimestamp: new Date().toISOString(),
+            configDuration: GAME_END_RESULT_DURATION,
+            expectedResetTime: new Date(Date.now() + GAME_END_RESULT_DURATION * 1000).toISOString()
+          });
           setGameRunning(false);
           setGameOver(true);
+          setGameEndTime(Date.now()); // 记录游戏结束时间
           setShowCountdown(false);
           setIsSpectator(false);
           
           console.log('useSnakeGame: Displaying finished game results for all players in room');
         } else if (gameSession.status === 'waiting') {
-          // 游戏重置回等待状态 - 重置所有UI状态
-          setShowCountdown(false);
-          setGameRunning(false);
-          setGameOver(false);
-          setIsSpectator(false);
-          setSpeedMultiplier(1.0);
-          setSpeedBoostCountdown(20);
-          setFoodCountdown(10);
-          setCountdown(0);
+          // 检查是否应该隐藏游戏结束界面
+          const now = Date.now();
+          const timeSinceGameEnd = gameEndTime ? now - gameEndTime : 0;
+          const minDisplayTime = GAME_END_RESULT_DURATION * 1000; // 转换为毫秒
           
-          console.log('useSnakeGame: Game reset to waiting state - all UI states reset');
+          console.log('useSnakeGame: Game reset to waiting - checking if should hide game over screen:', {
+            wasGameOver: gameOver,
+            gameEndTime: gameEndTime ? new Date(gameEndTime).toISOString() : 'null',
+            timeSinceGameEnd,
+            minDisplayTime,
+            shouldHideGameOver: !gameEndTime || timeSinceGameEnd >= minDisplayTime,
+            currentTimestamp: new Date().toISOString()
+          });
+          
+          // 只有经过足够时间后才隐藏游戏结束界面
+          if (!gameEndTime || timeSinceGameEnd >= minDisplayTime) {
+            // 游戏重置回等待状态 - 重置所有UI状态
+            setShowCountdown(false);
+            setGameRunning(false);
+            setGameOver(false);
+            setGameEndTime(null); // 清除游戏结束时间
+            setIsSpectator(false);
+            setSpeedMultiplier(1.0);
+            setSpeedBoostCountdown(20);
+            setFoodCountdown(10);
+            setCountdown(0);
+            
+            console.log('useSnakeGame: Game reset to waiting state - all UI states reset');
+          } else {
+            console.log('useSnakeGame: Waiting status received but game over screen still should be displayed for', minDisplayTime - timeSinceGameEnd, 'more milliseconds');
+          }
         }
       } else {
         // Reset state when no game session
@@ -277,6 +305,7 @@ export const useSnakeGame = () => {
         setGameRunning(false);
         setShowCountdown(false);
         setGameOver(false);
+        setGameEndTime(null); // 清除游戏结束时间
         setIsSpectator(false);
         setSpeedMultiplier(1.0);
         setSpeedBoostCountdown(20);

@@ -568,12 +568,24 @@ export class GameRoomModel extends Multisynq.Model {
     this.publishRoomState();
     
     console.log('GameRoomModel: Game ended, showing results briefly then resetting to waiting state');
+    console.log('GameRoomModel: endGame scheduling details:', {
+      currentStatus: this.status,
+      delayDuration: this.CONFIG.TIMING.GAME_END_RESULT_DURATION,
+      delayMilliseconds: this.CONFIG.TIMING.GAME_END_RESULT_DURATION * 1000,
+      currentTimestamp: new Date().toISOString(),
+      expectedResetTime: new Date(Date.now() + this.CONFIG.TIMING.GAME_END_RESULT_DURATION * 1000).toISOString()
+    });
     
     // 短暂显示游戏结果后立刻重置为 waiting 状态
     this.future(this.CONFIG.TIMING.GAME_END_RESULT_DURATION * 1000).resetToWaiting();
   }
 
   resetToWaiting() {
+    console.log('GameRoomModel: resetToWaiting called at:', {
+      currentTimestamp: new Date().toISOString(),
+      currentStatus: this.status,
+      willChangeTo: 'waiting'
+    });
     console.log('GameRoomModel: Resetting to waiting state');
     
     // 重置房间状态

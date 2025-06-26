@@ -371,38 +371,135 @@ export const SnakeGame: React.FC = () => {
 
       {/* Game Over Overlay */}
       {gameOver && (
-        <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-50">
-          <div className="text-center p-4 max-w-4xl w-full max-h-screen overflow-y-auto">
-            <h2 className="text-3xl md:text-4xl font-bold text-cyber-red neon-text mb-4">
-              Game Over
-            </h2>
-            
-            {/* Final Scores */}
-            {snakes.length > 0 && (
-              <div className="bg-cyber-darker/90 p-3 md:p-4 rounded-lg border border-cyber-red/30 mb-4">
-                <h3 className="text-cyber-cyan text-md md:text-lg mb-4">Final Results</h3>
-                
-                {/* Top 3 Podium */}
-                <div className="mb-6">
-                  <h4 className="text-cyber-yellow text-sm mb-3">🏆 Top 3</h4>
-                  <div className="flex justify-center items-end gap-2 mb-4">
-                    {snakes
-                      .sort((a, b) => b.score - a.score)
-                      .slice(0, 3)
-                      .map((snake, index) => {
-                        const position = index + 1;
-                        const heights = ['h-16', 'h-12', 'h-10'];
-                        const colors = ['text-yellow-400', 'text-gray-300', 'text-orange-600'];
-                        const bgColors = ['bg-yellow-400/20', 'bg-gray-300/20', 'bg-orange-600/20'];
-                        const medals = ['🥇', '🥈', '🥉'];
-                        
-                        return (
-                          <div key={snake.id} className={`flex flex-col items-center ${index === 1 ? 'order-first' : ''}`}>
-                            <div className="text-lg mb-1">{medals[index]}</div>
-                            <div className={`${bgColors[index]} border border-current ${colors[index]} rounded p-2 ${heights[index]} flex flex-col justify-center items-center min-w-[60px]`}>
+        <>
+          {/* 调试信息 - 仅在开发环境显示 */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="absolute top-4 left-4 bg-black/80 text-green-400 p-2 rounded text-xs z-50">
+              Game Over Screen Active - {new Date().toLocaleTimeString()}
+            </div>
+          )}
+          <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-50">
+            <div className="text-center p-4 max-w-4xl w-full max-h-screen overflow-y-auto">
+              <h2 className="text-3xl md:text-4xl font-bold text-cyber-red neon-text mb-4">
+                Game Over
+              </h2>
+              
+              {/* Final Scores */}
+              {snakes.length > 0 && (
+                <div className="bg-cyber-darker/90 p-3 md:p-4 rounded-lg border border-cyber-red/30 mb-4">
+                  <h3 className="text-cyber-cyan text-md md:text-lg mb-4">Final Results</h3>
+                  
+                  {/* Top 3 Podium */}
+                  <div className="mb-6">
+                    <h4 className="text-cyber-yellow text-sm mb-3">🏆 Top 3</h4>
+                    <div className="flex justify-center items-end gap-2 mb-4">
+                      {snakes
+                        .sort((a, b) => b.score - a.score)
+                        .slice(0, 3)
+                        .map((snake, index) => {
+                          const position = index + 1;
+                          const heights = ['h-16', 'h-12', 'h-10'];
+                          const colors = ['text-yellow-400', 'text-gray-300', 'text-orange-600'];
+                          const bgColors = ['bg-yellow-400/20', 'bg-gray-300/20', 'bg-orange-600/20'];
+                          const medals = ['🥇', '🥈', '🥉'];
+                          
+                          return (
+                            <div key={snake.id} className={`flex flex-col items-center ${index === 1 ? 'order-first' : ''}`}>
+                              <div className="text-lg mb-1">{medals[index]}</div>
+                              <div className={`${bgColors[index]} border border-current ${colors[index]} rounded p-2 ${heights[index]} flex flex-col justify-center items-center min-w-[60px]`}>
+                                {/* NFT持有者显示彩虹色块，普通玩家显示单色 */}
+                                {snake.hasNFT ? (
+                                  <div className="w-4 h-4 rounded-full mb-1 animate-pulse"
+                                       style={{
+                                         background: 'linear-gradient(45deg, #FF0080, #FFFF00, #00FF80, #00FFFF, #8000FF)',
+                                         backgroundSize: '200% 200%',
+                                         animation: 'rainbow-shift 2s ease-in-out infinite'
+                                       }}>
+                                  </div>
+                                ) : (
+                                  <div 
+                                    className="w-4 h-4 rounded-full mb-1"
+                                    style={{ backgroundColor: snake.color }}
+                                  ></div>
+                                )}
+                                <div className={`font-bold text-xs ${snake.isPlayer ? 'text-cyber-green' : ''}`}>
+                                  {snake.hasNFT && '👑'} {snake.name}
+                                  {snake.isPlayer && <div className="text-xs text-cyber-green">(You)</div>}
+                                </div>
+                                <div className="text-sm font-bold mt-1">{snake.score}</div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                  
+                  {/* Current Player Rank (if not in top 3) */}
+                  {(() => {
+                    const sortedSnakes = snakes.sort((a, b) => b.score - a.score);
+                    const playerSnake = sortedSnakes.find(snake => snake.isPlayer);
+                    const playerRank = sortedSnakes.findIndex(snake => snake.isPlayer) + 1;
+                    
+                    if (playerSnake && playerRank > 3) {
+                      return (
+                        <div className="mb-4">
+                          <h4 className="text-cyber-green text-sm mb-2">Your Ranking</h4>
+                          <div className="bg-cyber-green/10 border border-cyber-green/50 rounded p-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="text-lg font-bold text-cyber-green">#{playerRank}</span>
+                                {/* NFT持有者显示彩虹色块，普通玩家显示单色 */}
+                                {playerSnake.hasNFT ? (
+                                  <div className="w-4 h-4 rounded-full animate-pulse"
+                                       style={{
+                                         background: 'linear-gradient(45deg, #FF0080, #FFFF00, #00FF80, #00FFFF, #8000FF)',
+                                         backgroundSize: '200% 200%',
+                                         animation: 'rainbow-shift 2s ease-in-out infinite'
+                                       }}>
+                                  </div>
+                                ) : (
+                                  <div 
+                                    className="w-4 h-4 rounded-full"
+                                    style={{ backgroundColor: playerSnake.color }}
+                                  ></div>
+                                )}
+                                <span className="text-cyber-green font-bold text-sm">
+                                  {playerSnake.hasNFT && '👑'} {playerSnake.name} (You)
+                                </span>
+                              </div>
+                              <span className="text-cyber-green font-bold text-lg">{playerSnake.score}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                  
+                  {/* Complete Leaderboard - 紧凑版 */}
+                  <div className="mb-3">
+                    <h4 className="text-cyber-purple text-sm mb-2">Complete Leaderboard</h4>
+                    <div className="space-y-1 max-h-32 overflow-y-auto">
+                      {snakes
+                        .sort((a, b) => b.score - a.score)
+                        .map((snake, index) => (
+                          <div 
+                            key={snake.id} 
+                            className={`flex items-center justify-between p-2 rounded border text-xs ${
+                              snake.isPlayer 
+                                ? 'border-cyber-green bg-cyber-green/10' 
+                                : 'border-gray-600 bg-gray-800/30'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className={`font-bold ${
+                                index < 3 ? 'text-cyber-yellow' : 'text-cyber-purple'
+                              }`}>
+                                #{index + 1}
+                              </span>
                               {/* NFT持有者显示彩虹色块，普通玩家显示单色 */}
                               {snake.hasNFT ? (
-                                <div className="w-4 h-4 rounded-full mb-1 animate-pulse"
+                                <div className="w-3 h-3 rounded-full animate-pulse"
                                      style={{
                                        background: 'linear-gradient(45deg, #FF0080, #FFFF00, #00FF80, #00FFFF, #8000FF)',
                                        backgroundSize: '200% 200%',
@@ -411,154 +508,65 @@ export const SnakeGame: React.FC = () => {
                                 </div>
                               ) : (
                                 <div 
-                                  className="w-4 h-4 rounded-full mb-1"
+                                  className="w-3 h-3 rounded-full"
                                   style={{ backgroundColor: snake.color }}
                                 ></div>
                               )}
-                              <div className={`font-bold text-xs ${snake.isPlayer ? 'text-cyber-green' : ''}`}>
+                              <span className={`${
+                                snake.isPlayer ? 'text-cyber-green font-bold' : 'text-cyber-cyan'
+                              }`}>
                                 {snake.hasNFT && '👑'} {snake.name}
-                                {snake.isPlayer && <div className="text-xs text-cyber-green">(You)</div>}
-                              </div>
-                              <div className="text-sm font-bold mt-1">{snake.score}</div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                  </div>
-                </div>
-                
-                {/* Current Player Rank (if not in top 3) */}
-                {(() => {
-                  const sortedSnakes = snakes.sort((a, b) => b.score - a.score);
-                  const playerSnake = sortedSnakes.find(snake => snake.isPlayer);
-                  const playerRank = sortedSnakes.findIndex(snake => snake.isPlayer) + 1;
-                  
-                  if (playerSnake && playerRank > 3) {
-                    return (
-                      <div className="mb-4">
-                        <h4 className="text-cyber-green text-sm mb-2">Your Ranking</h4>
-                        <div className="bg-cyber-green/10 border border-cyber-green/50 rounded p-2">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <span className="text-lg font-bold text-cyber-green">#{playerRank}</span>
-                              {/* NFT持有者显示彩虹色块，普通玩家显示单色 */}
-                              {playerSnake.hasNFT ? (
-                                <div className="w-4 h-4 rounded-full animate-pulse"
-                                     style={{
-                                       background: 'linear-gradient(45deg, #FF0080, #FFFF00, #00FF80, #00FFFF, #8000FF)',
-                                       backgroundSize: '200% 200%',
-                                       animation: 'rainbow-shift 2s ease-in-out infinite'
-                                     }}>
-                                </div>
-                              ) : (
-                                <div 
-                                  className="w-4 h-4 rounded-full"
-                                  style={{ backgroundColor: playerSnake.color }}
-                                ></div>
-                              )}
-                              <span className="text-cyber-green font-bold text-sm">
-                                {playerSnake.hasNFT && '👑'} {playerSnake.name} (You)
+                                {snake.isPlayer && ' (You)'}
                               </span>
                             </div>
-                            <span className="text-cyber-green font-bold text-lg">{playerSnake.score}</span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  }
-                  return null;
-                })()}
-                
-                {/* Complete Leaderboard - 紧凑版 */}
-                <div className="mb-3">
-                  <h4 className="text-cyber-purple text-sm mb-2">Complete Leaderboard</h4>
-                  <div className="space-y-1 max-h-32 overflow-y-auto">
-                    {snakes
-                      .sort((a, b) => b.score - a.score)
-                      .map((snake, index) => (
-                        <div 
-                          key={snake.id} 
-                          className={`flex items-center justify-between p-2 rounded border text-xs ${
-                            snake.isPlayer 
-                              ? 'border-cyber-green bg-cyber-green/10' 
-                              : 'border-gray-600 bg-gray-800/30'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className={`font-bold ${
-                              index < 3 ? 'text-cyber-yellow' : 'text-cyber-purple'
-                            }`}>
-                              #{index + 1}
-                            </span>
-                            {/* NFT持有者显示彩虹色块，普通玩家显示单色 */}
-                            {snake.hasNFT ? (
-                              <div className="w-3 h-3 rounded-full animate-pulse"
-                                   style={{
-                                     background: 'linear-gradient(45deg, #FF0080, #FFFF00, #00FF80, #00FFFF, #8000FF)',
-                                     backgroundSize: '200% 200%',
-                                     animation: 'rainbow-shift 2s ease-in-out infinite'
-                                   }}>
-                              </div>
-                            ) : (
-                              <div 
-                                className="w-3 h-3 rounded-full"
-                                style={{ backgroundColor: snake.color }}
-                              ></div>
-                            )}
-                            <span className={`${
-                              snake.isPlayer ? 'text-cyber-green font-bold' : 'text-cyber-cyan'
-                            }`}>
-                              {snake.hasNFT && '👑'} {snake.name}
-                              {snake.isPlayer && ' (You)'}
+                            <span className="text-cyber-yellow font-bold">
+                              {snake.score}
                             </span>
                           </div>
-                          <span className="text-cyber-yellow font-bold">
-                            {snake.score}
-                          </span>
-                        </div>
-                      ))}
+                        ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            <div className="space-y-4">
-              <p className="text-cyber-cyan/70 text-sm text-center">
-                Choose your next action:
-              </p>
-              
-              {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <button 
-                  onClick={() => {
-                    // Simply close the game over overlay and return to room lobby
-                    navigate('/room/' + (currentRoom?.id || ''));
-                  }}
-                  className="bg-cyber-green hover:bg-cyber-green/80 text-cyber-darker font-bold py-2 px-4 rounded neon-border transition-all text-sm"
-                >
-                  Stay in Room
-                </button>
+              <div className="space-y-4">
+                <p className="text-cyber-cyan/70 text-sm text-center">
+                  Choose your next action:
+                </p>
                 
-                <button 
-                  onClick={() => {
-                    // Leave room and return to main lobby
-                    if (currentRoom && user?.address && gameView) {
-                      gameView.leaveRoom(currentRoom.id, user.address);
-                    }
-                    navigate('/lobby');
-                  }}
-                  className="bg-cyber-red hover:bg-cyber-red/80 text-white font-bold py-2 px-4 rounded neon-border transition-all text-sm"
-                >
-                  Leave Room
-                </button>
+                {/* Action Buttons */}
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <button 
+                    onClick={() => {
+                      // Simply close the game over overlay and return to room lobby
+                      navigate('/room/' + (currentRoom?.id || ''));
+                    }}
+                    className="bg-cyber-green hover:bg-cyber-green/80 text-cyber-darker font-bold py-2 px-4 rounded neon-border transition-all text-sm"
+                  >
+                    Stay in Room
+                  </button>
+                  
+                  <button 
+                    onClick={() => {
+                      // Leave room and return to main lobby
+                      if (currentRoom && user?.address && gameView) {
+                        gameView.leaveRoom(currentRoom.id, user.address);
+                      }
+                      navigate('/lobby');
+                    }}
+                    className="bg-cyber-red hover:bg-cyber-red/80 text-white font-bold py-2 px-4 rounded neon-border transition-all text-sm"
+                  >
+                    Leave Room
+                  </button>
+                </div>
+                
+                <p className="text-cyber-cyan/50 text-xs text-center">
+                  💡 Stay in room to play another round with the same players
+                </p>
               </div>
-              
-              <p className="text-cyber-cyan/50 text-xs text-center">
-                💡 Stay in room to play another round with the same players
-              </p>
             </div>
           </div>
-        </div>
+        </>
       )}
 
     </div>
