@@ -89,8 +89,17 @@ export class GameView extends Multisynq.View {
     console.log('GameView: Setting leaderboard callback');
     this.leaderboardCallback = callback;
     
-    // Request current leaderboard data
+    // Request current leaderboard data immediately
     this.requestLeaderboard();
+    
+    // 如果有可用的数据，立即提供
+    if (this.model?.leaderboardSession) {
+      const currentData = this.model.leaderboardSession.getLeaderboardData();
+      console.log('GameView: Providing immediate leaderboard data:', currentData);
+      if (currentData.totalPlayers > 0) {
+        callback(currentData);
+      }
+    }
   }
 
   // Leaderboard methods

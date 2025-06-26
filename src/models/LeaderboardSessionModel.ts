@@ -227,11 +227,14 @@ export class LeaderboardSessionModel extends Multisynq.Model {
 
   publishLeaderboardData() {
     const leaderboardData = this.getLeaderboardData();
-    this.publish("leaderboard", "updated", leaderboardData);
-    console.log('LeaderboardSessionModel: Published leaderboard data:', {
+    console.log('LeaderboardSessionModel: Publishing leaderboard data:', {
       topPlayersCount: leaderboardData.topPlayers.length,
-      totalPlayers: leaderboardData.totalPlayers
+      totalPlayers: leaderboardData.totalPlayers,
+      topPlayers: leaderboardData.topPlayers,
+      playerScoresMapSize: this.playerScores.size
     });
+    this.publish("leaderboard", "updated", leaderboardData);
+    console.log('LeaderboardSessionModel: Leaderboard data published successfully');
   }
 
   // Get player's personal stats

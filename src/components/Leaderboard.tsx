@@ -3,6 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Trophy, Medal, Award, User, TrendingUp, GamepadIcon } from 'lucide-react';
 import { useMultisynq } from '../contexts/MultisynqContext';
+import { GameView } from '../views/GameView';
+import { getLatestLeaderboardData } from '../contexts/RoomContext';
 
 interface PlayerScore {
   address: string;
@@ -27,20 +29,63 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ onRequestData }) => {
   const [leaderboardData, setLeaderboardData] = useState<LeaderboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const { gameView } = useMultisynq();
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (gameView) {
-      // 设置排行榜数据回调
-      gameView.setLeaderboardCallback((data: LeaderboardData) => {
-        console.log('Leaderboard: Received data from GameView:', data);
-        setLeaderboardData(data);
+    console.log('Leaderboard: Setting up global event listener');
+    
+    // 定义处理leaderboard更新的函数
+    const handleLeaderboardUpdate = (data: any) => {
+      try {
+        console.log('🎯 Leaderboard: Processing leaderboard update:', data);
+        
+        // 验证数据格式
+        if (!data || typeof data !== 'object') {
+          console.warn('Leaderboard: Invalid data received:', data);
+          setLoading(false);
+          return;
+        }
+        
+        // 确保数据结构正确
+        const validData: LeaderboardData = {
+          topPlayers: data.topPlayers || [],
+          totalPlayers: data.totalPlayers || 0,
+          lastUpdated: data.lastUpdated || new Date().toISOString()
+        };
+        
+        console.log('✅ Leaderboard: Setting leaderboard data:', validData);
+        setLeaderboardData(validData);
         setLoading(false);
-      });
-      
-      // 请求排行榜数据
-      gameView.requestLeaderboard();
+        setError(null);
+      } catch (error) {
+        console.error('❌ Leaderboard: Error processing data update:', error);
+        setError('Failed to process leaderboard data');
+        setLoading(false);
+      }
+    };
+    
+    // 立即尝试获取最新数据
+    const latestData = getLatestLeaderboardData();
+    if (latestData) {
+      console.log('🎯 Leaderboard: Found existing leaderboard data on mount:', latestData);
+      handleLeaderboardUpdate(latestData);
     }
-  }, [gameView]);
+    
+    // 监听全局 leaderboard 更新事件
+    const handleGlobalLeaderboardUpdate = (event: CustomEvent) => {
+      handleLeaderboardUpdate(event.detail);
+    };
+
+    // 添加事件监听器
+    console.log('📝 Leaderboard: Adding event listener for global-leaderboard-update');
+    window.addEventListener('global-leaderboard-update', handleGlobalLeaderboardUpdate as EventListener);
+    
+    return () => {
+      // 移除事件监听器
+      console.log('🗑️ Leaderboard: Removing event listener for global-leaderboard-update');
+      window.removeEventListener('global-leaderboard-update', handleGlobalLeaderboardUpdate as EventListener);
+    };
+  }, []); // 不依赖 gameView，改为监听全局事件
 
   useEffect(() => {
     if (onRequestData) {
@@ -84,17 +129,17 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ onRequestData }) => {
     return date.toLocaleDateString();
   };
 
-  // Mock data for development
+  // 移除 Mock data，等待真实数据或超时后显示空状态
   React.useEffect(() => {
-    if (!leaderboardData) {
-      const mockData: LeaderboardData = {
-        topPlayers: [],
-        totalPlayers: 0,
-        lastUpdated: new Date().toISOString()
-      };
-      setLeaderboardData(mockData);
-      setLoading(false);
-    }
+    // 设置一个超时，如果没有收到数据就停止loading状态
+    const timeout = setTimeout(() => {
+      if (!leaderboardData) {
+        console.log('Leaderboard: No data received after timeout, showing empty state');
+        setLoading(false);
+      }
+    }, 3000); // 3秒超时
+
+    return () => clearTimeout(timeout);
   }, [leaderboardData]);
 
   if (loading) {

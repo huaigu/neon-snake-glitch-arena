@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useGameContext } from '../contexts/GameContext';
 import { useRoomContext } from '../contexts/RoomContext';
@@ -57,6 +56,7 @@ export const useSnakeGame = () => {
   
   const [snakes, setSnakes] = useState<Snake[]>([]);
   const [foods, setFoods] = useState<Food[]>([]);
+  const [finalScores, setFinalScores] = useState<Snake[]>([]); // 保存游戏结束时的最终分数
 
   const [gameRunning, setGameRunning] = useState(false);
   const [gameOver, setGameOver] = useState(false);
@@ -249,6 +249,11 @@ export const useSnakeGame = () => {
           setGameOver(false);
         } else if (gameSession.status === 'finished') {
           console.log('useSnakeGame: Game finished - showing game over screen');
+          
+          // 保存最终分数，避免被后续的reset操作影响
+          console.log('useSnakeGame: Saving final scores before reset:', gameSnakes.map(s => ({ name: s.name, score: s.score })));
+          setFinalScores([...gameSnakes]); // 深拷贝当前分数状态
+          
           setGameRunning(false);
           setGameOver(true);
           setGameEndTime(Date.now()); // 记录游戏结束时间
@@ -269,6 +274,7 @@ export const useSnakeGame = () => {
             setGameRunning(false);
             setGameOver(false);
             setGameEndTime(null); // 清除游戏结束时间
+            setFinalScores([]); // 清除保存的最终分数
             setIsSpectator(false);
             setSpeedMultiplier(1.0);
             setSpeedBoostCountdown(20);
@@ -283,6 +289,7 @@ export const useSnakeGame = () => {
         setGameSessionId(null);
         setSnakes([]);
         setFoods([]);
+        setFinalScores([]); // 清除保存的最终分数
         setGameRunning(false);
         setShowCountdown(false);
         setGameOver(false);
@@ -393,7 +400,7 @@ export const useSnakeGame = () => {
   }, [gameRunning, showCountdown, changeDirection, effectiveIsSpectator]);
 
   return {
-    snakes,
+    snakes: gameOver && finalScores.length > 0 ? finalScores : snakes, // 游戏结束时使用保存的最终分数
     foods,
     gameRunning,
     gameOver,

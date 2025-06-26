@@ -64,7 +64,12 @@ export const useRoomContext = () => {
   return context;
 };
 
-// 全局callback设置函数，供GameView构造函数调用
+// 存储最新的 leaderboard 数据，供组件获取
+let latestLeaderboardData: any = null;
+
+// 导出函数让组件获取最新的 leaderboard 数据
+export const getLatestLeaderboardData = () => latestLeaderboardData;
+
 export const setupGameViewCallbacks = (gameViewInstance: GameView) => {
   console.log('🔧 Global: Setting up GameView callbacks from global function');
   
@@ -224,12 +229,28 @@ export const setupGameViewCallbacks = (gameViewInstance: GameView) => {
     }
   };
   
+  // 设置leaderboard回调
+  const leaderboardCallback = (leaderboardData: any) => {
+    console.log('🏆 Global: Leaderboard update received via global callback:', leaderboardData);
+    
+    // 存储最新数据
+    latestLeaderboardData = leaderboardData;
+    
+    // 触发自定义事件，通知Leaderboard组件更新状态
+    console.log('🚀 Global: Dispatching global-leaderboard-update event');
+    window.dispatchEvent(new CustomEvent('global-leaderboard-update', {
+      detail: leaderboardData
+    }));
+    console.log('✅ Global: global-leaderboard-update event dispatched successfully');
+  };
+
   // 设置所有回调
   gameViewInstance.setLobbyCallback(lobbyCallback);
   gameViewInstance.setRoomJoinedCallback(roomJoinedCallback);
   gameViewInstance.setRoomCreatedCallback(roomCreatedCallback);
   gameViewInstance.setRoomJoinFailedCallback(roomJoinFailedCallback);
   gameViewInstance.setRoomCreationFailedCallback(roomCreationFailedCallback);
+  gameViewInstance.setLeaderboardCallback(leaderboardCallback);
   
   // 设置游戏回调 - 通过全局事件分发给useSnakeGame
   const gameCallback = (gameSession: {
@@ -271,12 +292,74 @@ export const setupGameViewCallbacks = (gameViewInstance: GameView) => {
   
   // 延迟触发一次lobby状态更新，确保React组件的事件监听器已经设置好
   setTimeout(() => {
+    console.log('⏰ Global: Delayed trigger started - checking for available data');
+    
     if (gameViewInstance.model?.lobby) {
       console.log('🔄 Global: Triggering delayed lobby state update for React sync');
       const currentState = gameViewInstance.model.lobby.getLobbyState();
       lobbyCallback(currentState);
     }
-  }, 100); // 100ms延迟应该足够让React useEffect执行
+    
+    // 延迟触发一次leaderboard状态更新，直接读取model属性
+    if (gameViewInstance.model?.leaderboardSession) {
+      console.log('🏆 Global: Triggering delayed leaderboard state update for React sync');
+      
+      // 直接读取model属性而不是调用方法
+      const playerScores = gameViewInstance.model.leaderboardSession.playerScores;
+      console.log('📊 Global: PlayerScores data:', {
+        hasPlayerScores: !!playerScores,
+        size: playerScores?.size || 0,
+        entries: playerScores ? Array.from(playerScores.entries()).slice(0, 2) : 'none'
+      });
+      
+      if (playerScores && playerScores.size > 0) {
+        console.log('📈 Global: Processing leaderboard data from model...');
+        // 在View层处理数据，复制getLeaderboardData的逻辑
+        const players = Array.from(playerScores.values());
+        
+        // 排序逻辑 (和model中的getTopPlayers相同)
+        const topPlayers = players.sort((a, b) => {
+          // Primary sort: high score
+          if (a.highScore !== b.highScore) {
+            return b.highScore - a.highScore;
+          }
+          
+          // Secondary sort: games won
+          if (a.gamesWon !== b.gamesWon) {
+            return b.gamesWon - a.gamesWon;
+          }
+          
+          // Tertiary sort: win rate
+          const aWinRate = a.gamesPlayed > 0 ? a.gamesWon / a.gamesPlayed : 0;
+          const bWinRate = b.gamesPlayed > 0 ? b.gamesWon / b.gamesPlayed : 0;
+          
+          return bWinRate - aWinRate;
+        }).slice(0, 10);
+        
+        const leaderboardData = {
+          topPlayers,
+          totalPlayers: playerScores.size,
+          lastUpdated: new Date().toISOString()
+        };
+        
+        console.log('🏆 Global: Built leaderboard data from direct model access:', leaderboardData);
+        console.log('🚀 Global: About to call leaderboardCallback with data');
+        leaderboardCallback(leaderboardData);
+      } else {
+        console.log('🏆 Global: No player scores available yet');
+        // 发送空数据
+        leaderboardCallback({
+          topPlayers: [],
+          totalPlayers: 0,
+          lastUpdated: new Date().toISOString()
+        });
+      }
+    } else {
+      console.log('❌ Global: No leaderboardSession found in model');
+    }
+    
+    console.log('⏰ Global: Delayed trigger completed');
+  }, 500); // 增加延迟到500ms，确保React组件的事件监听器已经设置好
 };
 
 interface RoomProviderProps {
