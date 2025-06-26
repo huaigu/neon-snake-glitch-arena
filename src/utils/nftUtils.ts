@@ -1,4 +1,5 @@
-import { readContract } from '@wagmi/core';
+import { readContract, writeContract, waitForTransactionReceipt } from '@wagmi/core';
+import { parseEther } from 'viem';
 import { config } from '../lib/rainbowkit-config';
 
 // NFT Contract Configuration
@@ -106,5 +107,89 @@ export async function getRemainingSupply(): Promise<number> {
   } catch (error) {
     console.error('NFT Utils: Error getting remaining supply:', error);
     return 0;
+  }
+}
+
+/**
+ * Mint NFT
+ * @param quantity 要mint的数量
+ * @param pricePerNFT 每个NFT的价格（MON）
+ * @returns Promise<{ success: boolean; hash?: string; error?: string }>
+ */
+export async function mintNFT(quantity: number, pricePerNFT: number = 0.1): Promise<{
+  success: boolean;
+  hash?: string;
+  error?: string;
+}> {
+  try {
+    console.log('NFT Utils: Starting mint process:', {
+      quantity,
+      pricePerNFT,
+      totalCost: quantity * pricePerNFT
+    });
+
+    // 计算总价格
+    const totalPrice = parseEther((quantity * pricePerNFT).toString());
+    
+    // 调用合约的mint方法
+    const hash = await writeContract(config, {
+      address: NFT_CONTRACT_ADDRESS as `0x${string}`,
+      abi: NFT_CONTRACT_ABI,
+      functionName: 'mint',
+      args: [BigInt(quantity)],
+      value: totalPrice,
+    });
+
+    console.log('NFT Utils: Transaction sent, hash:', hash);
+
+    // 等待交易确认
+    const receipt = await waitForTransactionReceipt(config, {
+      hash,
+    });
+
+    console.log('NFT Utils: Transaction confirmed:', {
+      hash,
+      status: receipt.status,
+      blockNumber: receipt.blockNumber
+    });
+
+    if (receipt.status === 'success') {
+      return {
+        success: true,
+        hash
+      };
+    } else {
+      return {
+        success: false,
+        error: 'Transaction failed'
+      };
+    }
+
+  } catch (error: unknown) {
+    console.error('NFT Utils: Error minting NFT:', error);
+    
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    // 处理用户拒绝交易
+    if (errorMessage.includes('User rejected')) {
+      return {
+        success: false,
+        error: 'User rejected the transaction'
+      };
+    }
+    
+    // 处理余额不足
+    if (errorMessage.includes('insufficient funds')) {
+      return {
+        success: false,
+        error: 'Insufficient funds for transaction'
+      };
+    }
+    
+    // 处理其他错误
+    return {
+      success: false,
+      error: errorMessage || 'Unknown error occurred during minting'
+    };
   }
 } 

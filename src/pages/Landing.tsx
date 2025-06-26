@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi';
+import { ConnectButton, useConnectModal } from '@rainbow-me/rainbowkit';
 import { parseEther } from 'viem';
+import { mintNFT, getRemainingSupply } from '../utils/nftUtils';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { 
@@ -46,6 +48,7 @@ const NFT_CONTRACT_ABI = [
 const Landing = () => {
   const navigate = useNavigate();
   const { address, isConnected } = useAccount();
+  const { openConnectModal } = useConnectModal();
   const [isMinting, setIsMinting] = useState(false);
   
   const { writeContract, data: hash, error, isPending } = useWriteContract();
@@ -80,19 +83,46 @@ const Landing = () => {
 
 
 
-  const handleMintNFT = () => {
-    if (!isConnected) {
-      navigate('/auth');
+  const handleMintNFT = async () => {
+    // 检查钱包连接状态
+    if (!isConnected || !address) {
+      // 直接打开 RainbowKit 连接模态框
+      if (openConnectModal) {
+        openConnectModal();
+      }
       return;
     }
-    
-    // TODO: Implement actual mint functionality with proper Web3 integration
-    // Price: 0.1 MON per NFT
-    alert(`Mint NFT Snake for 0.1 MON\nContract: 0xDF49DBA5A46966A02314c7f3cf95D8D6e3719bD5\nRemaining: ${remaining}/${totalSupply}`);
+
+    try {
+      setIsMinting(true);
+      console.log('Landing: Starting NFT mint process for address:', address);
+      
+      const result = await mintNFT(1, 0.1);
+      
+      if (result.success) {
+        console.log('Landing: NFT minted successfully!', result.hash);
+        alert(`NFT minted successfully!\nTransaction Hash: ${result.hash}\nView on Explorer: https://testnet.monadexplorer.com/tx/${result.hash}`);
+        // Refresh the remaining supply
+        refetchSupply();
+      } else {
+        console.error('Landing: NFT mint failed:', result.error);
+        alert(`Mint failed: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Landing: Unexpected error during mint:', error);
+      alert('An unexpected error occurred during minting');
+    } finally {
+      setIsMinting(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-cyber-darker">
+      {/* Wallet Connection */}
+      <div className="absolute top-4 right-4 z-50">
+        <ConnectButton />
+      </div>
+
       {/* Hero Section */}
       <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
         {/* Background Grid Effect */}
@@ -342,8 +372,13 @@ const Landing = () => {
                   disabled={isMinting}
                 >
                   <Coins className="w-5 h-5 mr-2" />
-                  {isMinting ? 'Minting...' : 'Mint NFT Snake'}
+                  {isMinting ? 'Minting...' : isConnected ? 'Mint NFT Snake' : 'Connect Wallet to Mint'}
                 </Button>
+                {!isConnected && (
+                  <p className="text-cyber-cyan/60 text-xs mt-2 text-center">
+                    Connect your wallet first to mint NFT
+                  </p>
+                )}
               </div>
             </div>
           </div>
