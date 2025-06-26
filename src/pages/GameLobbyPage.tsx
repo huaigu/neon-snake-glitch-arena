@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWeb3Auth } from '../contexts/Web3AuthContext';
@@ -133,7 +132,7 @@ const GameLobbyPage = () => {
           </TabsContent>
           
           <TabsContent value="leaderboard" className="mt-4">
-            <Leaderboard snakes={[]} />
+            <Leaderboard />
           </TabsContent>
         </Tabs>
       </div>
