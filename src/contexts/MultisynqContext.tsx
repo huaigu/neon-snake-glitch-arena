@@ -55,14 +55,34 @@ export const MultisynqProvider: React.FC<MultisynqProviderProps> = ({ children }
         setIsConnecting(true);
         setError(null);
         
-        const newSession = await Multisynq.Session.join({
+        // 尝试从存储中恢复之前的会话数据
+        const savedSessionData = localStorage.getItem('multisynq-session-data');
+        const sessionOptions = {
           apiKey: '2xcA0rsGvIAtP7cMpnboj1GiOVwN8YXr2trmiwtsrU',
-          appId: 'io.multisynq.cyber-snake-arena.snakegame',
+          appId: 'io.multisynq.cyber-snake-arena.game',
           model: GameModel,
           view: GameView,
           name: 'game-session',
-          password: 'game-password'
-        });
+          password: 'game-password',
+          fromSaveData: undefined as unknown
+        };
+
+        // 如果有保存的会话数据，使用fromSaveData恢复
+        if (savedSessionData) {
+          try {
+            const parsedData = JSON.parse(savedSessionData);
+            (sessionOptions as any).fromSaveData = parsedData;
+            console.log('MultisynqContext: Restoring session from saved data', {
+              dataSize: savedSessionData.length,
+              timestamp: new Date().toISOString()
+            });
+          } catch (error) {
+            console.warn('MultisynqContext: Failed to parse saved session data, starting fresh:', error);
+            localStorage.removeItem('multisynq-session-data');
+          }
+        }
+
+        const newSession = await Multisynq.Session.join(sessionOptions);
 
         // 创建 GameView 实例
         const newGameView = newSession.view as GameView;
@@ -96,6 +116,29 @@ export const MultisynqProvider: React.FC<MultisynqProviderProps> = ({ children }
           }));
         }, 100);
         
+        // 设置页面卸载时自动保存会话数据
+        const handleBeforeUnload = () => {
+          if (newSession && (newSession as any).saveSession && typeof (newSession as any).saveSession === 'function') {
+            try {
+              const sessionData = (newSession as any).saveSession();
+              localStorage.setItem('multisynq-session-data', JSON.stringify(sessionData));
+              console.log('MultisynqContext: Session data auto-saved on page unload');
+            } catch (error) {
+              console.error('MultisynqContext: Failed to auto-save session data:', error);
+            }
+          }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        
+        // 注册清理函数到组件卸载时执行
+        const cleanup = () => {
+          window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+        
+        // 将清理函数存储到session对象以便后续调用
+        (newSession as any)._cleanup = cleanup;
+        
       } catch (error) {
         console.error('Failed to join Multisynq session:', error);
         setIsConnected(false);
@@ -112,6 +155,21 @@ export const MultisynqProvider: React.FC<MultisynqProviderProps> = ({ children }
   const leaveSession = useCallback(() => {
     if (session) {
       try {
+        // 在离开会话前保存数据以实现持久化
+        if ((session as any).saveSession && typeof (session as any).saveSession === 'function') {
+          const sessionData = (session as any).saveSession();
+          localStorage.setItem('multisynq-session-data', JSON.stringify(sessionData));
+          console.log('MultisynqContext: Session data saved for persistence', {
+            dataSize: JSON.stringify(sessionData).length,
+            timestamp: new Date().toISOString()
+          });
+        }
+        
+        // 清理beforeunload事件监听器
+        if ((session as any)._cleanup && typeof (session as any)._cleanup === 'function') {
+          (session as any)._cleanup();
+        }
+        
         session.leave();
         console.log('Left Multisynq session');
       } catch (error) {

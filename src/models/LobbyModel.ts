@@ -1,12 +1,10 @@
 import * as Multisynq from '@multisynq/client';
 import { GameRoomModel } from './GameRoomModel';
 import { PlayerModel } from './PlayerModel';
-import { LeaderboardModel } from './LeaderboardModel';
 
 export class LobbyModel extends Multisynq.Model {
   gameRooms!: Map<string, GameRoomModel>;
   players!: Map<string, PlayerModel>;
-  leaderboard!: LeaderboardModel;
 
   init() {
     console.log('LobbyModel: Initializing lobby model');
@@ -15,8 +13,7 @@ export class LobbyModel extends Multisynq.Model {
     this.gameRooms = new Map();
     this.players = new Map();
     
-    // Create leaderboard model
-    this.leaderboard = LeaderboardModel.create();
+    // LeaderboardModel 已移除，现在使用 LeaderboardSessionModel 在根模型中处理持久化
 
     // Subscribe to system events
     this.subscribe(this.sessionId, "view-join", this.handlePlayerJoin);

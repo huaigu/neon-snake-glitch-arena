@@ -1,18 +1,24 @@
 
 import * as Multisynq from '@multisynq/client';
 import { LobbyModel } from './LobbyModel';
+import { LeaderboardSessionModel } from './LeaderboardSessionModel';
 
 export default class GameModel extends Multisynq.Model {
   lobby!: LobbyModel;
+  leaderboardSession!: LeaderboardSessionModel;
 
   init() {
-    console.log('GameModel: Initializing root game model');
+    console.log('GameModel: Initializing root game model with persistence support');
     
     // Create and initialize the lobby
     this.lobby = LobbyModel.create({});
     this.lobby.beWellKnownAs("lobby");
     
-    console.log('GameModel: Root model initialized with lobby');
+    // Create leaderboard session model for persistence
+    this.leaderboardSession = LeaderboardSessionModel.create();
+    this.leaderboardSession.beWellKnownAs("leaderboard-session");
+    
+    console.log('GameModel: Root model initialized with lobby, leaderboard session and persistence');
   }
 
   static types() {

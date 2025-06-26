@@ -90,7 +90,30 @@ export class GameView extends Multisynq.View {
   // Leaderboard methods
   requestLeaderboard() {
     console.log('GameView: Requesting leaderboard data');
-    this.publish("leaderboard", "get-rankings", {});
+    this.publish("leaderboard-session", "get-data", {});
+  }
+
+  // 保存排行榜数据（游戏结束时调用）
+  saveLeaderboard() {
+    console.log('GameView: Saving leaderboard data');
+    if (this.model?.leaderboardSession) {
+      this.model.leaderboardSession.save();
+      console.log('GameView: Leaderboard session save initiated');
+    } else {
+      console.warn('GameView: Cannot save leaderboard - leaderboard session not available');
+    }
+  }
+
+  // 获取排行榜数据（从持久化会话中）
+  getLeaderboardData() {
+    console.log('GameView: Getting leaderboard data from session');
+    if (this.model?.leaderboardSession) {
+      this.publish("leaderboard-session", "get-data", {});
+      return this.model.leaderboardSession.getLeaderboardData();
+    } else {
+      console.warn('GameView: Cannot get leaderboard data - leaderboard session not available');
+      return null;
+    }
   }
 
   // Room management methods

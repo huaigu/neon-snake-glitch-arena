@@ -501,8 +501,8 @@ export class GameRoomModel extends Multisynq.Model {
           isWinner: isWinner
         });
         
-        // Publish score update to leaderboard
-        this.publish("leaderboard", "update-score", {
+        // Publish score update to leaderboard session (持久化模型)
+        this.publish("leaderboard-session", "update-score", {
           playerAddress: player.address,
           playerName: player.name,
           score: snake.score,
@@ -510,6 +510,14 @@ export class GameRoomModel extends Multisynq.Model {
         });
       }
     }
+    
+    // 游戏结束后保存排行榜数据
+    console.log('GameRoomModel: Game ended, triggering leaderboard save');
+    this.publish("leaderboard-session", "save-data", {
+      reason: 'game-ended',
+      roomId: this.roomId,
+      winner: winnerId
+    });
     
     // Reset player ready states immediately when game ends
     for (const player of this.players.values()) {
